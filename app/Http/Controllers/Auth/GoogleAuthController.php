@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserCredential;
+use App\Services\Settings\PlatformSettingsService;
 use App\Services\Settings\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -30,9 +31,7 @@ class GoogleAuthController extends Controller
             $user->update(['avatar_url' => $googleUser->getAvatar()]);
             Auth::login($user);
 
-            return $user->onboarding_completed
-                ? redirect('/dashboard')
-                : redirect('/onboarding');
+            return redirect('/dashboard');
         }
 
         // Link by email if existing account
@@ -45,22 +44,20 @@ class GoogleAuthController extends Controller
             ]);
             Auth::login($user);
 
-            return $user->onboarding_completed
-                ? redirect('/dashboard')
-                : redirect('/onboarding');
+            return redirect('/dashboard');
         }
 
         // Create new user
+        $trialDays = app(PlatformSettingsService::class)->getInt('DEFAULT_TRIAL_DAYS', 7);
+
         $user = User::create([
             'name' => $googleUser->getName(),
             'email' => $googleUser->getEmail(),
             'google_id' => $googleUser->getId(),
             'avatar_url' => $googleUser->getAvatar(),
             'email_verified_at' => now(),
-            'is_active' => true,
             'subscription_plan' => 'free_trial',
-            'trial_ends_at' => now()->addDays(7),
-            'onboarding_completed' => false,
+            'trial_ends_at' => now()->addDays($trialDays),
         ]);
 
         UserCredential::create(['user_id' => $user->id]);
@@ -69,6 +66,6 @@ class GoogleAuthController extends Controller
 
         Auth::login($user);
 
-        return redirect('/onboarding');
+        return redirect('/dashboard');
     }
 }

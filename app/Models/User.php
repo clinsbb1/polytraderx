@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -19,6 +20,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'account_id',
         'timezone',
         'is_active',
         'is_superadmin',
@@ -28,6 +30,8 @@ class User extends Authenticatable
         'onboarding_completed',
         'last_bot_heartbeat',
         'avatar_url',
+        'telegram_chat_id',
+        'telegram_linked_at',
         'google_id',
         'referred_by',
     ];
@@ -48,7 +52,19 @@ class User extends Authenticatable
             'trial_ends_at' => 'datetime',
             'onboarding_completed' => 'boolean',
             'last_bot_heartbeat' => 'datetime',
+            'telegram_linked_at' => 'datetime',
         ];
+    }
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (User $user): void {
+            if (empty($user->account_id)) {
+                $user->account_id = 'PTX-' . strtoupper(Str::random(12));
+            }
+        });
     }
 
     // --- Relationships ---
@@ -138,6 +154,16 @@ class User extends Authenticatable
     public function currentPlan(): ?SubscriptionPlan
     {
         return SubscriptionPlan::where('slug', $this->subscription_plan)->first();
+    }
+
+    public function hasTelegramLinked(): bool
+    {
+        return !empty($this->telegram_chat_id);
+    }
+
+    public function hasPolymarketConfigured(): bool
+    {
+        return $this->credential && $this->credential->hasPolymarketKeys();
     }
 
     // --- Scopes ---

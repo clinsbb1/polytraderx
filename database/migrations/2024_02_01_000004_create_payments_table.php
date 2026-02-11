@@ -23,6 +23,7 @@ return new class extends Migration
             $table->json('ipn_data')->nullable();
             $table->timestamp('paid_at')->nullable();
             $table->timestamp('expires_at')->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
 
             $table->index('user_id');

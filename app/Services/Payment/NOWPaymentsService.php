@@ -19,10 +19,10 @@ class NOWPaymentsService
 
     public function __construct(private PlatformSettingsService $platformSettings)
     {
-        $this->apiKey = config('services.nowpayments.api_key', '');
-        $this->ipnSecret = config('services.nowpayments.ipn_secret', '');
+        $this->apiKey = (string) $this->platformSettings->get('NOWPAYMENTS_API_KEY', '');
+        $this->ipnSecret = (string) $this->platformSettings->get('NOWPAYMENTS_IPN_SECRET', '');
 
-        $sandbox = config('services.nowpayments.sandbox', true);
+        $sandbox = $this->platformSettings->getBool('NOWPAYMENTS_SANDBOX_MODE', true);
         $this->baseUrl = $sandbox
             ? 'https://api-sandbox.nowpayments.io/v1'
             : 'https://api.nowpayments.io/v1';

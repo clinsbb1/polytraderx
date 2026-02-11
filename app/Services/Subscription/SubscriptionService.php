@@ -11,18 +11,20 @@ use Carbon\Carbon;
 
 class SubscriptionService
 {
-    public function getActivePlan(User $user): ?SubscriptionPlan
+    public function getActivePlan(int $userId): ?SubscriptionPlan
     {
-        if (!$user->subscription_plan) {
+        $user = User::find($userId);
+
+        if (!$user || !$user->subscription_plan) {
             return null;
         }
 
         return SubscriptionPlan::where('slug', $user->subscription_plan)->first();
     }
 
-    public function getPlanLimits(User $user): array
+    public function getPlanLimits(int $userId): array
     {
-        $plan = $this->getActivePlan($user);
+        $plan = $this->getActivePlan($userId);
 
         if (!$plan) {
             return [
@@ -41,9 +43,9 @@ class SubscriptionService
         ];
     }
 
-    public function isWithinLimits(User $user, string $limitKey, int $currentCount): bool
+    public function isWithinLimits(int $userId, string $limitKey, int $currentCount): bool
     {
-        $limits = $this->getPlanLimits($user);
+        $limits = $this->getPlanLimits($userId);
 
         if (!isset($limits[$limitKey])) {
             return false;
@@ -58,9 +60,11 @@ class SubscriptionService
         return $currentCount < $limit;
     }
 
-    public function isTrialExpired(User $user): bool
+    public function isTrialExpired(int $userId): bool
     {
-        if ($user->subscription_plan !== 'free_trial') {
+        $user = User::find($userId);
+
+        if (!$user || $user->subscription_plan !== 'free_trial') {
             return false;
         }
 
@@ -71,9 +75,15 @@ class SubscriptionService
         return Carbon::now()->greaterThan($user->trial_ends_at);
     }
 
-    public function activateSubscription(User $user, SubscriptionPlan $plan, ?Payment $payment = null): void
+    public function activateSubscription(int $userId, SubscriptionPlan $plan, ?Payment $payment = null): void
     {
-        $endsAt = Carbon::now()->addDays($plan->billing_period === 'monthly' ? 30 : 365);
+        $user = User::findOrFail($userId);
+
+        $endsAt = match ($plan->billing_period) {
+            'lifetime' => Carbon::now()->addYears(100),
+            'yearly' => Carbon::now()->addDays(365),
+            default => Carbon::now()->addDays(30),
+        };
 
         $user->update([
             'subscription_plan' => $plan->slug,
@@ -82,19 +92,26 @@ class SubscriptionService
         ]);
     }
 
-    public function cancelSubscription(User $user): void
+    public function cancelSubscription(int $userId): void
     {
+        $user = User::findOrFail($userId);
+
         $user->update([
             'subscription_plan' => 'free_trial',
             'subscription_ends_at' => null,
-            'is_active' => false,
         ]);
     }
 
-    public function isSubscriptionExpired(User $user): bool
+    public function isSubscriptionExpired(int $userId): bool
     {
+        $user = User::find($userId);
+
+        if (!$user) {
+            return true;
+        }
+
         if ($user->subscription_plan === 'free_trial') {
-            return $this->isTrialExpired($user);
+            return $this->isTrialExpired($userId);
         }
 
         if (!$user->subscription_ends_at) {
@@ -102,6 +119,30 @@ class SubscriptionService
         }
 
         return Carbon::now()->greaterThan($user->subscription_ends_at);
+    }
+
+    public function grantFreeSubscription(int $userId, string $planSlug, int $durationDays, int $grantedBy): Payment
+    {
+        $user = User::findOrFail($userId);
+        $plan = SubscriptionPlan::where('slug', $planSlug)->firstOrFail();
+
+        $endsAt = Carbon::now()->addDays($durationDays);
+
+        $user->update([
+            'subscription_plan' => $plan->slug,
+            'subscription_ends_at' => $endsAt,
+            'is_active' => true,
+        ]);
+
+        return Payment::create([
+            'user_id' => $userId,
+            'subscription_plan_id' => $plan->id,
+            'amount_usd' => '0.00',
+            'status' => 'finished',
+            'paid_at' => now(),
+            'expires_at' => $endsAt,
+            'notes' => "Free subscription granted by admin (user #{$grantedBy})",
+        ]);
     }
 
     public function getAvailablePlans(): \Illuminate\Database\Eloquent\Collection

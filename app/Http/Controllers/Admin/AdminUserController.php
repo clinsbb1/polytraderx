@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -73,5 +74,25 @@ class AdminUserController extends Controller
         ]);
 
         return back()->with('success', "User plan changed to {$request->subscription_plan}.");
+    }
+
+    public function grantFreeSubscription(Request $request, User $user): RedirectResponse
+    {
+        $request->validate([
+            'plan_slug' => ['required', 'string', 'in:free_trial,basic,pro'],
+            'duration_days' => ['required', 'integer', 'min:1', 'max:3650'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $subscriptionService = app(SubscriptionService::class);
+
+        $subscriptionService->grantFreeSubscription(
+            $user->id,
+            $request->plan_slug,
+            $request->integer('duration_days'),
+            auth()->id(),
+        );
+
+        return back()->with('success', "Free {$request->plan_slug} subscription granted to {$user->name} for {$request->duration_days} days.");
     }
 }

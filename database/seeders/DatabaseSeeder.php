@@ -7,13 +7,11 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\UserCredential;
 use App\Services\Settings\SettingsService;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
 
     public function run(): void
     {

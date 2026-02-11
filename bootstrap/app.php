@@ -12,7 +12,6 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'onboarded' => \App\Http\Middleware\EnsureOnboarded::class,
             'subscribed' => \App\Http\Middleware\EnsureActiveSubscription::class,
             'superadmin' => \App\Http\Middleware\EnsureSuperAdmin::class,
         ]);

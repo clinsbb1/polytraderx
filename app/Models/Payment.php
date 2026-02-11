@@ -22,6 +22,7 @@ class Payment extends Model
         'ipn_data',
         'paid_at',
         'expires_at',
+        'notes',
     ];
 
     protected function casts(): array

@@ -13,14 +13,15 @@ class UserBotRunner
     public function getActiveUsers(): Collection
     {
         return User::where('is_active', true)
-            ->where('onboarding_completed', true)
             ->where(function ($query) {
                 $query->where('subscription_plan', '!=', 'free_trial')
                     ->orWhere('trial_ends_at', '>', now());
             })
             ->whereHas('credential', function ($query) {
                 $query->whereNotNull('polymarket_api_key')
-                    ->whereNotNull('polymarket_api_secret');
+                    ->whereNotNull('polymarket_api_secret')
+                    ->whereNotNull('polymarket_api_passphrase')
+                    ->whereNotNull('polymarket_wallet_address');
             })
             ->get();
     }

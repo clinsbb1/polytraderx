@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserCredential;
+use App\Services\Settings\PlatformSettingsService;
 use App\Services\Settings\SettingsService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -33,15 +34,15 @@ class RegisteredUserController extends Controller
             'terms' => ['required', 'accepted'],
         ]);
 
+        $trialDays = app(PlatformSettingsService::class)->getInt('DEFAULT_TRIAL_DAYS', 7);
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'timezone' => $request->timezone,
-            'is_active' => true,
             'subscription_plan' => 'free_trial',
-            'trial_ends_at' => now()->addDays(7),
-            'onboarding_completed' => false,
+            'trial_ends_at' => now()->addDays($trialDays),
         ]);
 
         UserCredential::create(['user_id' => $user->id]);
@@ -52,6 +53,6 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect('/onboarding');
+        return redirect('/dashboard');
     }
 }

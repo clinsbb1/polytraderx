@@ -11,12 +11,13 @@
             <div class="card-body">
                 <table class="table table-sm">
                     <tr><td class="fw-semibold">ID</td><td>{{ $user->id }}</td></tr>
+                    <tr><td class="fw-semibold">Account ID</td><td><code>{{ $user->account_id }}</code></td></tr>
                     <tr><td class="fw-semibold">Name</td><td>{{ $user->name }}</td></tr>
                     <tr><td class="fw-semibold">Email</td><td>{{ $user->email }}</td></tr>
                     <tr><td class="fw-semibold">Timezone</td><td>{{ $user->timezone ?? 'Not set' }}</td></tr>
                     <tr><td class="fw-semibold">Google</td><td>{{ $user->google_id ? 'Linked' : 'No' }}</td></tr>
+                    <tr><td class="fw-semibold">Telegram</td><td>{{ $user->hasTelegramLinked() ? 'Linked' : 'Not linked' }}</td></tr>
                     <tr><td class="fw-semibold">Joined</td><td>{{ $user->created_at->format('M j, Y H:i') }}</td></tr>
-                    <tr><td class="fw-semibold">Onboarded</td><td>{{ $user->onboarding_completed ? 'Yes' : 'No' }}</td></tr>
                     <tr><td class="fw-semibold">Last Heartbeat</td><td>{{ $user->last_bot_heartbeat?->diffForHumans() ?? 'Never' }}</td></tr>
                 </table>
             </div>
@@ -68,16 +69,48 @@
         </div>
 
         <!-- Credentials -->
-        <div class="card">
-            <div class="card-header"><h6 class="mb-0">API Credentials</h6></div>
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="mb-0">Polymarket Credentials</h6></div>
             <div class="card-body">
                 @if($user->credential)
-                    <p><i class="bi {{ $user->credential->hasPolymarketKeys() ? 'bi-check-circle text-success' : 'bi-x-circle text-muted' }}"></i> Polymarket</p>
-                    <p><i class="bi {{ $user->credential->hasTelegramKeys() ? 'bi-check-circle text-success' : 'bi-x-circle text-muted' }}"></i> Telegram</p>
-                    <p><i class="bi {{ $user->credential->hasAnthropicKey() ? 'bi-check-circle text-success' : 'bi-x-circle text-muted' }}"></i> Anthropic</p>
+                    <p>
+                        <i class="bi {{ $user->credential->hasPolymarketKeys() ? 'bi-check-circle text-success' : 'bi-x-circle text-muted' }}"></i>
+                        Polymarket API Keys: {{ $user->credential->hasPolymarketKeys() ? 'Configured' : 'Not configured' }}
+                    </p>
+                    @if($user->credential->polymarket_wallet_address)
+                        <p class="small text-muted mb-0">Wallet: {{ $user->credential->polymarket_wallet_address }}</p>
+                    @endif
                 @else
                     <p class="text-muted">No credentials configured</p>
                 @endif
+            </div>
+        </div>
+
+        <!-- Grant Free Subscription -->
+        <div class="card">
+            <div class="card-header bg-success bg-opacity-10"><h6 class="mb-0 text-success">Grant Free Subscription</h6></div>
+            <div class="card-body">
+                <form method="POST" action="/admin/users/{{ $user->id }}/grant-free-subscription">
+                    @csrf
+                    <div class="mb-2">
+                        <label class="form-label small">Plan</label>
+                        <select name="plan_slug" class="form-select form-select-sm">
+                            <option value="basic">Basic</option>
+                            <option value="pro">Pro</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Duration (days)</label>
+                        <input type="number" name="duration_days" class="form-control form-control-sm" value="30" min="1" max="3650">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Notes (optional)</label>
+                        <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Beta tester reward">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Grant free subscription to {{ $user->name }}?')">
+                        Grant Free Subscription
+                    </button>
+                </form>
             </div>
         </div>
     </div>

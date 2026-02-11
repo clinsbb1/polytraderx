@@ -11,6 +11,23 @@
     </div>
 @endforeach
 
+{{-- Setup Banners --}}
+@if(!$credentialsConfigured)
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        <strong>Polymarket keys not configured.</strong>
+        <a href="/settings/credentials" class="alert-link">Set up your API keys</a> to start trading.
+    </div>
+@endif
+
+@if(!$telegramLinked)
+    <div class="alert alert-info">
+        <i class="bi bi-telegram me-1"></i>
+        <strong>Telegram not linked.</strong>
+        <a href="/settings/telegram" class="alert-link">Link your Telegram</a> to receive trade notifications.
+    </div>
+@endif
+
 {{-- Subscription Status --}}
 @if(auth()->user()->subscription_plan === 'free_trial')
     <div class="alert alert-info">
@@ -24,6 +41,14 @@
         @endif
     </div>
 @endif
+
+{{-- Account ID --}}
+<div class="row mb-4">
+    <div class="col-auto">
+        <span class="text-muted small">Account ID:</span>
+        <code class="ms-1">{{ $accountId }}</code>
+    </div>
+</div>
 
 {{-- Stats Cards --}}
 <div class="row g-4">

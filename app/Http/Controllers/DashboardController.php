@@ -12,7 +12,8 @@ class DashboardController extends Controller
 {
     public function index(): View
     {
-        $userId = auth()->id();
+        $user = auth()->user();
+        $userId = $user->id;
 
         $stats = [
             'total_trades' => Trade::forUser($userId)->count(),
@@ -26,6 +27,17 @@ class DashboardController extends Controller
         $recentTrades = Trade::forUser($userId)->latest()->take(5)->get();
         $announcements = Announcement::forDashboard()->latest()->take(3)->get();
 
-        return view('dashboard', compact('stats', 'recentTrades', 'announcements'));
+        $telegramLinked = $user->hasTelegramLinked();
+        $credentialsConfigured = $user->hasPolymarketConfigured();
+        $accountId = $user->account_id;
+
+        return view('dashboard', compact(
+            'stats',
+            'recentTrades',
+            'announcements',
+            'telegramLinked',
+            'credentialsConfigured',
+            'accountId',
+        ));
     }
 }

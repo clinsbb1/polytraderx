@@ -88,7 +88,10 @@
                 <i class="bi bi-person-gear"></i> Profile
             </a>
             <a class="nav-link {{ request()->is('settings/credentials') ? 'active' : '' }}" href="/settings/credentials">
-                <i class="bi bi-key"></i> API Keys
+                <i class="bi bi-key"></i> Polymarket Keys
+            </a>
+            <a class="nav-link {{ request()->is('settings/telegram') ? 'active' : '' }}" href="/settings/telegram">
+                <i class="bi bi-telegram"></i> Telegram
             </a>
             <a class="nav-link {{ request()->is('settings/notifications') ? 'active' : '' }}" href="/settings/notifications">
                 <i class="bi bi-bell"></i> Notifications

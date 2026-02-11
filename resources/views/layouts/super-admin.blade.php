@@ -48,6 +48,9 @@
             <a class="nav-link {{ request()->is('admin/logs*') ? 'active' : '' }}" href="/admin/logs">
                 <i class="bi bi-journal-text me-2"></i>Trade Logs
             </a>
+            <a class="nav-link {{ request()->is('admin/ai-costs*') ? 'active' : '' }}" href="/admin/ai-costs">
+                <i class="bi bi-cpu me-2"></i>AI Costs
+            </a>
             <a class="nav-link {{ request()->is('admin/announcements*') ? 'active' : '' }}" href="/admin/announcements">
                 <i class="bi bi-megaphone me-2"></i>Announcements
             </a>

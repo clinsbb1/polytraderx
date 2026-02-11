@@ -23,16 +23,14 @@ class CredentialController extends Controller
         $request->validate([
             'polymarket_api_key' => ['nullable', 'string', 'max:500'],
             'polymarket_api_secret' => ['nullable', 'string', 'max:500'],
-            'polymarket_passphrase' => ['nullable', 'string', 'max:500'],
-            'telegram_bot_token' => ['nullable', 'string', 'max:500'],
-            'telegram_chat_id' => ['nullable', 'string', 'max:100'],
-            'anthropic_api_key' => ['nullable', 'string', 'max:500'],
+            'polymarket_api_passphrase' => ['nullable', 'string', 'max:500'],
+            'polymarket_wallet_address' => ['nullable', 'string', 'max:100', 'regex:/^0x[a-fA-F0-9]{40}$/'],
         ]);
 
         $credential = UserCredential::firstOrCreate(['user_id' => auth()->id()]);
 
         $data = [];
-        $fields = ['polymarket_api_key', 'polymarket_api_secret', 'polymarket_passphrase', 'telegram_bot_token', 'telegram_chat_id', 'anthropic_api_key'];
+        $fields = ['polymarket_api_key', 'polymarket_api_secret', 'polymarket_api_passphrase', 'polymarket_wallet_address'];
 
         foreach ($fields as $field) {
             if ($request->filled($field)) {
@@ -44,6 +42,6 @@ class CredentialController extends Controller
             $credential->update($data);
         }
 
-        return back()->with('success', 'API credentials updated.');
+        return back()->with('success', 'Polymarket credentials updated.');
     }
 }

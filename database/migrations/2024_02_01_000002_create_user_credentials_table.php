@@ -17,11 +17,6 @@ return new class extends Migration
             $table->text('polymarket_api_secret')->nullable();
             $table->text('polymarket_api_passphrase')->nullable();
             $table->string('polymarket_wallet_address')->nullable();
-            $table->text('polymarket_private_key')->nullable();
-            $table->text('telegram_bot_token')->nullable();
-            $table->string('telegram_chat_id')->nullable();
-            $table->text('anthropic_api_key')->nullable();
-            $table->text('binance_api_key')->nullable();
             $table->timestamps();
         });
     }

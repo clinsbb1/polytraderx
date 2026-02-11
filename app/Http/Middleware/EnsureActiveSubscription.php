@@ -22,6 +22,12 @@ class EnsureActiveSubscription
             return $next($request);
         }
 
+        // Allow access to settings, subscription, and profile routes even with expired subscription
+        $path = $request->path();
+        if (str_starts_with($path, 'settings/') || str_starts_with($path, 'subscription') || str_starts_with($path, 'profile')) {
+            return $next($request);
+        }
+
         return redirect('/subscription');
     }
 }
