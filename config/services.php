@@ -58,4 +58,17 @@ return [
         'base_url' => env('BINANCE_BASE_URL', 'https://api.binance.com/api/v3'),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URL', '/auth/google/callback'),
+    ],
+
+    'nowpayments' => [
+        'api_key' => env('NOWPAYMENTS_API_KEY'),
+        'ipn_secret' => env('NOWPAYMENTS_IPN_SECRET'),
+        'sandbox' => env('NOWPAYMENTS_SANDBOX', true),
+        'base_url' => env('NOWPAYMENTS_BASE_URL', 'https://api-sandbox.nowpayments.io/v1'),
+    ],
+
 ];

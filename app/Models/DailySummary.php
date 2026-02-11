@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DailySummary extends Model
 {
+    use BelongsToUser;
+
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'date',
         'total_trades',
         'wins',

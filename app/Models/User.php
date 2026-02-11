@@ -1,48 +1,159 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
+        'timezone',
+        'is_active',
+        'is_superadmin',
+        'subscription_plan',
+        'subscription_ends_at',
+        'trial_ends_at',
+        'onboarding_completed',
+        'last_bot_heartbeat',
+        'avatar_url',
+        'google_id',
+        'referred_by',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
+            'is_superadmin' => 'boolean',
+            'subscription_ends_at' => 'datetime',
+            'trial_ends_at' => 'datetime',
+            'onboarding_completed' => 'boolean',
+            'last_bot_heartbeat' => 'datetime',
         ];
+    }
+
+    // --- Relationships ---
+
+    public function credential(): HasOne
+    {
+        return $this->hasOne(UserCredential::class);
+    }
+
+    public function trades(): HasMany
+    {
+        return $this->hasMany(Trade::class);
+    }
+
+    public function aiDecisions(): HasMany
+    {
+        return $this->hasMany(AiDecision::class);
+    }
+
+    public function aiAudits(): HasMany
+    {
+        return $this->hasMany(AiAudit::class);
+    }
+
+    public function balanceSnapshots(): HasMany
+    {
+        return $this->hasMany(BalanceSnapshot::class);
+    }
+
+    public function dailySummaries(): HasMany
+    {
+        return $this->hasMany(DailySummary::class);
+    }
+
+    public function strategyParams(): HasMany
+    {
+        return $this->hasMany(StrategyParam::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    // --- Helper Methods ---
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->is_superadmin;
+    }
+
+    public function isSubscriptionActive(): bool
+    {
+        if ($this->is_superadmin) {
+            return true;
+        }
+
+        if ($this->subscription_plan === 'free_trial' && !$this->isTrialExpired()) {
+            return true;
+        }
+
+        if ($this->subscription_ends_at && $this->subscription_ends_at->isFuture()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isTrialExpired(): bool
+    {
+        if (!$this->trial_ends_at) {
+            return true;
+        }
+
+        return $this->trial_ends_at->isPast();
+    }
+
+    public function daysLeftInTrial(): int
+    {
+        if (!$this->trial_ends_at || $this->trial_ends_at->isPast()) {
+            return 0;
+        }
+
+        return (int) now()->diffInDays($this->trial_ends_at, false);
+    }
+
+    public function currentPlan(): ?SubscriptionPlan
+    {
+        return SubscriptionPlan::where('slug', $this->subscription_plan)->first();
+    }
+
+    // --- Scopes ---
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeWithActiveSubscription(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->where(function (Builder $q2) {
+                $q2->where('subscription_plan', 'free_trial')
+                   ->where('trial_ends_at', '>', now());
+            })->orWhere('subscription_ends_at', '>', now());
+        });
     }
 }

@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 
 class BalanceSnapshot extends Model
 {
+    use BelongsToUser;
+
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'balance_usdc',
         'open_positions_value',
         'total_equity',

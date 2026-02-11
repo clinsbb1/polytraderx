@@ -10,16 +10,20 @@ use Illuminate\Support\Facades\Cache;
 
 class SettingsService
 {
-    private const CACHE_PREFIX = 'settings.';
-    private const CACHE_TTL = 3600; // 1 hour
+    private const CACHE_PREFIX = 'settings:';
+    private const CACHE_TTL = 3600;
 
-    public function get(string $key, mixed $default = null): mixed
+    public function get(string $key, mixed $default = null, ?int $userId = null): mixed
     {
+        $userId = $userId ?? auth()->id();
+
         return Cache::remember(
-            self::CACHE_PREFIX . $key,
+            self::CACHE_PREFIX . $userId . ':' . $key,
             self::CACHE_TTL,
-            function () use ($key, $default) {
-                $param = StrategyParam::where('key', $key)->first();
+            function () use ($key, $default, $userId) {
+                $param = StrategyParam::where('user_id', $userId)
+                    ->where('key', $key)
+                    ->first();
 
                 if (!$param) {
                     return $default;
@@ -30,9 +34,13 @@ class SettingsService
         );
     }
 
-    public function set(string $key, mixed $value, string $updatedBy = 'system'): void
+    public function set(string $key, mixed $value, string $updatedBy = 'system', ?int $userId = null): void
     {
-        $param = StrategyParam::where('key', $key)->first();
+        $userId = $userId ?? auth()->id();
+
+        $param = StrategyParam::where('user_id', $userId)
+            ->where('key', $key)
+            ->first();
 
         if (!$param) {
             return;
@@ -44,26 +52,29 @@ class SettingsService
             'updated_by' => $updatedBy,
         ]);
 
-        Cache::forget(self::CACHE_PREFIX . $key);
-        Cache::forget(self::CACHE_PREFIX . 'group.' . $param->group);
+        Cache::forget(self::CACHE_PREFIX . $userId . ':' . $key);
+        Cache::forget(self::CACHE_PREFIX . $userId . ':group.' . $param->group);
     }
 
-    public function getGroup(string $group): Collection
+    public function getGroup(string $group, ?int $userId = null): Collection
     {
+        $userId = $userId ?? auth()->id();
+
         return Cache::remember(
-            self::CACHE_PREFIX . 'group.' . $group,
+            self::CACHE_PREFIX . $userId . ':group.' . $group,
             self::CACHE_TTL,
-            function () use ($group) {
-                return StrategyParam::where('group', $group)
+            function () use ($group, $userId) {
+                return StrategyParam::where('user_id', $userId)
+                    ->where('group', $group)
                     ->orderBy('key')
                     ->get();
             }
         );
     }
 
-    public function getBool(string $key, bool $default = false): bool
+    public function getBool(string $key, bool $default = false, ?int $userId = null): bool
     {
-        $value = $this->get($key, $default);
+        $value = $this->get($key, $default, $userId);
 
         if (is_bool($value)) {
             return $value;
@@ -72,25 +83,69 @@ class SettingsService
         return in_array(strtolower((string) $value), ['true', '1', 'yes'], true);
     }
 
-    public function getFloat(string $key, float $default = 0.0): float
+    public function getFloat(string $key, float $default = 0.0, ?int $userId = null): float
     {
-        $value = $this->get($key, $default);
-
-        return (float) $value;
+        return (float) $this->get($key, $default, $userId);
     }
 
-    public function getInt(string $key, int $default = 0): int
+    public function getInt(string $key, int $default = 0, ?int $userId = null): int
     {
-        $value = $this->get($key, $default);
+        return (int) $this->get($key, $default, $userId);
+    }
 
-        return (int) $value;
+    public function seedUserParams(int $userId): void
+    {
+        $defaults = $this->getDefaultParams();
+
+        foreach ($defaults as $param) {
+            StrategyParam::updateOrCreate(
+                ['user_id' => $userId, 'key' => $param['key']],
+                array_merge($param, [
+                    'user_id' => $userId,
+                    'value' => (string) $param['value'],
+                    'updated_by' => 'system',
+                ])
+            );
+        }
+    }
+
+    private function getDefaultParams(): array
+    {
+        return [
+            ['key' => 'MAX_BET_AMOUNT', 'value' => '10', 'type' => 'decimal', 'description' => 'Maximum single bet in USDC', 'group' => 'risk'],
+            ['key' => 'MAX_BET_PERCENTAGE', 'value' => '10.0', 'type' => 'decimal', 'description' => 'Max bet as % of current bankroll', 'group' => 'risk'],
+            ['key' => 'MAX_DAILY_LOSS', 'value' => '50', 'type' => 'decimal', 'description' => 'Stop all trading after this daily loss in USDC', 'group' => 'risk'],
+            ['key' => 'MAX_DAILY_TRADES', 'value' => '48', 'type' => 'number', 'description' => 'Max trades per day', 'group' => 'risk'],
+            ['key' => 'MAX_CONCURRENT_POSITIONS', 'value' => '3', 'type' => 'number', 'description' => 'Max open bets at once', 'group' => 'risk'],
+            ['key' => 'MIN_CONFIDENCE_SCORE', 'value' => '0.92', 'type' => 'decimal', 'description' => 'Minimum AI confidence to trade', 'group' => 'trading'],
+            ['key' => 'MIN_ENTRY_PRICE_THRESHOLD', 'value' => '0.92', 'type' => 'decimal', 'description' => 'Only buy locked-in side at this price or above', 'group' => 'trading'],
+            ['key' => 'MAX_ENTRY_PRICE_THRESHOLD', 'value' => '0.08', 'type' => 'decimal', 'description' => 'Only buy cheap contrarian side at this price or below', 'group' => 'trading'],
+            ['key' => 'ENTRY_WINDOW_SECONDS', 'value' => '60', 'type' => 'number', 'description' => 'Only enter within this many seconds of market close', 'group' => 'trading'],
+            ['key' => 'DRY_RUN', 'value' => 'true', 'type' => 'boolean', 'description' => 'Paper trading mode', 'group' => 'trading'],
+            ['key' => 'BOT_ENABLED', 'value' => 'true', 'type' => 'boolean', 'description' => 'Master kill switch for the bot', 'group' => 'trading'],
+            ['key' => 'MONITORED_ASSETS', 'value' => 'BTC,ETH,SOL', 'type' => 'string', 'description' => 'Comma-separated list of monitored assets', 'group' => 'trading'],
+            ['key' => 'AI_BRAIN_MODEL', 'value' => 'claude-sonnet-4-5-20250929', 'type' => 'string', 'description' => 'Expensive AI model', 'group' => 'ai'],
+            ['key' => 'AI_MUSCLES_MODEL', 'value' => 'claude-haiku-4-5-20251001', 'type' => 'string', 'description' => 'Cheap AI model', 'group' => 'ai'],
+            ['key' => 'AI_MONTHLY_BUDGET', 'value' => '30.00', 'type' => 'decimal', 'description' => 'Stop AI calls if monthly spend exceeds this', 'group' => 'ai'],
+            ['key' => 'AI_AUTO_APPLY_FIXES', 'value' => 'false', 'type' => 'boolean', 'description' => 'Auto-apply low-risk AI suggestions', 'group' => 'ai'],
+            ['key' => 'MUSCLES_POLL_INTERVAL_MINUTES', 'value' => '5', 'type' => 'number', 'description' => 'How often muscles tier runs', 'group' => 'ai'],
+            ['key' => 'SPOT_POLL_INTERVAL_SECONDS', 'value' => '5', 'type' => 'number', 'description' => 'How often to check Binance', 'group' => 'ai'],
+            ['key' => 'NOTIFY_DAILY_PNL', 'value' => 'true', 'type' => 'boolean', 'description' => 'Daily P&L summary', 'group' => 'notifications'],
+            ['key' => 'NOTIFY_BALANCE_ALERTS', 'value' => 'true', 'type' => 'boolean', 'description' => 'Low balance alerts', 'group' => 'notifications'],
+            ['key' => 'NOTIFY_ERRORS', 'value' => 'true', 'type' => 'boolean', 'description' => 'Error alerts', 'group' => 'notifications'],
+            ['key' => 'NOTIFY_WEEKLY_REPORT', 'value' => 'true', 'type' => 'boolean', 'description' => 'Weekly report', 'group' => 'notifications'],
+            ['key' => 'NOTIFY_EACH_TRADE', 'value' => 'false', 'type' => 'boolean', 'description' => 'Per-trade notifications', 'group' => 'notifications'],
+            ['key' => 'NOTIFY_AI_AUDITS', 'value' => 'true', 'type' => 'boolean', 'description' => 'AI audit notifications', 'group' => 'notifications'],
+            ['key' => 'LOW_BALANCE_THRESHOLD', 'value' => '20', 'type' => 'decimal', 'description' => 'Low balance alert threshold', 'group' => 'notifications'],
+            ['key' => 'DRAWDOWN_ALERT_PERCENTAGE', 'value' => '25', 'type' => 'decimal', 'description' => 'Drawdown alert %', 'group' => 'notifications'],
+        ];
     }
 
     private function castValue(string $value, string $type): mixed
     {
         return match ($type) {
             'number' => (int) $value,
-            'decimal' => $value, // Keep as string for bcmath compatibility
+            'decimal' => $value,
             'boolean' => in_array(strtolower($value), ['true', '1', 'yes'], true),
             'json' => json_decode($value, true),
             default => $value,

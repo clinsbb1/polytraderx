@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 
 class AiAudit extends Model
 {
+    use BelongsToUser;
+
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'trigger',
         'losing_trade_ids',
         'analysis',

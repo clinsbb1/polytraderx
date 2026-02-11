@@ -81,6 +81,28 @@
             <a class="nav-link {{ request()->routeIs('ai-costs.*') ? 'active' : '' }}" href="{{ route('ai-costs.index') }}">
                 <i class="bi bi-cash-coin"></i> AI Costs
             </a>
+
+            <hr class="border-secondary mx-3 my-2">
+
+            <a class="nav-link {{ request()->is('settings/profile') ? 'active' : '' }}" href="/settings/profile">
+                <i class="bi bi-person-gear"></i> Profile
+            </a>
+            <a class="nav-link {{ request()->is('settings/credentials') ? 'active' : '' }}" href="/settings/credentials">
+                <i class="bi bi-key"></i> API Keys
+            </a>
+            <a class="nav-link {{ request()->is('settings/notifications') ? 'active' : '' }}" href="/settings/notifications">
+                <i class="bi bi-bell"></i> Notifications
+            </a>
+            <a class="nav-link {{ request()->is('subscription*') ? 'active' : '' }}" href="/subscription">
+                <i class="bi bi-credit-card"></i> Subscription
+            </a>
+
+            @if(auth()->user()->isSuperAdmin())
+            <hr class="border-secondary mx-3 my-2">
+            <a class="nav-link text-warning" href="/admin">
+                <i class="bi bi-shield-lock"></i> Admin Panel
+            </a>
+            @endif
         </nav>
 
         <div class="mt-auto p-3 border-top border-secondary">
@@ -109,6 +131,10 @@
                     <i class="bi bi-person-circle"></i> {{ Auth::user()->name }}
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/settings/profile"><i class="bi bi-person-gear"></i> Profile</a></li>
+                    <li><a class="dropdown-item" href="/settings/credentials"><i class="bi bi-key"></i> API Keys</a></li>
+                    <li><a class="dropdown-item" href="/subscription"><i class="bi bi-credit-card"></i> Subscription</a></li>
+                    <li><hr class="dropdown-divider"></li>
                     <li>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf

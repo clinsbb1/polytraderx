@@ -13,11 +13,12 @@ class StrategyController extends Controller
 {
     public function index(SettingsService $settings): View
     {
+        $userId = auth()->id();
         $groups = [
-            'risk' => $settings->getGroup('risk'),
-            'trading' => $settings->getGroup('trading'),
-            'ai' => $settings->getGroup('ai'),
-            'notifications' => $settings->getGroup('notifications'),
+            'risk' => $settings->getGroup('risk', $userId),
+            'trading' => $settings->getGroup('trading', $userId),
+            'ai' => $settings->getGroup('ai', $userId),
+            'notifications' => $settings->getGroup('notifications', $userId),
         ];
 
         return view('strategy.index', compact('groups'));
@@ -25,6 +26,12 @@ class StrategyController extends Controller
 
     public function update(Request $request, string $group, SettingsService $settings): RedirectResponse
     {
+        $params = $request->input('params', []);
+
+        foreach ($params as $key => $value) {
+            $settings->set($key, $value, 'admin', auth()->id());
+        }
+
         return redirect()->route('strategy.index')
             ->with('success', 'Strategy parameters updated.');
     }
