@@ -32,7 +32,7 @@ class GoogleAuthController extends Controller
             $user->update(['avatar_url' => $googleUser->getAvatar()]);
             Auth::login($user);
 
-            return redirect('/dashboard');
+            return redirect('/dashboard')->with('toast', 'Welcome back, ' . $user->name . '!');
         }
 
         // Link by email if existing account
@@ -45,7 +45,7 @@ class GoogleAuthController extends Controller
             ]);
             Auth::login($user);
 
-            return redirect('/dashboard');
+            return redirect('/dashboard')->with('toast', 'Welcome back, ' . $user->name . '!');
         }
 
         // Create new user
@@ -68,6 +68,6 @@ class GoogleAuthController extends Controller
 
         Auth::login($user);
 
-        return redirect('/dashboard');
+        return redirect('/dashboard')->with('toast', 'Welcome to PolyTraderX, ' . $user->name . '!');
     }
 }

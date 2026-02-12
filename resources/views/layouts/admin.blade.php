@@ -151,6 +151,14 @@
         </div>
     </div>
 
+    {{-- Toast --}}
+    @if(session('toast'))
+    <div class="ptx-toast" id="ptxToast">
+        <i class="bi bi-check-circle-fill"></i>
+        <span>{{ session('toast') }}</span>
+    </div>
+    @endif
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Mobile sidebar toggle
@@ -170,6 +178,16 @@
                 sidebar.classList.remove('open');
                 overlay.classList.remove('active');
             });
+        }
+
+        // Toast auto-dismiss
+        const toast = document.getElementById('ptxToast');
+        if (toast) {
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
         }
     </script>
     @stack('scripts')
