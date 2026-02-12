@@ -31,6 +31,7 @@ class User extends Authenticatable
         'last_bot_heartbeat',
         'avatar_url',
         'telegram_chat_id',
+        'telegram_username',
         'telegram_linked_at',
         'google_id',
         'referred_by',

@@ -35,6 +35,12 @@
                 <i class="bi bi-check-circle me-1"></i>
                 Your Telegram account is linked. You will receive trading notifications.
             </p>
+            @if($user->telegram_username)
+                <p style="color: var(--text-primary); font-size: 0.9rem;" class="mb-2">
+                    <i class="bi bi-telegram me-1" style="color: var(--accent);"></i>
+                    <strong>@{{ $user->telegram_username }}</strong>
+                </p>
+            @endif
             <p style="color: var(--text-secondary); font-size: 0.85rem;" class="mb-3">
                 Linked on: {{ $user->telegram_linked_at->format('F j, Y \a\t g:i A') }}
             </p>

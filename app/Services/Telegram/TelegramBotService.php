@@ -74,9 +74,10 @@ class TelegramBotService
 
         $chatId = (string) $message['chat']['id'];
         $text = trim($message['text']);
+        $username = $message['from']['username'] ?? null;
 
         if (str_starts_with($text, '/start')) {
-            $this->handleStart($chatId, $text);
+            $this->handleStart($chatId, $text, $username);
         } elseif ($text === '/unlink') {
             $this->handleUnlink($chatId);
         } elseif ($text === '/status') {
@@ -106,7 +107,7 @@ class TelegramBotService
         }
     }
 
-    private function handleStart(string $chatId, string $text): void
+    private function handleStart(string $chatId, string $text, ?string $username = null): void
     {
         $parts = explode(' ', $text, 2);
         $accountId = $parts[1] ?? null;
@@ -131,7 +132,7 @@ class TelegramBotService
             return;
         }
 
-        $this->linkUser($user, $chatId);
+        $this->linkUser($user, $chatId, $username);
         $this->sendMessage($chatId, "Successfully linked to PolyTraderX account <b>{$user->account_id}</b>!\n\nYou will now receive trading notifications here.\n\nCommands:\n/status - Check bot status\n/unlink - Unlink this account\n/help - Show help");
     }
 
@@ -189,10 +190,11 @@ class TelegramBotService
         return User::where('account_id', $accountId)->first();
     }
 
-    private function linkUser(User $user, string $chatId): void
+    private function linkUser(User $user, string $chatId, ?string $username = null): void
     {
         $user->update([
             'telegram_chat_id' => $chatId,
+            'telegram_username' => $username,
             'telegram_linked_at' => now(),
         ]);
     }
