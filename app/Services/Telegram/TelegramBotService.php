@@ -163,15 +163,17 @@ class TelegramBotService
         }
 
         $plan = $user->currentPlan();
+        $planName = $plan ? $plan->name : 'None';
         $status = $user->isSubscriptionActive() ? 'Active' : 'Inactive';
         $credentials = $user->hasPolymarketConfigured() ? 'Configured' : 'Not configured';
+        $linkedAt = $user->telegram_linked_at ? $user->telegram_linked_at->format('Y-m-d H:i') : 'Unknown';
 
         $message = "<b>PolyTraderX Status</b>\n\n"
             . "Account: <code>{$user->account_id}</code>\n"
-            . "Plan: {$plan?->name ?? 'None'}\n"
+            . "Plan: {$planName}\n"
             . "Status: {$status}\n"
             . "Polymarket Keys: {$credentials}\n"
-            . "Linked: {$user->telegram_linked_at->format('Y-m-d H:i')}";
+            . "Linked: {$linkedAt}";
 
         $this->sendMessage($chatId, $message);
     }

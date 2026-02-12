@@ -15,12 +15,12 @@ return new class extends Migration
             $table->foreignId('trade_id')->nullable()->constrained('trades')->cascadeOnDelete();
             $table->enum('tier', ['muscles', 'brain']);
             $table->string('model_used');
-            $table->longText('prompt');
-            $table->longText('response');
+            $table->longText('prompt')->default('');
+            $table->longText('response')->default('');
             $table->integer('tokens_input');
             $table->integer('tokens_output');
             $table->decimal('cost_usd', 8, 6);
-            $table->enum('decision_type', ['trade_signal', 'audit', 'strategy_update', 'daily_review', 'weekly_review']);
+            $table->string('decision_type');
             $table->timestamp('created_at')->nullable();
         });
     }

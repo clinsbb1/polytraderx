@@ -9,3 +9,16 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('subscriptions:check-expired')->hourly();
+
+// Tier 1: Reflexes — Every minute
+Schedule::command('bot:scan-markets')->everyMinute()->withoutOverlapping()->runInBackground();
+Schedule::command('bot:execute-trades')->everyMinute()->withoutOverlapping()->runInBackground();
+Schedule::command('bot:monitor-positions')->everyMinute()->withoutOverlapping()->runInBackground();
+
+// Tier 2: Muscles (Haiku) — Every 5 minutes
+Schedule::command('bot:ai-analyze-markets')->everyFiveMinutes()->withoutOverlapping()->runInBackground();
+
+// Tier 3: Brain (Sonnet) — Event-driven + scheduled
+Schedule::command('bot:ai-audit-losses')->everyFiveMinutes()->withoutOverlapping()->runInBackground();
+Schedule::command('bot:daily-review')->dailyAt('23:55')->withoutOverlapping()->runInBackground();
+Schedule::command('bot:weekly-report')->weeklyOn(0, '23:55')->withoutOverlapping()->runInBackground();

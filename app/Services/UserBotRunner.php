@@ -12,10 +12,12 @@ class UserBotRunner
 {
     public function getActiveUsers(): Collection
     {
-        return User::where('is_active', true)
+        return User::query()
+            ->where('is_active', true)
             ->where(function ($query) {
-                $query->where('subscription_plan', '!=', 'free_trial')
-                    ->orWhere('trial_ends_at', '>', now());
+                $query->where('trial_ends_at', '>', now())
+                    ->orWhere('subscription_ends_at', '>', now())
+                    ->orWhere('is_superadmin', true);
             })
             ->whereHas('credential', function ($query) {
                 $query->whereNotNull('polymarket_api_key')
@@ -23,6 +25,7 @@ class UserBotRunner
                     ->whereNotNull('polymarket_api_passphrase')
                     ->whereNotNull('polymarket_wallet_address');
             })
+            ->with('credential')
             ->get();
     }
 
@@ -30,6 +33,7 @@ class UserBotRunner
     {
         $users = $this->getActiveUsers();
         $results = [];
+        $startTime = microtime(true);
 
         foreach ($users as $user) {
             try {
@@ -39,8 +43,8 @@ class UserBotRunner
                 ];
 
                 $user->update(['last_bot_heartbeat' => now()]);
-            } catch (\Exception $e) {
-                Log::channel('bot')->error("Bot run failed for user {$user->id}", [
+            } catch (\Throwable $e) {
+                Log::channel('bot')->error("Bot run failed for user {$user->account_id}", [
                     'user_id' => $user->id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
@@ -52,6 +56,12 @@ class UserBotRunner
                 ];
             }
         }
+
+        $elapsed = round(microtime(true) - $startTime, 2);
+        Log::channel('bot')->info('Bot run completed', [
+            'users_processed' => count($users),
+            'elapsed_seconds' => $elapsed,
+        ]);
 
         return $results;
     }
