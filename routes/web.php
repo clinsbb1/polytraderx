@@ -56,6 +56,8 @@ Route::post('/api/webhooks/telegram', TelegramWebhookController::class);
 Route::middleware(['auth'])->group(function () {
     Route::get('/settings/credentials', [CredentialController::class, 'edit']);
     Route::post('/settings/credentials', [CredentialController::class, 'update']);
+    Route::post('/settings/credentials/test-polymarket', [CredentialController::class, 'testPolymarket']);
+    Route::get('/settings/credentials/test-binance', [CredentialController::class, 'testBinance']);
     Route::get('/settings/profile', [ProfileSettingsController::class, 'edit']);
     Route::post('/settings/profile', [ProfileSettingsController::class, 'update']);
     Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit']);

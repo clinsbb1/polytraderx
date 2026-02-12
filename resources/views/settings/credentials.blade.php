@@ -66,6 +66,79 @@
         </div>
     </div>
 
-    <button type="submit" class="btn-ptx-primary btn-ptx-sm">Save Credentials</button>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn-ptx-primary btn-ptx-sm">Save Credentials</button>
+        <button type="button" class="btn-ptx-secondary btn-ptx-sm" id="testPolymarketBtn" onclick="testPolymarket()">
+            <i class="bi bi-plug"></i> Test Polymarket
+        </button>
+        <button type="button" class="btn-ptx-secondary btn-ptx-sm" id="testBinanceBtn" onclick="testBinance()">
+            <i class="bi bi-graph-up"></i> Test Binance
+        </button>
+    </div>
 </form>
+
+<div id="testResult" class="mt-3" style="display:none;"></div>
+
 @endsection
+
+@push('scripts')
+<script>
+function testPolymarket() {
+    const btn = document.getElementById('testPolymarketBtn');
+    const result = document.getElementById('testResult');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing...';
+    result.style.display = 'none';
+
+    fetch('/settings/credentials/test-polymarket', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.style.display = 'block';
+        result.className = 'mt-3 ptx-alert ' + (data.success ? 'ptx-alert-success' : 'ptx-alert-danger');
+        result.innerHTML = '<i class="bi bi-' + (data.success ? 'check-circle' : 'x-circle') + '"></i> ' + data.message;
+    })
+    .catch(() => {
+        result.style.display = 'block';
+        result.className = 'mt-3 ptx-alert ptx-alert-danger';
+        result.innerHTML = '<i class="bi bi-x-circle"></i> Request failed. Please try again.';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-plug"></i> Test Polymarket';
+    });
+}
+
+function testBinance() {
+    const btn = document.getElementById('testBinanceBtn');
+    const result = document.getElementById('testResult');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing...';
+    result.style.display = 'none';
+
+    fetch('/settings/credentials/test-binance', {
+        headers: { 'Accept': 'application/json' },
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.style.display = 'block';
+        result.className = 'mt-3 ptx-alert ' + (data.success ? 'ptx-alert-success' : 'ptx-alert-danger');
+        result.innerHTML = '<i class="bi bi-' + (data.success ? 'check-circle' : 'x-circle') + '"></i> ' + data.message;
+    })
+    .catch(() => {
+        result.style.display = 'block';
+        result.className = 'mt-3 ptx-alert ptx-alert-danger';
+        result.innerHTML = '<i class="bi bi-x-circle"></i> Request failed. Please try again.';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-graph-up"></i> Test Binance';
+    });
+}
+</script>
+@endpush
