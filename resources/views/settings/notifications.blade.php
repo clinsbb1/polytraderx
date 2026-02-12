@@ -3,14 +3,10 @@
 @section('title', 'Notification Settings')
 
 @section('content')
-<h1 class="h3 mb-4">Notification Settings</h1>
+<h4 class="mb-4" style="font-family: var(--font-display);">Notification Settings</h4>
 
-@if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
-@endif
-
-<div class="card" style="max-width:600px">
-    <div class="card-body">
+<div class="ptx-card" style="max-width:600px">
+    <div class="ptx-card-body">
         <form method="POST" action="/settings/notifications">
             @csrf
 
@@ -18,9 +14,9 @@
             <div class="mb-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <label class="form-label fw-semibold mb-0">{{ $param->key }}</label>
+                        <label class="ptx-label mb-0">{{ $param->key }}</label>
                         @if($param->description)
-                            <div class="text-muted small">{{ $param->description }}</div>
+                            <div style="color: var(--text-secondary); font-size: 0.8rem;">{{ $param->description }}</div>
                         @endif
                     </div>
                     <div>
@@ -30,14 +26,14 @@
                                     {{ in_array(strtolower($param->value), ['true', '1', 'yes']) ? 'checked' : '' }}>
                             </div>
                         @else
-                            <input type="text" name="params[{{ $param->key }}]" class="form-control form-control-sm" style="width:120px" value="{{ $param->value }}">
+                            <input type="text" name="params[{{ $param->key }}]" class="ptx-input ptx-input-sm" style="width:120px" value="{{ $param->value }}">
                         @endif
                     </div>
                 </div>
             </div>
             @endforeach
 
-            <button type="submit" class="btn btn-primary">Save Notifications</button>
+            <button type="submit" class="btn-ptx-primary btn-ptx-sm">Save Notifications</button>
         </form>
     </div>
 </div>

@@ -24,6 +24,19 @@ use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Admin\AdminUserController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
+
+
+Route::middleware('throttle:60,1')->get('/run-migrations', function () {
+    $output = [];
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        $output[] = Artisan::output();
+    } catch (\Exception $e) {
+        $output[] = "Error: " . $e->getMessage();
+    }
+    return nl2br(implode("\n", $output));
+});
 
 // Public pages (guests)
 Route::get('/', function () {

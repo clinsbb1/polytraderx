@@ -3,75 +3,154 @@
 @section('title', 'Pricing — PolyTraderX')
 
 @section('content')
-<section class="py-5">
-    <div class="container">
-        <h1 class="text-center fw-bold mb-2">Simple, Transparent Pricing</h1>
-        <p class="text-center text-muted mb-5">Choose the plan that fits your trading needs. All plans include a 7-day free trial. Pay with crypto.</p>
+    {{-- Header --}}
+    <section class="ptx-hero" style="padding: 140px 0 60px;">
+        <div class="container position-relative" style="z-index:1;">
+            <h1 class="ptx-fade-in" style="font-size: 3rem;">
+                <span class="ptx-gradient-text">Simple, Transparent</span> Pricing
+            </h1>
+            <p class="lead ptx-fade-in ptx-fade-in-delay-1">
+                Start with a free trial. Upgrade when you're ready. Pay with crypto.
+            </p>
+        </div>
+    </section>
 
-        <div class="row g-4 justify-content-center">
-            @forelse($plans as $plan)
-            <div class="col-md-4">
-                <div class="pricing-card p-4 text-center {{ $plan->slug === 'pro' ? 'featured' : '' }}">
-                    @if($plan->slug === 'pro')
-                        <span class="pricing-badge">Most Popular</span>
-                    @endif
-                    <h4 class="fw-bold mt-2">{{ $plan->name }}</h4>
-                    <div class="my-3">
-                        @if((float)$plan->price_usd === 0.0)
-                            <span class="display-5 fw-bold">Free</span>
-                            <br><span class="text-muted">{{ $plan->trial_days }}-day trial</span>
-                        @else
-                            <span class="display-5 fw-bold">${{ number_format((float)$plan->price_usd, 0) }}</span>
-                            <span class="text-muted">/{{ $plan->billing_period }}</span>
-                        @endif
-                    </div>
-                    <ul class="list-unstyled text-start mb-4">
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>{{ $plan->max_daily_trades >= 9999 ? 'Unlimited' : $plan->max_daily_trades }} trades/day</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>{{ $plan->max_concurrent_positions }} concurrent positions</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Tier 1: AI Reflexes (free PHP logic)</li>
-                        <li class="mb-2"><i class="bi {{ $plan->has_ai_muscles ? 'bi-check-circle text-success' : 'bi-x-circle text-muted' }} me-2"></i>Tier 2: AI Muscles (Claude Haiku)</li>
-                        <li class="mb-2"><i class="bi {{ $plan->has_ai_brain ? 'bi-check-circle text-success' : 'bi-x-circle text-muted' }} me-2"></i>Tier 3: AI Brain (Claude Sonnet)</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Full dashboard & analytics</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Telegram notifications</li>
-                        @if($plan->trial_days > 0)
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>{{ $plan->trial_days }}-day free trial</li>
-                        @endif
-                        @if($plan->features_json)
-                            @foreach($plan->features_json as $feature)
-                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>{{ $feature }}</li>
-                            @endforeach
-                        @endif
-                    </ul>
-                    @auth
-                        <a href="/subscription" class="btn {{ $plan->slug === 'pro' ? 'btn-ptx' : 'btn-ptx-outline' }} w-100">
-                            {{ auth()->user()->subscription_plan === $plan->slug ? 'Current Plan' : 'Upgrade' }}
-                        </a>
-                    @else
-                        <a href="/register" class="btn {{ $plan->slug === 'pro' ? 'btn-ptx' : 'btn-ptx-outline' }} w-100">Start Free Trial</a>
-                    @endauth
+    {{-- Pricing Cards --}}
+    <section class="ptx-section" style="padding-top: 40px;">
+        <div class="container">
+            @include('components.pricing-cards', ['plans' => $plans])
+        </div>
+    </section>
+
+    {{-- Feature Comparison Table --}}
+    <section class="ptx-section ptx-section--alt">
+        <div class="container" style="max-width: 900px;">
+            <h2 class="ptx-section-title reveal">Feature Comparison</h2>
+            <p class="ptx-section-subtitle reveal">See exactly what's included in each plan</p>
+
+            <div class="glass-card reveal" style="padding: 0; overflow: hidden;">
+                <div class="table-responsive">
+                    <table class="ptx-compare-table">
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th>Free Trial</th>
+                                <th>Basic</th>
+                                <th>Pro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Daily trades</td>
+                                <td>10</td>
+                                <td>50</td>
+                                <td>Unlimited</td>
+                            </tr>
+                            <tr>
+                                <td>Concurrent positions</td>
+                                <td>1</td>
+                                <td>3</td>
+                                <td>5</td>
+                            </tr>
+                            <tr>
+                                <td>Tier 1: AI Reflexes</td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                            </tr>
+                            <tr>
+                                <td>Tier 2: AI Muscles (Haiku)</td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                            </tr>
+                            <tr>
+                                <td>Tier 3: AI Brain (Sonnet)</td>
+                                <td><i class="bi bi-x-circle-fill cross-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                            </tr>
+                            <tr>
+                                <td>Telegram notifications</td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                            </tr>
+                            <tr>
+                                <td>Post-loss forensic audits</td>
+                                <td><i class="bi bi-x-circle-fill cross-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                            </tr>
+                            <tr>
+                                <td>Paper trading (DRY RUN)</td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                            </tr>
+                            <tr>
+                                <td>Full dashboard &amp; analytics</td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                            </tr>
+                            <tr>
+                                <td>Priority support</td>
+                                <td><i class="bi bi-x-circle-fill cross-mark"></i></td>
+                                <td><i class="bi bi-x-circle-fill cross-mark"></i></td>
+                                <td><i class="bi bi-check-circle-fill check-mark"></i></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            @empty
-            <div class="col-12 text-center">
-                <p class="text-muted">Pricing plans coming soon.</p>
-            </div>
-            @endforelse
         </div>
+    </section>
 
-        <div class="text-center mt-5">
-            <h5 class="fw-bold mb-3">All Plans Include</h5>
-            <div class="row g-3 justify-content-center">
-                <div class="col-md-3"><i class="bi bi-bar-chart-line text-primary me-2"></i>Full trading dashboard</div>
-                <div class="col-md-3"><i class="bi bi-clock-history text-primary me-2"></i>Complete trade history</div>
-                <div class="col-md-3"><i class="bi bi-graph-up text-primary me-2"></i>Equity curve tracking</div>
-                <div class="col-md-3"><i class="bi bi-telegram text-primary me-2"></i>Telegram notifications</div>
-                <div class="col-md-3"><i class="bi bi-toggles text-primary me-2"></i>Paper trading mode</div>
-                <div class="col-md-3"><i class="bi bi-shield-check text-primary me-2"></i>Risk management tools</div>
-                <div class="col-md-3"><i class="bi bi-sliders text-primary me-2"></i>Customizable strategy</div>
-                <div class="col-md-3"><i class="bi bi-lock text-primary me-2"></i>Encrypted credentials</div>
+    {{-- Billing FAQ --}}
+    <section class="ptx-section">
+        <div class="container" style="max-width: 800px;">
+            <h2 class="ptx-section-title reveal">Billing FAQ</h2>
+            <p class="ptx-section-subtitle reveal">Common questions about payments and subscriptions</p>
+
+            <div class="accordion ptx-accordion" id="billingFaq">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#bfaq1">What cryptocurrencies do you accept?</button>
+                    </h2>
+                    <div id="bfaq1" class="accordion-collapse collapse show" data-bs-parent="#billingFaq">
+                        <div class="accordion-body">We accept BTC, ETH, USDC, USDT, SOL, and many other cryptocurrencies via NOWPayments. Over 100 cryptocurrencies are supported.</div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bfaq2">Can I cancel anytime?</button>
+                    </h2>
+                    <div id="bfaq2" class="accordion-collapse collapse" data-bs-parent="#billingFaq">
+                        <div class="accordion-body">Yes. You can cancel your subscription at any time. Your access continues until the end of the current billing period. No refunds for partial periods.</div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bfaq3">How does the free trial work?</button>
+                    </h2>
+                    <div id="bfaq3" class="accordion-collapse collapse" data-bs-parent="#billingFaq">
+                        <div class="accordion-body">Sign up for free and get 7 days of access with no payment required. Use paper trading mode to test strategies risk-free. Upgrade to a paid plan when you're ready to trade live.</div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bfaq4">Do I need a credit card?</button>
+                    </h2>
+                    <div id="bfaq4" class="accordion-collapse collapse" data-bs-parent="#billingFaq">
+                        <div class="accordion-body">No. We only accept cryptocurrency payments. No credit card, bank account, or traditional payment method is needed. This ensures privacy and global accessibility.</div>
+                    </div>
+                </div>
             </div>
-            <p class="text-muted small mt-4">Prices in USD. All payments in cryptocurrency via NOWPayments (BTC, ETH, USDC, and more). No credit card required.</p>
+
+            <p class="text-center mt-4 reveal" style="color: var(--text-secondary); font-size: 0.9rem;">
+                All plans are billed in cryptocurrency via NOWPayments. Prices shown in USD equivalent.
+            </p>
         </div>
-    </div>
-</section>
+    </section>
 @endsection

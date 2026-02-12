@@ -21,7 +21,7 @@ class SubscriptionController extends Controller
     public function index(): View
     {
         $user = auth()->user();
-        $currentPlan = $this->subscriptionService->getActivePlan($user);
+        $currentPlan = $this->subscriptionService->getActivePlan($user->id);
         $plans = $this->subscriptionService->getAvailablePlans();
 
         return view('subscription.index', compact('user', 'currentPlan', 'plans'));

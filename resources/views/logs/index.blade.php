@@ -3,12 +3,15 @@
 @section('title', 'Trade Logs')
 
 @section('content')
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white">
-        <h5 class="mb-0">Trade Logs</h5>
+<div class="ptx-card">
+    <div class="ptx-card-header">
+        <h5>Trade Logs</h5>
     </div>
-    <div class="card-body">
-        <p class="text-muted">No log entries yet. Trade logs will appear here with full forensic data.</p>
+    <div class="ptx-card-body p-0">
+        <div class="ptx-empty-state">
+            <i class="bi bi-journal-text d-block"></i>
+            <p>No log entries yet. Trade logs will appear here with full forensic data.</p>
+        </div>
     </div>
 </div>
 @endsection

@@ -3,12 +3,15 @@
 @section('title', 'Trades')
 
 @section('content')
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">All Trades</h5>
+<div class="ptx-card">
+    <div class="ptx-card-header">
+        <h5>All Trades</h5>
     </div>
-    <div class="card-body">
-        <p class="text-muted">No trades recorded yet.</p>
+    <div class="ptx-card-body p-0">
+        <div class="ptx-empty-state">
+            <i class="bi bi-currency-exchange d-block"></i>
+            <p>No trades recorded yet.</p>
+        </div>
     </div>
 </div>
 @endsection

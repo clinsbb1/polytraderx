@@ -3,12 +3,15 @@
 @section('title', 'Balance & Equity')
 
 @section('content')
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white">
-        <h5 class="mb-0">Equity Curve</h5>
+<div class="ptx-card">
+    <div class="ptx-card-header">
+        <h5>Equity Curve</h5>
     </div>
-    <div class="card-body">
-        <p class="text-muted">Balance chart will be rendered here with Chart.js once balance snapshots are recorded.</p>
+    <div class="ptx-card-body">
+        <div class="ptx-empty-state">
+            <i class="bi bi-graph-up d-block"></i>
+            <p>Balance chart will be rendered here once balance snapshots are recorded.</p>
+        </div>
         <canvas id="equityChart" height="100"></canvas>
     </div>
 </div>
