@@ -50,6 +50,13 @@ class UserBotRunner
                     'trace' => $e->getTraceAsString(),
                 ]);
 
+                try {
+                    app(\App\Services\Telegram\NotificationService::class)
+                        ->notifyError($e->getMessage(), null, $user);
+                } catch (\Throwable) {
+                    // Notification failure must never compound the error
+                }
+
                 $results[$user->id] = [
                     'status' => 'error',
                     'error' => $e->getMessage(),

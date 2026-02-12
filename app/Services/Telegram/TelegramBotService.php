@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Telegram;
 
+use App\Models\BalanceSnapshot;
+use App\Models\Trade;
 use App\Models\User;
 use App\Services\Settings\PlatformSettingsService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -82,6 +85,10 @@ class TelegramBotService
             $this->handleUnlink($chatId);
         } elseif ($text === '/status') {
             $this->handleStatus($chatId);
+        } elseif ($text === '/today') {
+            $this->handleToday($chatId);
+        } elseif ($text === '/balance') {
+            $this->handleBalance($chatId);
         } elseif ($text === '/help') {
             $this->handleHelp($chatId);
         }
@@ -113,7 +120,6 @@ class TelegramBotService
         $accountId = $parts[1] ?? null;
 
         if (!$accountId) {
-            $botUsername = $this->platformSettings->get('TELEGRAM_BOT_USERNAME', 'PolyTraderXBot');
             $this->sendMessage($chatId, "Welcome to PolyTraderX!\n\nTo link your account, send:\n<code>/start YOUR-ACCOUNT-ID</code>\n\nYou can find your Account ID on your Settings > Telegram page in the PolyTraderX dashboard.");
             return;
         }
@@ -133,7 +139,7 @@ class TelegramBotService
         }
 
         $this->linkUser($user, $chatId, $username);
-        $this->sendMessage($chatId, "Successfully linked to PolyTraderX account <b>{$user->account_id}</b>!\n\nYou will now receive trading notifications here.\n\nCommands:\n/status - Check bot status\n/unlink - Unlink this account\n/help - Show help");
+        $this->sendMessage($chatId, "Successfully linked to PolyTraderX account <b>{$user->account_id}</b>!\n\nYou will now receive trading notifications here.\n\nCommands:\n/status - Bot status & today's stats\n/today - Today's trades\n/balance - Current balance\n/unlink - Unlink this account\n/help - Show help");
     }
 
     private function handleUnlink(string $chatId): void
@@ -162,29 +168,105 @@ class TelegramBotService
             return;
         }
 
+        try {
+            $settings = app(SettingsService::class);
+            $isDryRun = $settings->getBool('DRY_RUN', true, $user->id);
+            $botEnabled = $settings->getBool('BOT_ENABLED', true, $user->id);
+        } catch (\Exception) {
+            $isDryRun = true;
+            $botEnabled = false;
+        }
+
+        $todayTrades = Trade::forUser($user->id)->whereDate('created_at', today())->count();
+        $todayPnl = (float) Trade::forUser($user->id)->whereDate('resolved_at', today())->sum('pnl');
+        $openPositions = Trade::forUser($user->id)->open()->count();
+
+        $statusEmoji = $botEnabled ? '🟢 Active' : '🔴 Paused';
+        $mode = $isDryRun ? '📝 DRY RUN' : '💰 LIVE';
+        $pnlFormatted = $todayPnl >= 0 ? "+\$" . number_format($todayPnl, 2) : "-\$" . number_format(abs($todayPnl), 2);
+
         $plan = $user->currentPlan();
         $planName = $plan ? $plan->name : 'None';
-        $status = $user->isSubscriptionActive() ? 'Active' : 'Inactive';
-        $credentials = $user->hasPolymarketConfigured() ? 'Configured' : 'Not configured';
-        $linkedAt = $user->telegram_linked_at ? $user->telegram_linked_at->format('Y-m-d H:i') : 'Unknown';
 
-        $message = "<b>PolyTraderX Status</b>\n\n"
-            . "Account: <code>{$user->account_id}</code>\n"
-            . "Plan: {$planName}\n"
-            . "Status: {$status}\n"
-            . "Polymarket Keys: {$credentials}\n"
-            . "Linked: {$linkedAt}";
+        $message = "<b>Bot Status</b>\n\n"
+            . "Status: {$statusEmoji}\n"
+            . "Mode: {$mode}\n"
+            . "Today: {$todayTrades} trades, {$pnlFormatted}\n"
+            . "Open positions: {$openPositions}\n"
+            . "Plan: {$planName}";
 
         $this->sendMessage($chatId, $message);
     }
 
+    private function handleToday(string $chatId): void
+    {
+        $user = User::where('telegram_chat_id', $chatId)->first();
+
+        if (!$user) {
+            $this->sendMessage($chatId, "No account linked. Use /start YOUR-ACCOUNT-ID to link.");
+            return;
+        }
+
+        $trades = Trade::forUser($user->id)
+            ->whereDate('created_at', today())
+            ->latest()
+            ->take(10)
+            ->get();
+
+        if ($trades->isEmpty()) {
+            $this->sendMessage($chatId, "No trades today yet.");
+            return;
+        }
+
+        $lines = ["<b>Today's Trades</b>\n"];
+        foreach ($trades as $t) {
+            $emoji = match ($t->status) {
+                'won' => '✅',
+                'lost' => '❌',
+                'open' => '⏳',
+                default => '⬜',
+            };
+            $pnl = $t->pnl !== null
+                ? ((float) $t->pnl >= 0 ? "+\$" . number_format((float) $t->pnl, 2) : "-\$" . number_format(abs((float) $t->pnl), 2))
+                : 'pending';
+            $lines[] = "{$emoji} {$t->asset} {$t->side} — {$pnl}";
+        }
+
+        $this->sendMessage($chatId, implode("\n", $lines));
+    }
+
+    private function handleBalance(string $chatId): void
+    {
+        $user = User::where('telegram_chat_id', $chatId)->first();
+
+        if (!$user) {
+            $this->sendMessage($chatId, "No account linked. Use /start YOUR-ACCOUNT-ID to link.");
+            return;
+        }
+
+        $snapshot = BalanceSnapshot::forUser($user->id)->latest('snapshot_at')->first();
+
+        if ($snapshot) {
+            $message = "<b>Balance</b>\n\n"
+                . "USDC: \$" . number_format((float) $snapshot->balance_usdc, 2) . "\n"
+                . "Open positions: \$" . number_format((float) $snapshot->open_positions_value, 2) . "\n"
+                . "Total equity: \$" . number_format((float) $snapshot->total_equity, 2) . "\n"
+                . "As of: " . $snapshot->snapshot_at->diffForHumans();
+            $this->sendMessage($chatId, $message);
+        } else {
+            $this->sendMessage($chatId, "No balance data yet. Make sure your Polymarket credentials are configured.");
+        }
+    }
+
     private function handleHelp(string $chatId): void
     {
-        $this->sendMessage($chatId, "<b>PolyTraderX Bot Commands</b>\n\n"
+        $this->sendMessage($chatId, "<b>PolyTraderX Commands</b>\n\n"
             . "/start ACCOUNT-ID - Link your account\n"
-            . "/status - Check your bot status\n"
-            . "/unlink - Unlink your account\n"
-            . "/help - Show this help message");
+            . "/status - Bot status & today's stats\n"
+            . "/today - Today's trades\n"
+            . "/balance - Current balance\n"
+            . "/unlink - Unlink account\n"
+            . "/help - This message");
     }
 
     private function findUserByAccountId(string $accountId): ?User

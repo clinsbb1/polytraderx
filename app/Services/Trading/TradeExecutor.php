@@ -114,6 +114,12 @@ class TradeExecutor
                 'dry_run' => $orderResult['dry_run'] ?? false,
             ]);
 
+            try {
+                app(\App\Services\Telegram\NotificationService::class)->notifyTradeExecuted($trade);
+            } catch (\Exception $e) {
+                // Notification failure must never crash trading
+            }
+
             return $trade;
         } catch (\Exception $e) {
             // Order failed — mark trade as cancelled

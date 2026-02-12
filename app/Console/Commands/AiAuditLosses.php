@@ -6,10 +6,9 @@ namespace App\Console\Commands;
 
 use App\Models\Trade;
 use App\Services\AI\AIRouter;
-use App\Services\Telegram\TelegramBotService;
+use App\Services\Telegram\NotificationService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
 class AiAuditLosses extends Command
 {
@@ -19,13 +18,13 @@ class AiAuditLosses extends Command
     public function handle(
         UserBotRunner $runner,
         AIRouter $aiRouter,
-        TelegramBotService $telegram,
+        NotificationService $notifications,
     ): int {
-        $results = $runner->runForEachUser(function ($user) use ($aiRouter, $telegram) {
+        $results = $runner->runForEachUser(function ($user) use ($aiRouter, $notifications) {
             $losses = Trade::forUser($user->id)
                 ->where('status', 'lost')
                 ->where('audited', false)
-                ->orderBy('closed_at', 'asc')
+                ->orderBy('resolved_at', 'asc')
                 ->limit(5)
                 ->get();
 
@@ -35,16 +34,7 @@ class AiAuditLosses extends Command
 
                 if ($audit !== null) {
                     $audited++;
-
-                    $fixCount = count($audit->suggested_fixes ?? []);
-                    $message = "<b>Loss Audit Complete</b>\n\n"
-                        . "Trade: {$trade->asset} {$trade->side}\n"
-                        . "Amount: \${$trade->amount}\n"
-                        . "Root Cause: " . ($audit->analysis ? substr($audit->analysis, 0, 200) : 'N/A') . "\n"
-                        . "Suggested Fixes: {$fixCount}\n"
-                        . "Status: {$audit->status}";
-
-                    $telegram->sendToUser($user->id, $message);
+                    $notifications->notifyLossAudit($audit, $trade);
                 }
             }
 

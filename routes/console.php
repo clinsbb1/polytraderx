@@ -22,3 +22,8 @@ Schedule::command('bot:ai-analyze-markets')->everyFiveMinutes()->withoutOverlapp
 Schedule::command('bot:ai-audit-losses')->everyFiveMinutes()->withoutOverlapping()->runInBackground();
 Schedule::command('bot:daily-review')->dailyAt('23:55')->withoutOverlapping()->runInBackground();
 Schedule::command('bot:weekly-report')->weeklyOn(0, '23:55')->withoutOverlapping()->runInBackground();
+
+// Housekeeping
+Schedule::command('bot:snapshot-balance')->everyFifteenMinutes()->withoutOverlapping()->runInBackground();
+Schedule::command('bot:daily-summary')->dailyAt('00:05')->withoutOverlapping()->runInBackground();
+Schedule::command('bot:cleanup-logs')->daily()->withoutOverlapping()->runInBackground();

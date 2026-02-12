@@ -5,16 +5,84 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Services\Settings\SettingsService;
+use App\Services\Telegram\NotificationService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class CheckExpiredSubscriptions extends Command
 {
     protected $signature = 'subscriptions:check-expired';
-    protected $description = 'Deactivate users with expired subscriptions or trials';
+    protected $description = 'Warn users about expiring subscriptions and deactivate expired ones';
 
-    public function handle(): int
-    {
+    public function handle(
+        NotificationService $notifications,
+        SettingsService $settings,
+    ): int {
+        $warned3Day = 0;
+        $warned1Day = 0;
+        $deactivated = 0;
+
+        // 1. Warn users 3 days before expiry
+        $expiringSoon = User::where('is_active', true)
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    $q2->whereNotNull('subscription_ends_at')
+                        ->where('subscription_ends_at', '>', now())
+                        ->where('subscription_ends_at', '<=', now()->addDays(3));
+                })->orWhere(function ($q2) {
+                    $q2->where('subscription_plan', 'free_trial')
+                        ->whereNotNull('trial_ends_at')
+                        ->where('trial_ends_at', '>', now())
+                        ->where('trial_ends_at', '<=', now()->addDays(3));
+                });
+            })
+            ->get();
+
+        foreach ($expiringSoon as $user) {
+            $cacheKey = "expiry_warned:{$user->id}";
+            if (Cache::has($cacheKey)) {
+                continue;
+            }
+
+            $expiresAt = $user->subscription_ends_at ?? $user->trial_ends_at;
+            $daysLeft = (int) now()->diffInDays($expiresAt, false);
+            $daysLeft = max($daysLeft, 1);
+
+            $notifications->notifySubscriptionExpiring($user, $daysLeft);
+            Cache::put($cacheKey, true, now()->addDays(3));
+            $warned3Day++;
+        }
+
+        // 2. Urgent warning: 1 day before expiry
+        $expiringTomorrow = User::where('is_active', true)
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    $q2->whereNotNull('subscription_ends_at')
+                        ->where('subscription_ends_at', '>', now())
+                        ->where('subscription_ends_at', '<=', now()->addDay());
+                })->orWhere(function ($q2) {
+                    $q2->where('subscription_plan', 'free_trial')
+                        ->whereNotNull('trial_ends_at')
+                        ->where('trial_ends_at', '>', now())
+                        ->where('trial_ends_at', '<=', now()->addDay());
+                });
+            })
+            ->get();
+
+        foreach ($expiringTomorrow as $user) {
+            $urgentKey = "expiry_urgent:{$user->id}:" . today()->toDateString();
+            if (Cache::has($urgentKey)) {
+                continue;
+            }
+
+            $notifications->notifySubscriptionExpiring($user, 1);
+            Cache::put($urgentKey, true, now()->addDay());
+            $warned1Day++;
+        }
+
+        // 3. Deactivate expired trials
         $expiredTrials = User::where('subscription_plan', 'free_trial')
             ->where('is_active', true)
             ->where('trial_ends_at', '<', now())
@@ -22,9 +90,14 @@ class CheckExpiredSubscriptions extends Command
 
         foreach ($expiredTrials as $user) {
             $user->update(['is_active' => false]);
+            $settings->set('BOT_ENABLED', 'false', 'system', $user->id);
+            $notifications->notifySubscriptionExpired($user);
+
             Log::channel('bot')->info("Trial expired for user {$user->id} ({$user->email})");
+            $deactivated++;
         }
 
+        // 4. Deactivate expired subscriptions
         $expiredSubscriptions = User::where('subscription_plan', '!=', 'free_trial')
             ->where('is_active', true)
             ->whereNotNull('subscription_ends_at')
@@ -37,11 +110,14 @@ class CheckExpiredSubscriptions extends Command
                 'subscription_plan' => 'free_trial',
                 'subscription_ends_at' => null,
             ]);
+            $settings->set('BOT_ENABLED', 'false', 'system', $user->id);
+            $notifications->notifySubscriptionExpired($user);
+
             Log::channel('bot')->info("Subscription expired for user {$user->id} ({$user->email})");
+            $deactivated++;
         }
 
-        $total = $expiredTrials->count() + $expiredSubscriptions->count();
-        $this->info("Deactivated {$total} expired users ({$expiredTrials->count()} trials, {$expiredSubscriptions->count()} subscriptions).");
+        $this->info("Warned: {$warned3Day} (3-day), {$warned1Day} (1-day). Deactivated: {$deactivated}.");
 
         return Command::SUCCESS;
     }

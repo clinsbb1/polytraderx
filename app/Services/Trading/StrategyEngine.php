@@ -213,6 +213,12 @@ class StrategyEngine
                     'status' => $status,
                     'pnl' => $pnl,
                 ]);
+
+                try {
+                    app(\App\Services\Telegram\NotificationService::class)->notifyTradeResolved($trade);
+                } catch (\Exception $e) {
+                    // Notification failure must never crash trading
+                }
             } catch (\Exception $e) {
                 Log::channel('bot')->error('Error resolving trade', [
                     'user_id' => $user->id,
