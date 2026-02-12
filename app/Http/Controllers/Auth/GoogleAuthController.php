@@ -11,6 +11,7 @@ use App\Services\Settings\PlatformSettingsService;
 use App\Services\Settings\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class GoogleAuthController extends Controller
@@ -53,6 +54,7 @@ class GoogleAuthController extends Controller
         $user = User::create([
             'name' => $googleUser->getName(),
             'email' => $googleUser->getEmail(),
+            'password' => bcrypt(Str::random(32)),
             'google_id' => $googleUser->getId(),
             'avatar_url' => $googleUser->getAvatar(),
             'email_verified_at' => now(),
