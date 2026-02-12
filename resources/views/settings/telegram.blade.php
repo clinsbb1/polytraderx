@@ -38,7 +38,7 @@
             @if($user->telegram_username)
                 <p style="color: var(--text-primary); font-size: 0.9rem;" class="mb-2">
                     <i class="bi bi-telegram me-1" style="color: var(--accent);"></i>
-                    <strong>@{{ $user->telegram_username }}</strong>
+                    <strong>{{ '@' . $user->telegram_username }}</strong>
                 </p>
             @endif
             <p style="color: var(--text-secondary); font-size: 0.85rem;" class="mb-3">
@@ -67,7 +67,7 @@
             $botUsername = app(\App\Services\Settings\PlatformSettingsService::class)->get('TELEGRAM_BOT_USERNAME', 'PolyTraderXBot');
         @endphp
         <ol>
-            <li>Open Telegram and search for <strong>@{{ $botUsername }}</strong>.</li>
+            <li>Open Telegram and search for <strong>{{ '@' . $botUsername }}</strong>.</li>
             <li>Start a conversation with the bot by clicking <strong>Start</strong>.</li>
             <li>Send the following command:<br>
                 <code style="display: inline-block; margin-top: 6px; padding: 8px 14px; background: rgba(0,240,255,0.06); border: 1px solid rgba(0,240,255,0.12); border-radius: 6px;">/start {{ $user->account_id }}</code>
