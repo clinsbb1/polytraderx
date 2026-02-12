@@ -15,6 +15,7 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TelegramSettingsController;
 use App\Http\Controllers\TradeController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\Admin\AdminAiCostController;
 use App\Http\Controllers\Admin\AdminAnnouncementController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -49,7 +50,7 @@ Route::get('/contact', [PublicController::class, 'contact']);
 
 // Webhooks (no auth, no CSRF)
 Route::post('/api/webhooks/nowpayments', [WebhookController::class, 'nowpayments']);
-Route::post('/api/webhooks/telegram', [WebhookController::class, 'telegram']);
+Route::post('/api/webhooks/telegram', TelegramWebhookController::class);
 
 // User settings (auth only, accessible even with expired subscription)
 Route::middleware(['auth'])->group(function () {

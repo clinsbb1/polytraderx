@@ -8,7 +8,6 @@ use App\Models\Payment;
 use App\Models\SubscriptionPlan;
 use App\Services\Payment\NOWPaymentsService;
 use App\Services\Subscription\SubscriptionService;
-use App\Services\Telegram\TelegramBotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -70,26 +69,5 @@ class WebhookController extends Controller
         }
 
         return response()->json(['ok' => true]);
-    }
-
-    public function telegram(Request $request): JsonResponse
-    {
-        try {
-            $update = $request->all();
-
-            if (empty($update)) {
-                return response()->json(['error' => 'Empty update'], 400);
-            }
-
-            app(TelegramBotService::class)->handleWebhookUpdate($update);
-
-            return response()->json(['ok' => true]);
-        } catch (\Exception $e) {
-            Log::channel('bot')->error('Telegram webhook error', [
-                'message' => $e->getMessage(),
-            ]);
-
-            return response()->json(['ok' => true]);
-        }
     }
 }
