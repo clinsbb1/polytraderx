@@ -72,7 +72,7 @@
                 @if((float)$plan->price_usd === 0.0)
                     <a href="/register" class="btn btn-ptx-primary w-100">Start Free</a>
                 @else
-                    <a href="/register" class="btn {{ $plan->slug === 'pro' ? 'btn-ptx-primary' : 'btn-ptx-secondary' }} w-100">Subscribe with Crypto</a>
+                    <a href="/register" class="btn {{ $plan->slug === 'pro' ? 'btn-ptx-primary' : 'btn-ptx-secondary' }} w-100">Subscribe</a>
                 @endif
             @endauth
         </div>
