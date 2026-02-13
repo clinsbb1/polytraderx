@@ -5,15 +5,34 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\AiAudit;
+use App\Services\Trading\StrategyUpdater;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AuditController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $audits = AiAudit::forUser(auth()->id())->latest()->paginate(20);
+        $query = AiAudit::forUser(auth()->id());
+
+        if ($status = $request->get('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($trigger = $request->get('trigger')) {
+            $query->where('trigger', $trigger);
+        }
+
+        if ($from = $request->get('from')) {
+            $query->where('created_at', '>=', $from);
+        }
+
+        if ($to = $request->get('to')) {
+            $query->where('created_at', '<=', $to . ' 23:59:59');
+        }
+
+        $audits = $query->latest('created_at')->paginate(20)->withQueryString();
 
         return view('audits.index', compact('audits'));
     }
@@ -22,32 +41,96 @@ class AuditController extends Controller
     {
         abort_if((int) $audit->user_id !== auth()->id(), 403);
 
-        return view('audits.show', compact('audit'));
+        $losingTrades = $audit->losingTrades();
+
+        return view('audits.show', compact('audit', 'losingTrades'));
     }
 
     public function approveFix(Request $request, AiAudit $audit): RedirectResponse
     {
         abort_if((int) $audit->user_id !== auth()->id(), 403);
 
+        $fixIndex = (int) $request->input('fix_index', 0);
+        $fixes = $audit->suggested_fixes ?? [];
+
+        if (!isset($fixes[$fixIndex])) {
+            return redirect()->route('audits.show', $audit)
+                ->with('error', 'Invalid fix index.');
+        }
+
+        $fixes[$fixIndex]['status'] = 'approved';
+
         $audit->update([
-            'status' => 'approved',
+            'suggested_fixes' => $fixes,
             'reviewed_at' => now(),
-            'review_notes' => $request->input('notes', ''),
+            'review_notes' => $request->input('notes', $audit->review_notes ?? ''),
         ]);
 
+        // Apply the fix if it has a param and suggested value
+        $fix = $fixes[$fixIndex];
+        if (!empty($fix['param']) && isset($fix['suggested'])) {
+            /** @var StrategyUpdater $updater */
+            $updater = app(StrategyUpdater::class);
+            $updater->applyFix((int) $audit->user_id, $fix['param'], (string) $fix['suggested']);
+        }
+
+        // If all fixes are resolved (approved or rejected), update audit status
+        $allResolved = collect($fixes)->every(fn (array $f): bool => in_array($f['status'] ?? 'pending_review', ['approved', 'rejected', 'auto_applied'], true));
+
+        if ($allResolved) {
+            $hasApproved = collect($fixes)->contains(fn (array $f): bool => ($f['status'] ?? '') === 'approved');
+            $audit->update([
+                'status' => $hasApproved ? 'approved' : 'rejected',
+                'applied_at' => $hasApproved ? now() : null,
+            ]);
+        }
+
         return redirect()->route('audits.show', $audit)
-            ->with('success', 'Fix approved.');
+            ->with('success', 'Fix approved and applied.');
+    }
+
+    public function manualTrigger(): RedirectResponse
+    {
+        // Queue the audit for the current user's recent losses
+        // This dispatches the same logic as bot:ai-audit-losses but for a single user
+        \Illuminate\Support\Facades\Artisan::call('bot:ai-audit-losses', [
+            '--user' => auth()->id(),
+        ]);
+
+        return redirect()->route('audits.index')
+            ->with('success', 'Audit triggered. Results will appear shortly.');
     }
 
     public function rejectFix(Request $request, AiAudit $audit): RedirectResponse
     {
         abort_if((int) $audit->user_id !== auth()->id(), 403);
 
+        $fixIndex = (int) $request->input('fix_index', 0);
+        $fixes = $audit->suggested_fixes ?? [];
+
+        if (!isset($fixes[$fixIndex])) {
+            return redirect()->route('audits.show', $audit)
+                ->with('error', 'Invalid fix index.');
+        }
+
+        $fixes[$fixIndex]['status'] = 'rejected';
+        $fixes[$fixIndex]['reject_reason'] = $request->input('reason', '');
+
         $audit->update([
-            'status' => 'rejected',
+            'suggested_fixes' => $fixes,
             'reviewed_at' => now(),
-            'review_notes' => $request->input('notes', ''),
+            'review_notes' => $request->input('notes', $audit->review_notes ?? ''),
         ]);
+
+        // If all fixes are resolved, update audit status
+        $allResolved = collect($fixes)->every(fn (array $f): bool => in_array($f['status'] ?? 'pending_review', ['approved', 'rejected', 'auto_applied'], true));
+
+        if ($allResolved) {
+            $hasApproved = collect($fixes)->contains(fn (array $f): bool => ($f['status'] ?? '') === 'approved');
+            $audit->update([
+                'status' => $hasApproved ? 'approved' : 'rejected',
+            ]);
+        }
 
         return redirect()->route('audits.show', $audit)
             ->with('success', 'Fix rejected.');

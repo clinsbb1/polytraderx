@@ -84,12 +84,14 @@ Route::middleware(['auth', 'subscribed'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/trades', [TradeController::class, 'index'])->name('trades.index');
+    Route::get('/trades/export', [TradeController::class, 'export'])->name('trades.export');
     Route::get('/trades/{trade}', [TradeController::class, 'show'])->name('trades.show');
 
     Route::get('/audits', [AuditController::class, 'index'])->name('audits.index');
     Route::get('/audits/{audit}', [AuditController::class, 'show'])->name('audits.show');
     Route::post('/audits/{audit}/approve-fix', [AuditController::class, 'approveFix'])->name('audits.approve-fix');
     Route::post('/audits/{audit}/reject-fix', [AuditController::class, 'rejectFix'])->name('audits.reject-fix');
+    Route::post('/audits/manual-trigger', [AuditController::class, 'manualTrigger'])->name('audits.manual-trigger');
 
     Route::get('/strategy', [StrategyController::class, 'index'])->name('strategy.index');
     Route::post('/strategy/{group}', [StrategyController::class, 'update'])->name('strategy.update');
@@ -108,6 +110,8 @@ Route::middleware(['auth', 'superadmin'])->prefix('admin')->group(function () {
     Route::post('/users/{user}/toggle-active', [AdminUserController::class, 'toggleActive']);
     Route::post('/users/{user}/change-plan', [AdminUserController::class, 'changePlan']);
     Route::post('/users/{user}/grant-free-subscription', [AdminUserController::class, 'grantFreeSubscription']);
+    Route::post('/users/{user}/impersonate', [AdminUserController::class, 'impersonate']);
+    Route::post('/stop-impersonating', [AdminUserController::class, 'stopImpersonating'])->name('admin.stop-impersonating');
 
     Route::get('/payments', [AdminPaymentController::class, 'index']);
 

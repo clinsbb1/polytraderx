@@ -20,6 +20,18 @@
         $dryRun = $settings->getBool('DRY_RUN', true);
     @endphp
 
+    {{-- Impersonate Bar --}}
+    @if(session('impersonator_id'))
+    <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#ff4757,#ff6b81);color:#fff;text-align:center;padding:8px 16px;font-size:0.85rem;font-weight:600;font-family:var(--font-body);">
+        Viewing as {{ Auth::user()->name }} ({{ Auth::user()->account_id }})
+        <form method="POST" action="{{ route('admin.stop-impersonating') }}" style="display:inline;margin-left:12px;">
+            @csrf
+            <button type="submit" style="background:#fff;color:#ff4757;border:none;border-radius:6px;padding:3px 12px;font-size:0.8rem;font-weight:600;cursor:pointer;">Back to Admin</button>
+        </form>
+    </div>
+    <div style="height:40px;"></div>
+    @endif
+
     {{-- Mobile Sidebar Overlay --}}
     <div class="ptx-sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -160,6 +172,7 @@
     @endif
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script>
         // Mobile sidebar toggle
         const sidebar = document.getElementById('sidebar');
