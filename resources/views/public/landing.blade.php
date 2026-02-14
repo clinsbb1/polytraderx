@@ -11,7 +11,7 @@
                 <span class="ptx-gradient-text">Trade Smarter</span><br>on Polymarket
             </h1>
             <p class="lead ptx-fade-in ptx-fade-in-delay-1">
-                AI-powered bot that trades 15-minute crypto prediction markets with a late-minute certainty strategy. Enter only when the outcome is near-certain.
+                PolyTraderX is an AI-powered platform that lets you create your own trading bots for 5 or 15 minute polymarket crypto prediction markets, fully customized to your strategy and risk preferences. Your bot continuously learns from your strategies and trades, improving its performance over time.
             </p>
             <div class="d-flex justify-content-center gap-3 flex-wrap ptx-fade-in ptx-fade-in-delay-2">
                 <a href="/register" class="btn btn-ptx-primary btn-lg px-4">Start Free Trial</a>
