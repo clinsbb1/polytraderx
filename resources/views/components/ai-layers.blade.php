@@ -28,7 +28,7 @@
                 <span class="ai-layer-badge ai-layer-badge--affordable">Affordable</span>
             </div>
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 4px;">
-                Claude Haiku (fast &amp; affordable) running every 5 minutes. Confidence scoring, pattern recognition, market sentiment analysis, and trade signal generation.
+                Claude Haiku (fast &amp; affordable) running every 2 minutes. Confidence scoring, pattern recognition, market sentiment analysis, and trade signal generation.
             </p>
             <small style="color: var(--accent);">Cost: ~$5-15/month</small>
         </div>
