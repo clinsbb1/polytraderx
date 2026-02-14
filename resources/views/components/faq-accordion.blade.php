@@ -2,16 +2,6 @@
 <div class="accordion ptx-accordion" id="faqAccordion">
     <div class="accordion-item">
         <h2 class="accordion-header">
-            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                What is the late-minute certainty strategy?
-            </button>
-        </h2>
-        <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">The bot only enters trades in the final 30-60 seconds of each 15-minute cycle, when the outcome is near-certain (>92% confidence). By waiting until the last moment, we minimize risk while capturing guaranteed payouts.</div>
-        </div>
-    </div>
-    <div class="accordion-item">
-        <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
                 What do I need to get started?
             </button>

@@ -37,14 +37,14 @@
                     <div class="ptx-step-number">1</div>
                     <div class="ptx-step-icon"><i class="bi bi-search"></i></div>
                     <h5>Monitor Markets</h5>
-                    <p>The bot continuously scans Polymarket's 15-minute crypto prediction markets (BTC, ETH, SOL), cross-referencing with Binance spot prices in real-time.</p>
+                    <p>Your bot continuously scans Polymarket’s 5 or 15 minute crypto prediction markets (BTC, ETH, SOL) based on your preferences, cross-referencing real-time Binance spot prices to inform each decision.</p>
                     <div class="ptx-step-line"></div>
                 </div>
                 <div class="ptx-step reveal reveal-delay-1">
                     <div class="ptx-step-number">2</div>
                     <div class="ptx-step-icon"><i class="bi bi-cpu"></i></div>
                     <h5>AI Analysis</h5>
-                    <p>A 3-tier AI system scores confidence. Only trades when confidence exceeds 92% in the final 60 seconds of each market cycle.</p>
+                    <p>Your bot evaluates market conditions using your custom strategy and confidence rules, executing trades only when your defined criteria are met.</p>
                     <div class="ptx-step-line"></div>
                 </div>
                 <div class="ptx-step reveal reveal-delay-2">

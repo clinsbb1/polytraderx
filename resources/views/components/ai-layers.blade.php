@@ -28,7 +28,7 @@
                 <span class="ai-layer-badge ai-layer-badge--affordable">Affordable</span>
             </div>
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 4px;">
-                Claude Haiku (fast &amp; cheap) running every 5 minutes. Confidence scoring, pattern recognition, market sentiment analysis, and trade signal generation.
+                Claude Haiku (fast &amp; affordable) running every 5 minutes. Confidence scoring, pattern recognition, market sentiment analysis, and trade signal generation.
             </p>
             <small style="color: var(--accent);">Cost: ~$5-15/month</small>
         </div>
@@ -55,6 +55,6 @@
 {{-- Callout --}}
 <div class="ai-callout reveal reveal-delay-3">
     <p style="font-size: 1.05rem; margin-bottom: 0;">
-        <strong>Result:</strong> Full AI-powered trading for <strong>~$10-30/month</strong> instead of $300+ with traditional always-on AI. The tiered architecture ensures you only pay for intelligence when it matters.
+        <strong>Result:</strong> Full AI-powered trading for <strong>~$10-30/month</strong> instead of $500+ with traditional always-on AI. The tiered architecture ensures you only pay for intelligence when it matters.
     </p>
 </div>
