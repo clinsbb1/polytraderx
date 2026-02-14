@@ -39,6 +39,8 @@ Route::middleware('throttle:60,1')->get('/run-migrations', function () {
     return nl2br(implode("\n", $output));
 });
 
+Route::get('/health', \App\Http\Controllers\HealthCheckController::class);
+
 // Public pages (guests)
 Route::get('/', function () {
     return auth()->check() ? redirect('/dashboard') : app(PublicController::class)->landing();

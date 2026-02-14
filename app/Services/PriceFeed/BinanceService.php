@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\PriceFeed;
 
+use App\Exceptions\BinanceApiException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -30,8 +31,14 @@ class BinanceService
     public function getCurrentPrice(string $symbol): float
     {
         $cacheKey = "binance:price:{$symbol}";
+        $staleCacheKey = "binance:price_stale:{$symbol}";
 
-        return (float) Cache::remember($cacheKey, self::PRICE_CACHE_TTL, function () use ($symbol) {
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return (float) $cached;
+        }
+
+        try {
             $this->throttle();
 
             $response = Http::timeout(10)->get("{$this->baseUrl}/ticker/price", [
@@ -39,11 +46,31 @@ class BinanceService
             ]);
 
             if (!$response->successful()) {
-                throw new \RuntimeException("Binance API error ({$response->status()}): {$response->body()}");
+                throw new BinanceApiException(
+                    "Binance API error ({$response->status()}): {$response->body()}",
+                    $response->status(),
+                    $response->body(),
+                );
             }
 
-            return $response->json('price');
-        });
+            $price = (float) $response->json('price');
+            Cache::put($cacheKey, $price, self::PRICE_CACHE_TTL);
+            Cache::put($staleCacheKey, $price, 300); // 5 min stale cache
+
+            return $price;
+        } catch (\Throwable $e) {
+            // Return stale cached price if available
+            $stalePrice = Cache::get($staleCacheKey);
+            if ($stalePrice !== null) {
+                Log::channel('bot')->warning("Binance API failed, using stale price for {$symbol}", [
+                    'stale_price' => $stalePrice,
+                    'error' => $e->getMessage(),
+                ]);
+                return (float) $stalePrice;
+            }
+
+            throw $e;
+        }
     }
 
     public function getPriceForAsset(string $asset): float

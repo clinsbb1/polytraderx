@@ -1,7 +1,7 @@
 # PolyTraderX — Multi-Tenant SaaS Polymarket Trading Bot
 
 ## Project Overview
-PolyTraderX is a **multi-tenant SaaS** Laravel app that auto-trades Polymarket's 15-minute crypto prediction markets (BTC, ETH, SOL). The core edge is **late-minute certainty trading**: enter only in the final 30–60 seconds when outcome is near-certain (>92% confidence). Uses a 3-tier AI cost architecture (Reflexes/Muscles/Brain), logs everything with full forensics, self-audits after every loss.
+PolyTraderX is a **multi-tenant SaaS** Laravel application that auto-trades Polymarket's 15-minute crypto prediction markets (BTC, ETH, SOL). The core edge is **late-minute certainty trading**: enter only in the final 30–60 seconds when outcome is near-certain (>92% confidence). Uses a 3-tier AI cost architecture (Reflexes/Muscles/Brain), logs everything with full forensics, and self-audits after every loss.
 
 **Multi-tenant architecture**: Each user has their own strategy_params, trades, API credentials (encrypted), and subscription. The `BelongsToUser` trait provides user scoping on all data models. No global scopes — commands use `UserBotRunner` to iterate users explicitly.
 
@@ -11,7 +11,10 @@ PolyTraderX is a **multi-tenant SaaS** Laravel app that auto-trades Polymarket's
 - **Chart.js** for charts
 - **MySQL 8** database
 - **Laravel Breeze** for auth + **Laravel Socialite** for Google OAuth
+- **Anthropic Claude API** — Haiku (Muscles tier) + Sonnet (Brain tier)
 - **NOWPayments** for crypto subscription billing
+- **Binance Public API** for real-time BTC/ETH/SOL spot prices
+- **Telegram Bot API** for notifications and bot commands
 - **Database queue driver** (no Redis)
 - **Timezone**: Africa/Lagos (per-user configurable)
 
@@ -19,31 +22,64 @@ PolyTraderX is a **multi-tenant SaaS** Laravel app that auto-trades Polymarket's
 ```bash
 php artisan serve                    # Dev server
 php artisan migrate                  # Run migrations
-php artisan migrate:fresh --seed     # Reset + seed (plans, settings, superadmin, demo user)
+php artisan migrate:fresh --seed     # Reset + seed (plans, settings, superadmin)
 php artisan db:seed                  # Seed all
-php artisan test                     # Run tests
+php artisan test                     # Run tests (161 tests)
 php artisan schedule:run             # Run scheduler manually
 php artisan queue:work               # Process queued jobs
-php artisan subscriptions:check-expired  # Deactivate expired subscriptions (runs hourly via scheduler)
 
 # Bot commands (run for all active users via UserBotRunner)
-php artisan bot:scan-markets         # Find active 15-min markets
-php artisan bot:execute-trades       # Place orders
-php artisan bot:monitor-positions    # Track open positions
-php artisan bot:ai-analyze-markets   # Haiku: score markets
-php artisan bot:ai-audit-losses      # Sonnet: post-loss forensics
-php artisan bot:daily-review         # Sonnet: daily review
+php artisan bot:scan-markets         # Find active 15-min markets in entry window
+php artisan bot:execute-trades       # Generate signals + place orders
+php artisan bot:monitor-positions    # Track open positions, resolve completed markets
+php artisan bot:ai-analyze-markets   # Haiku: pre-score markets near close
+php artisan bot:ai-audit-losses      # Sonnet: post-loss forensics on unaudited trades
+php artisan bot:daily-review         # Sonnet: daily performance review
 php artisan bot:weekly-report        # Sonnet: weekly deep analysis
-php artisan bot:snapshot-balance     # Record balance
-php artisan bot:daily-summary        # Compile stats + Telegram
+php artisan bot:snapshot-balance     # Record balance/equity + alert on drawdown
+php artisan bot:daily-summary        # Compile yesterday's stats + Telegram notification
+php artisan bot:cleanup-logs         # Prune trade_logs >90d, snapshots >180d, decisions >90d
+php artisan subscriptions:check-expired  # Warn/deactivate expired subscriptions
 ```
+
+## Scheduled Commands
+```
+HOURLY:
+  subscriptions:check-expired     — Warn 3/1 days before expiry, deactivate expired
+
+EVERY MINUTE (Tier 1 — Reflexes):
+  bot:scan-markets                — Find entry windows
+  bot:execute-trades              — Signal generation + trade placement
+  bot:monitor-positions           — Resolve completed markets
+
+EVERY 5 MINUTES (Tier 2 — Muscles):
+  bot:ai-analyze-markets          — Pre-score with Haiku
+  bot:ai-audit-losses             — Audit losing trades with Sonnet
+
+EVERY 15 MINUTES:
+  bot:snapshot-balance            — Record equity, check low balance + drawdown alerts
+
+DAILY AT 23:55:
+  bot:daily-review                — Daily AI review (Sonnet)
+
+DAILY AT 00:05:
+  bot:daily-summary               — Compile yesterday's stats + send Telegram
+
+DAILY:
+  bot:cleanup-logs                — Prune old records
+
+WEEKLY (Sunday 23:55):
+  bot:weekly-report               — Weekly deep analysis (Sonnet)
+```
+
+All scheduled commands use `->withoutOverlapping()->runInBackground()`.
 
 ## Architecture Rules
 
 ### Multi-Tenancy
 - **`BelongsToUser` trait** on all user-owned models: auto-sets user_id on create, provides `user()` relationship and `scopeForUser()` scope
 - **NO global scopes** — commands run without auth context, so explicit `forUser($userId)` calls are required
-- **`UserBotRunner` service** iterates active+subscribed+onboarded users with try/catch per user
+- **`UserBotRunner` service** iterates active users with Polymarket credentials, try/catch per user, Telegram error notifications
 - **`SettingsService`** is user-aware: all methods accept optional `?int $userId` (defaults to `auth()->id()`)
 - **`PlatformSettingsService`** handles global admin config (no user_id)
 
@@ -54,23 +90,28 @@ php artisan bot:daily-summary        # Compile stats + Telegram
 - Models define relationships and scopes only
 
 ### 3-Tier AI Pattern
-1. **Reflexes** (`ReflexesService`) — Free PHP rule-based logic. Runs every minute.
-2. **Muscles** (`MusclesService`) — Cheap Claude Haiku. Runs every 5 min.
-3. **Brain** (`BrainService`) — Expensive Claude Sonnet. On-demand only.
+1. **Reflexes** (`ReflexesService`) — Free PHP rule-based logic. Runs every minute. Checks price thresholds, desync, volatility, monitored assets.
+2. **Muscles** (`MusclesService`) — Cheap Claude Haiku. Runs every 5 min. Pre-scores markets near close with confidence scoring.
+3. **Brain** (`BrainService`) — Expensive Claude Sonnet. On-demand: loss audits, daily/weekly reviews with forensic analysis and suggested parameter fixes.
+
+### Trading Pipeline
+`StrategyEngine` orchestrates the full pipeline per user:
+1. `MarketService` fetches active Polymarket crypto markets
+2. `MarketTimingService` identifies markets in entry window (last 60s)
+3. `PriceAggregator` combines Binance + Polymarket prices, detects desync
+4. `VolatilityCalculator` estimates reversal probability
+5. `ReflexesService` applies rule-based filters
+6. `SignalGenerator` combines Reflexes + Muscles, enforces confidence threshold
+7. `RiskManager` enforces daily loss, trade count, concurrent position limits, calculates bet size
+8. `TradeExecutor` creates trade record, places order via `OrderService`, logs forensics
 
 ### Admin-Editable Parameters
-**CRITICAL**: ALL trading parameters live in the `strategy_params` DB table (per-user), read via `SettingsService`. NEVER hardcode trading rules. Platform-wide settings live in `platform_settings` table, read via `PlatformSettingsService`.
+**CRITICAL**: ALL trading parameters live in the `strategy_params` DB table (per-user), read via `SettingsService`. NEVER hardcode trading rules. Platform-wide settings (API keys, AI models, budgets) live in `platform_settings` table, read via `PlatformSettingsService`.
 
 ### Middleware Layers
-- `onboarded` — Redirects to `/onboarding` if not completed
 - `subscribed` — Redirects to `/subscription` if trial expired and no active subscription
 - `superadmin` — 403 if not super admin
-- Route groups: public (no auth) → onboarding (auth) → subscription (auth+onboarded) → main app (auth+onboarded+subscribed) → admin (auth+superadmin)
-
-### External Price Feeds (Required)
-- Binance API for real-time BTC/ETH/SOL spot prices
-- Cross-check against Polymarket implied price
-- Flag API desyncs → auto-SKIP trade
+- Route groups: public (no auth) → auth-only (settings, subscription) → main app (auth+subscribed) → admin (auth+superadmin)
 
 ## Code Style
 - PSR-12 coding standard
@@ -93,58 +134,117 @@ php artisan bot:daily-summary        # Compile stats + Telegram
 
 ## Security Rules
 - NEVER log or display: private keys, API keys, secrets
-- All env secrets in `.env` only, never in code or DB
+- All env secrets in `.env` only, never in code or DB (except platform_settings for API keys stored encrypted)
 - API keys stored encrypted via Laravel's `encrypted` cast in UserCredential model
 - Validate all input server-side
 - Use Laravel's CSRF protection on all forms (webhook excluded via `bootstrap/app.php`)
-- Rate-limit all external API calls
+- Rate-limit all external API calls via `ApiRateLimiter` service
 - NOWPayments IPN verified via HMAC-SHA512 signature
+- Polymarket API uses HMAC-SHA256 signed requests with exponential backoff retry
 
 ## File Structure
 ```
 app/
-├── Console/Commands/              # Artisan commands (thin, call services)
-│   └── CheckExpiredSubscriptions  # Hourly subscription check
+├── Console/Commands/              # 11 Artisan commands (thin, call services)
+│   ├── AiAnalyzeMarkets           # Haiku market pre-scoring
+│   ├── AiAuditLosses              # Sonnet loss forensics
+│   ├── CheckExpiredSubscriptions  # Hourly subscription check
+│   ├── CleanupLogs               # Prune old records
+│   ├── DailyReview               # Sonnet daily review
+│   ├── DailySummaryCommand       # Compile daily stats
+│   ├── ExecuteTrades             # Signal generation + trade placement
+│   ├── MonitorPositions          # Resolve completed markets
+│   ├── ScanMarkets               # Find entry windows
+│   ├── SnapshotBalance           # Record equity + alerts
+│   └── WeeklyReport              # Sonnet weekly analysis
+├── Exceptions/
+│   └── Handler                    # Global exception handler
 ├── Http/
-│   ├── Controllers/               # User-facing controllers
-│   │   ├── Admin/                 # Super admin controllers (7 controllers)
-│   │   ├── Auth/                  # Breeze + GoogleAuthController
+│   ├── Controllers/
+│   │   ├── Admin/                 # 8 super admin controllers
+│   │   │   ├── AdminAiCostController
+│   │   │   ├── AdminAnnouncementController
+│   │   │   ├── AdminDashboardController
+│   │   │   ├── AdminLogController
+│   │   │   ├── AdminPaymentController
+│   │   │   ├── AdminPlanController
+│   │   │   ├── AdminSettingController
+│   │   │   └── AdminUserController
+│   │   ├── Auth/                  # Breeze (10) + GoogleAuthController
 │   │   ├── PublicController       # Landing, pricing, terms, privacy, contact
-│   │   ├── OnboardingController   # 5-step onboarding wizard
 │   │   ├── SubscriptionController # Plan management + crypto checkout
 │   │   ├── WebhookController      # NOWPayments IPN
+│   │   ├── TelegramWebhookController # Telegram bot updates
 │   │   ├── DashboardController    # User dashboard (scoped)
-│   │   ├── TradeController        # User trades (scoped)
+│   │   ├── TradeController        # User trades + CSV export (scoped)
+│   │   ├── AuditController        # AI audits + approve/reject fixes (scoped)
+│   │   ├── BalanceController      # Equity curve (scoped)
+│   │   ├── StrategyController     # Per-user strategy params (scoped)
+│   │   ├── LogController          # Bot log viewer (scoped)
+│   │   ├── AiCostController       # AI spend tracking (scoped)
 │   │   ├── CredentialController   # API key management
+│   │   ├── HealthCheckController  # /health endpoint
 │   │   ├── ProfileSettingsController
-│   │   └── NotificationSettingsController
+│   │   ├── NotificationSettingsController
+│   │   └── TelegramSettingsController
 │   └── Middleware/
-│       ├── EnsureOnboarded
 │       ├── EnsureActiveSubscription
 │       └── EnsureSuperAdmin
 ├── Models/                        # 13 Eloquent models
-│   ├── User                       # Extended with SaaS fields, relationships, helpers
+│   ├── User                       # SaaS fields, subscription helpers, Telegram
 │   ├── UserCredential             # Encrypted API keys per user
-│   ├── SubscriptionPlan           # Admin-editable plans
+│   ├── SubscriptionPlan           # Admin-editable plans with limits
 │   ├── Payment                    # NOWPayments records
 │   ├── PlatformSetting            # Global admin config
 │   ├── Announcement               # Admin announcements
-│   ├── Trade, TradeLog, AiDecision, AiAudit, BalanceSnapshot, StrategyParam, DailySummary
+│   ├── Trade                      # Trade records (soft deletes)
+│   ├── TradeLog                   # Forensic event logs
+│   ├── AiDecision                 # Claude API call records + cost
+│   ├── AiAudit                    # Loss/daily/weekly audits with fixes
+│   ├── BalanceSnapshot            # Time-series equity tracking
+│   ├── StrategyParam              # Per-user trading parameters
+│   └── DailySummary               # Compiled daily stats
 ├── Services/
-│   ├── Settings/
-│   │   ├── SettingsService        # Per-user strategy params (cached)
-│   │   └── PlatformSettingsService # Global platform config (cached)
-│   ├── Subscription/
-│   │   └── SubscriptionService    # Plan management, limits, activation
+│   ├── AI/
+│   │   ├── AIRouter               # Routes to Muscles/Brain based on plan limits
+│   │   ├── AnthropicClient        # Claude API HTTP client with retry
+│   │   ├── BrainService           # Sonnet: loss audits, daily/weekly reviews
+│   │   ├── CostTracker            # Token/cost tracking, budget enforcement
+│   │   ├── MusclesService         # Haiku: quick market confidence scoring
+│   │   └── PromptBuilder          # System/user prompts for all AI tiers
+│   ├── Audit/
+│   │   ├── ForensicsBuilder       # Reconstructs complete trade forensics
+│   │   └── StrategyUpdater        # Validates + applies AI parameter fixes
 │   ├── Payment/
 │   │   └── NOWPaymentsService     # Invoice creation, IPN verification
-│   ├── UserBotRunner              # Multi-tenant bot execution
-│   ├── Polymarket/                # CLOB API (TODO)
-│   ├── PriceFeed/                 # Binance (TODO)
-│   ├── AI/                        # Brain/Muscles/Reflexes (TODO)
-│   ├── Trading/                   # Strategy, risk (TODO)
-│   ├── Audit/                     # Loss forensics (TODO)
-│   └── Telegram/                  # Notifications (TODO)
+│   ├── Polymarket/
+│   │   ├── BalanceService         # Fetch USDC balance + open positions
+│   │   ├── MarketService          # Normalize markets, filter crypto, parse prices
+│   │   ├── OrderService           # Place/cancel orders, DRY_RUN simulation
+│   │   └── PolymarketClient       # HMAC-SHA256 signed HTTP client
+│   ├── PriceFeed/
+│   │   ├── BinanceService         # Spot prices, klines, price changes
+│   │   ├── PriceAggregator        # Binance vs Polymarket desync detection
+│   │   └── VolatilityCalculator   # 1-min volatility, reversal probability
+│   ├── RateLimiter/
+│   │   └── ApiRateLimiter         # Generic cache-based rate limiter
+│   ├── Settings/
+│   │   ├── SettingsService        # Per-user strategy params (cached 1h)
+│   │   └── PlatformSettingsService # Global platform config (cached 1h)
+│   ├── Subscription/
+│   │   └── SubscriptionService    # Plan limits, activation, cancellation
+│   ├── Telegram/
+│   │   ├── NotificationFormatter  # Format messages for Telegram HTML
+│   │   ├── NotificationService    # Send notifications (respects preferences + throttle)
+│   │   └── TelegramBotService     # Bot API client, /start /status /today /balance commands
+│   ├── Trading/
+│   │   ├── MarketTimingService    # Entry window detection (last 60s)
+│   │   ├── ReflexesService        # Rule-based filters (price, desync, volatility)
+│   │   ├── RiskManager            # Daily loss/trade/position limits, bet sizing
+│   │   ├── SignalGenerator        # Combines Reflexes + Muscles signals
+│   │   ├── StrategyEngine         # Main trading orchestrator
+│   │   └── TradeExecutor          # Creates trade, places order, logs forensics
+│   └── UserBotRunner              # Multi-tenant bot execution with per-user error handling
 ├── Traits/
 │   └── BelongsToUser              # Auto user_id, user() relation, scopeForUser()
 resources/views/
@@ -153,13 +253,12 @@ resources/views/
 │   ├── super-admin.blade.php      # Indigo sidebar for admin panel
 │   └── public.blade.php           # Marketing website layout
 ├── public/                        # Landing, pricing, terms, privacy, contact
-├── onboarding/                    # 5-step wizard views
 ├── subscription/                  # Plan selection, success, cancel
-├── admin/                         # Super admin views (dashboard, users, payments, plans, settings, logs, announcements)
-├── settings/                      # User settings (credentials, profile, notifications)
+├── admin/                         # Super admin views (dashboard, users, payments, plans, settings, logs, ai-costs, announcements)
+├── settings/                      # User settings (credentials, profile, notifications, telegram)
 ├── dashboard.blade.php            # User dashboard with announcements + subscription status
-├── trades/                        # index + show (scoped by user)
-├── audits/                        # index + show (scoped by user)
+├── trades/                        # index + show (scoped by user) + CSV export
+├── audits/                        # index + show (scoped by user) + approve/reject fixes
 ├── strategy/                      # Grouped param editor (scoped by user)
 ├── balance/                       # Equity curve (scoped by user)
 ├── logs/                          # Filtered log viewer (scoped by user)
@@ -168,34 +267,28 @@ resources/views/
 
 ## Route Structure
 ```
-Public (no auth):           /, /pricing, /terms, /privacy, /contact
+Public (no auth):           /, /pricing, /terms, /privacy, /contact, /health
 Auth (Breeze + Google):     /login, /register, /auth/google, /auth/google/callback
-Onboarding (auth):          /onboarding, /onboarding/polymarket, /onboarding/telegram, /onboarding/anthropic, /onboarding/activate
-Subscription (auth+onboarded): /subscription, /subscription/checkout, /subscription/success, /subscription/cancel
-Main App (auth+onboarded+subscribed): /dashboard, /trades, /audits, /strategy, /balance, /logs, /ai-costs, /settings/*
-Admin (auth+superadmin):    /admin, /admin/users, /admin/payments, /admin/plans, /admin/settings, /admin/logs, /admin/announcements
-Webhook (no auth/CSRF):     POST /api/webhooks/nowpayments
+Settings (auth only):       /settings/credentials, /settings/profile, /settings/notifications, /settings/telegram
+Subscription (auth only):   /subscription, /subscription/checkout, /subscription/success, /subscription/cancel
+Main App (auth+subscribed): /dashboard, /trades, /trades/export, /audits, /strategy, /balance, /logs, /ai-costs
+Admin (auth+superadmin):    /admin, /admin/users, /admin/payments, /admin/plans, /admin/settings, /admin/logs, /admin/ai-costs, /admin/announcements
+Webhook (no auth/CSRF):     POST /api/webhooks/nowpayments, POST /api/webhooks/telegram
 ```
 
 ## Key Gotchas
-- Polymarket uses EIP-712 signatures on Polygon — may need `kornrunner/keccak` + `simplito/elliptic-php`, or a small Node helper script
+- Polymarket uses HMAC-SHA256 for CLOB API auth — implemented in `PolymarketClient`
 - 15-minute markets are TIME-CRITICAL: server clock must use NTP
-- Every cron command must use `->withoutOverlapping()` to prevent duplicate trades
-- Polymarket API can change without notice — wrap all calls in try/catch with retry
+- Every cron command uses `->withoutOverlapping()` to prevent duplicate trades
+- Polymarket API can change without notice — all calls wrapped in try/catch with exponential backoff retry
 - The bot only enters in the LAST 30-60 seconds of each 15-min cycle
-- API desync between Binance and Polymarket is the #1 historical failure mode
+- API desync between Binance and Polymarket is the #1 historical failure mode — `PriceAggregator` detects this
 - Always scope queries by user_id — use `forUser()` scope, never query without user context
 - UserCredential uses encrypted casts — never log decrypted values
-- Webhook route is excluded from CSRF in `bootstrap/app.php`
-
-## Build Phases
-1. **Foundation**: Laravel + Breeze + migrations + models + SettingsService + admin layout ✅
-2. **SaaS Conversion**: Multi-tenancy, public website, onboarding, subscriptions, admin panel ✅
-3. **Polymarket + Price Feeds**: API clients, market fetching, Binance integration
-4. **Trading Engine**: Reflexes, risk management, trade execution, cron commands
-5. **AI Layer**: Muscles + Brain services, prompts, cost tracking, audit commands
-6. **Notifications**: Telegram integration, all notification types
-7. **Polish**: DRY_RUN testing, error handling, rate limiting, deployment
+- Webhook routes are excluded from CSRF in `bootstrap/app.php`
+- `DRY_RUN=true` is the default for all new users — simulates trades without Polymarket API calls
+- Telegram, Anthropic, and Polymarket API keys are stored in `platform_settings` (global) and `user_credentials` (per-user)
+- `SubscriptionService` enforces plan limits on max trades, max positions, and available AI tiers
 
 ## Reference
 The full detailed specification is in `SPEC.md` in the project root.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Polymarket;
 
+use App\Exceptions\PolymarketApiException;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -162,7 +163,7 @@ class PolymarketClient
                     'body' => $errorBody,
                 ]);
 
-                throw new \RuntimeException("Polymarket API error ({$status}): {$errorBody}");
+                throw new PolymarketApiException("Polymarket API error ({$status}): {$errorBody}", $status, $errorBody);
             } catch (\RuntimeException $e) {
                 throw $e;
             } catch (\Exception $e) {
@@ -180,8 +181,9 @@ class PolymarketClient
             }
         }
 
-        throw new \RuntimeException(
-            "Polymarket API request failed after " . self::MAX_RETRIES . " attempts: " . ($lastException?->getMessage() ?? 'Unknown error')
+        throw new PolymarketApiException(
+            "Polymarket API request failed after " . self::MAX_RETRIES . " attempts: " . ($lastException?->getMessage() ?? 'Unknown error'),
+            previous: $lastException,
         );
     }
 }
