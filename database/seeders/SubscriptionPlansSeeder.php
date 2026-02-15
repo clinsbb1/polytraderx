@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Models\SubscriptionPlan;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class SubscriptionPlansSeeder extends Seeder
 {
@@ -148,11 +149,13 @@ class SubscriptionPlansSeeder extends Seeder
             ],
         ];
 
-        foreach ($plans as $plan) {
-            SubscriptionPlan::updateOrCreate(
-                ['slug' => $plan['slug']],
-                $plan
-            );
-        }
+        DB::transaction(function () use ($plans): void {
+            // Reset current pricing structure before inserting the canonical plan set.
+            SubscriptionPlan::query()->delete();
+
+            foreach ($plans as $plan) {
+                SubscriptionPlan::create($plan);
+            }
+        });
     }
 }
