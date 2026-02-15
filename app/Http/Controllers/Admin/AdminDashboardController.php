@@ -8,6 +8,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Trade;
 use App\Models\User;
+use App\Services\Settings\PlatformSettingsService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
 
 class AdminDashboardController extends Controller
@@ -26,14 +29,19 @@ class AdminDashboardController extends Controller
                 ->where('last_bot_heartbeat', '>', now()->subMinutes(5))
                 ->count(),
             'pending_payments' => Payment::where('status', 'pending')->count(),
-            'paid_subscriptions' => User::whereNotNull('subscription_ends_at')
-                ->where('subscription_ends_at', '>', now())
-                ->where('subscription_plan', '!=', 'free_trial')
-                ->count(),
+            'paid_subscriptions' => Payment::whereIn('status', ['finished', 'confirmed'])
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '>', now())
+                ->distinct('user_id')
+                ->count('user_id'),
         ];
 
         $recentUsers = User::latest()->take(10)->get();
-        $recentPayments = Payment::with('user', 'subscriptionPlan')->latest()->take(10)->get();
+        $recentPayments = Payment::with('user', 'subscriptionPlan')
+            ->whereIn('status', ['finished', 'confirmed'])
+            ->latest()
+            ->take(10)
+            ->get();
         $recentTrades = Trade::with('user')->latest()->take(10)->get();
 
         $signupsPerDay = User::where('created_at', '>=', now()->subDays(30))
@@ -55,6 +63,8 @@ class AdminDashboardController extends Controller
             ->orderBy('date')
             ->get();
 
+        $health = $this->buildHealthSnapshot();
+
         return view('admin.dashboard', compact(
             'stats',
             'recentUsers',
@@ -63,6 +73,40 @@ class AdminDashboardController extends Controller
             'signupsPerDay',
             'revenuePerDay',
             'tradesPerDay',
+            'health',
         ));
+    }
+
+    private function buildHealthSnapshot(): array
+    {
+        $services = [];
+
+        try {
+            DB::select('SELECT 1');
+            $services['database'] = 'ok';
+        } catch (\Throwable) {
+            $services['database'] = 'error';
+        }
+
+        try {
+            $response = Http::timeout(5)->get('https://api.binance.com/api/v3/ping');
+            $services['binance'] = $response->successful() ? 'ok' : 'degraded';
+        } catch (\Throwable) {
+            $services['binance'] = 'error';
+        }
+
+        $platformSettings = app(PlatformSettingsService::class);
+        $services['telegram_bot'] = $platformSettings->get('TELEGRAM_BOT_TOKEN') ? 'configured' : 'not_configured';
+        $services['telegram_webhook_secret'] = $platformSettings->get('TELEGRAM_WEBHOOK_SECRET') ? 'configured' : 'not_configured';
+        $services['anthropic'] = $platformSettings->get('ANTHROPIC_API_KEY') ? 'configured' : 'not_configured';
+        $services['polymarket_signer'] = $platformSettings->get('POLYMARKET_SIGNER_URL') ? 'configured' : 'not_configured';
+
+        $overall = collect($services)->contains('error') ? 'degraded' : 'ok';
+
+        return [
+            'status' => $overall,
+            'services' => $services,
+            'checked_at' => now(),
+        ];
     }
 }

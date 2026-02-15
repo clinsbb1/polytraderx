@@ -17,7 +17,7 @@ class BalanceService
 
             return (float) ($response['balance'] ?? $response['amount'] ?? 0);
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Failed to fetch balance', [
+            Log::channel('simulator')->error('Failed to fetch balance', [
                 'user_id' => $this->client->getUserId(),
                 'message' => $e->getMessage(),
             ]);
@@ -45,7 +45,7 @@ class BalanceService
                 'current_value' => (float) ($pos['currentValue'] ?? $pos['value'] ?? 0),
             ], $positions);
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Failed to fetch positions', [
+            Log::channel('simulator')->error('Failed to fetch positions', [
                 'user_id' => $this->client->getUserId(),
                 'message' => $e->getMessage(),
             ]);

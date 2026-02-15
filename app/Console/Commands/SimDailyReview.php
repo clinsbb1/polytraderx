@@ -9,9 +9,9 @@ use App\Services\Telegram\TelegramBotService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 
-class DailyReview extends Command
+class SimDailyReview extends Command
 {
-    protected $signature = 'bot:daily-review';
+    protected $signature = 'sim:daily-review';
     protected $description = 'Run AI Brain daily performance review for all users';
 
     public function handle(

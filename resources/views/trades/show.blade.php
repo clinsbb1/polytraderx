@@ -14,9 +14,6 @@
     <div class="ptx-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h5 class="mb-0">
             Trade #{{ $trade->id }}
-            @if($trade->order_id && str_starts_with($trade->order_id, 'DRY_RUN_'))
-                <span class="ptx-badge ptx-badge-warning ms-2">DRY RUN</span>
-            @endif
         </h5>
         <div>
             @switch($trade->status)

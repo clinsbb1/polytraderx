@@ -39,7 +39,7 @@
                                 {{ $setting->value === 'true' || $setting->value === '1' ? 'Enabled' : 'Disabled' }}
                             </label>
                         </div>
-                    @elseif(str_contains(strtolower($setting->key), 'secret') || str_contains(strtolower($setting->key), 'key') || str_contains(strtolower($setting->key), 'password') || str_contains(strtolower($setting->key), 'token'))
+                    @elseif((str_contains(strtolower($setting->key), 'secret') || str_contains(strtolower($setting->key), 'key') || str_contains(strtolower($setting->key), 'password') || str_contains(strtolower($setting->key), 'token')) && !str_contains(strtolower($setting->key), 'nowpayments'))
                         <input type="password" name="settings[{{ $setting->key }}]"
                             class="form-control form-control-sm"
                             id="setting-{{ $setting->key }}"
@@ -67,10 +67,14 @@
     </div>
     @endforeach
 
-    <div class="d-flex justify-content-end">
-        <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-lg me-1"></i>Save All Settings
-        </button>
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-end gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-check-lg me-2"></i>Save All Settings
+                </button>
+            </div>
+        </div>
     </div>
 </form>
 @endsection

@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'Privacy Policy — PolyTraderX')
+@section('meta_description', 'Review the PolyTraderX Privacy Policy to understand what data we collect, how we use it, third-party services, retention, and your data rights.')
 
 @section('content')
     <section class="ptx-section" style="padding-top: 140px;">

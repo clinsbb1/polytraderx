@@ -854,11 +854,31 @@ select.ptx-input option {
 .ptx-toast.show {
     transform: translateX(0);
     opacity: 1;
+    pointer-events: auto;
 }
 
 .ptx-toast i {
     font-size: 1.1rem;
     flex-shrink: 0;
+}
+
+.ptx-toast-close {
+    background: none;
+    border: none;
+    color: var(--profit);
+    cursor: pointer;
+    padding: 0;
+    margin-left: 8px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ptx-toast-close:hover {
+    opacity: 1;
 }
 
 /* ---------- Responsive ---------- */

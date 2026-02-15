@@ -9,15 +9,20 @@ use App\Models\Announcement;
 use App\Models\BalanceSnapshot;
 use App\Models\DailySummary;
 use App\Models\Trade;
+use App\Services\Analytics\StrategyMetrics;
 use App\Services\Settings\SettingsService;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(SettingsService $settings): View
+    public function index(SettingsService $settings, StrategyMetrics $metrics): View
     {
         $user = auth()->user();
         $userId = $user->id;
+
+        // Calculate strategy health metrics
+        $drawdown = $metrics->calculateMaxDrawdown($user, 30);
+        $stability = $metrics->assessStability($user, 30);
 
         $todayPnl = (float) Trade::forUser($userId)->whereDate('resolved_at', today())->sum('pnl');
         $todayTradeCount = Trade::forUser($userId)->whereDate('created_at', today())->count();
@@ -33,7 +38,7 @@ class DashboardController extends Controller
         $pendingAudits = AiAudit::forUser($userId)->where('status', 'pending_review')->count();
 
         $dryRun = $settings->getBool('DRY_RUN', true, $userId);
-        $botEnabled = $settings->getBool('BOT_ENABLED', false, $userId);
+        $simulatorEnabled = $settings->getBool('SIMULATOR_ENABLED', false, $userId);
 
         $equityCurve = BalanceSnapshot::forUser($userId)
             ->where('snapshot_at', '>=', now()->subDays(30))
@@ -48,7 +53,21 @@ class DashboardController extends Controller
             ->get();
 
         $telegramLinked = $user->hasTelegramLinked();
-        $credentialsConfigured = $user->hasPolymarketConfigured();
+        $strategyHealth = ucfirst($stability);
+        $maxDrawdown = $drawdown['percent'];
+
+        // Additional stats
+        $totalTrades = Trade::forUser($userId)->whereIn('status', ['won', 'lost'])->count();
+        $totalWins = Trade::forUser($userId)->where('status', 'won')->count();
+        $totalLosses = Trade::forUser($userId)->where('status', 'lost')->count();
+
+        // Best day in last 7 days
+        $bestDayData = DailySummary::forUser($userId)
+            ->where('date', '>=', now()->subDays(7))
+            ->orderBy('net_pnl', 'desc')
+            ->first();
+        $bestDay7d = $bestDayData ? (float) $bestDayData->net_pnl : 0;
+        $bestDayDate = $bestDayData ? $bestDayData->date->format('M j') : 'No data';
 
         return view('dashboard', compact(
             'user',
@@ -63,11 +82,17 @@ class DashboardController extends Controller
             'announcements',
             'pendingAudits',
             'dryRun',
-            'botEnabled',
+            'simulatorEnabled',
             'equityCurve',
             'dailyPnl',
             'telegramLinked',
-            'credentialsConfigured',
+            'strategyHealth',
+            'maxDrawdown',
+            'totalTrades',
+            'totalWins',
+            'totalLosses',
+            'bestDay7d',
+            'bestDayDate'
         ));
     }
 

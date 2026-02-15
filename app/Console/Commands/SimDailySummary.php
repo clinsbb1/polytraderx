@@ -11,9 +11,9 @@ use App\Services\Telegram\NotificationService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 
-class DailySummaryCommand extends Command
+class SimDailySummary extends Command
 {
-    protected $signature = 'bot:daily-summary';
+    protected $signature = 'sim:daily-summary';
     protected $description = 'Compile daily stats and send Telegram summary';
 
     public function handle(

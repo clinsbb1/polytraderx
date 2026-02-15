@@ -31,16 +31,30 @@ class AdminPlanController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'price_usd' => ['required', 'numeric', 'min:0'],
             'billing_period' => ['required', 'in:monthly,yearly'],
-            'max_daily_trades' => ['nullable', 'integer', 'min:0'],
+            'max_signals_per_day' => ['nullable', 'integer', 'min:0'],
             'max_concurrent_positions' => ['nullable', 'integer', 'min:0'],
-            'has_ai_muscles' => ['boolean'],
-            'has_ai_brain' => ['boolean'],
+            'max_ai_muscles_calls_per_day' => ['nullable', 'integer', 'min:0'],
+            'max_ai_brain_calls_per_day' => ['nullable', 'integer', 'min:0'],
+            'max_ai_brain_calls_per_month' => ['nullable', 'integer', 'min:0'],
+            'historical_days' => ['nullable', 'integer', 'min:0'],
+            'ai_muscles_enabled' => ['boolean'],
+            'ai_brain_enabled' => ['boolean'],
+            'csv_export_enabled' => ['boolean'],
+            'strategy_health_metrics' => ['boolean'],
+            'telegram_enabled' => ['boolean'],
+            'priority_processing' => ['boolean'],
             'trial_days' => ['nullable', 'integer', 'min:0'],
+            'lifetime_cap' => ['nullable', 'integer', 'min:0'],
+            'lifetime_sold' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
         ]);
 
-        $validated['has_ai_muscles'] = $request->boolean('has_ai_muscles');
-        $validated['has_ai_brain'] = $request->boolean('has_ai_brain');
+        $validated['ai_muscles_enabled'] = $request->boolean('ai_muscles_enabled');
+        $validated['ai_brain_enabled'] = $request->boolean('ai_brain_enabled');
+        $validated['csv_export_enabled'] = $request->boolean('csv_export_enabled');
+        $validated['strategy_health_metrics'] = $request->boolean('strategy_health_metrics');
+        $validated['telegram_enabled'] = $request->boolean('telegram_enabled');
+        $validated['priority_processing'] = $request->boolean('priority_processing');
         $validated['is_active'] = $request->boolean('is_active', true);
 
         SubscriptionPlan::create($validated);
@@ -60,16 +74,30 @@ class AdminPlanController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'price_usd' => ['required', 'numeric', 'min:0'],
             'billing_period' => ['required', 'in:monthly,yearly'],
-            'max_daily_trades' => ['nullable', 'integer', 'min:0'],
+            'max_signals_per_day' => ['nullable', 'integer', 'min:0'],
             'max_concurrent_positions' => ['nullable', 'integer', 'min:0'],
-            'has_ai_muscles' => ['boolean'],
-            'has_ai_brain' => ['boolean'],
+            'max_ai_muscles_calls_per_day' => ['nullable', 'integer', 'min:0'],
+            'max_ai_brain_calls_per_day' => ['nullable', 'integer', 'min:0'],
+            'max_ai_brain_calls_per_month' => ['nullable', 'integer', 'min:0'],
+            'historical_days' => ['nullable', 'integer', 'min:0'],
+            'ai_muscles_enabled' => ['boolean'],
+            'ai_brain_enabled' => ['boolean'],
+            'csv_export_enabled' => ['boolean'],
+            'strategy_health_metrics' => ['boolean'],
+            'telegram_enabled' => ['boolean'],
+            'priority_processing' => ['boolean'],
             'trial_days' => ['nullable', 'integer', 'min:0'],
+            'lifetime_cap' => ['nullable', 'integer', 'min:0'],
+            'lifetime_sold' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
         ]);
 
-        $validated['has_ai_muscles'] = $request->boolean('has_ai_muscles');
-        $validated['has_ai_brain'] = $request->boolean('has_ai_brain');
+        $validated['ai_muscles_enabled'] = $request->boolean('ai_muscles_enabled');
+        $validated['ai_brain_enabled'] = $request->boolean('ai_brain_enabled');
+        $validated['csv_export_enabled'] = $request->boolean('csv_export_enabled');
+        $validated['strategy_health_metrics'] = $request->boolean('strategy_health_metrics');
+        $validated['telegram_enabled'] = $request->boolean('telegram_enabled');
+        $validated['priority_processing'] = $request->boolean('priority_processing');
         $validated['is_active'] = $request->boolean('is_active', true);
 
         $plan->update($validated);

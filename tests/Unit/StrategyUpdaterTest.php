@@ -75,8 +75,8 @@ class StrategyUpdaterTest extends TestCase
     {
         $updater = $this->makeUpdater();
 
-        $this->assertTrue($updater->validateFixValue('BOT_ENABLED', true));
-        $this->assertTrue($updater->validateFixValue('BOT_ENABLED', false));
+        $this->assertTrue($updater->validateFixValue('SIMULATOR_ENABLED', true));
+        $this->assertTrue($updater->validateFixValue('SIMULATOR_ENABLED', false));
         $this->assertTrue($updater->validateFixValue('DRY_RUN', '1'));
         $this->assertTrue($updater->validateFixValue('DRY_RUN', '0'));
     }

@@ -36,11 +36,10 @@ class NotificationFormatterTest extends TestCase
 
         $result = $this->formatter->formatTradeExecuted($trade);
 
-        $this->assertStringContainsString('Trade Placed', $result);
+        $this->assertStringContainsString('Signal Evaluated', $result);
         $this->assertStringContainsString('BTC YES', $result);
         $this->assertStringContainsString('5.00', $result);
         $this->assertStringContainsString('95%', $result);
-        $this->assertStringContainsString('DRY RUN', $result);
         $this->assertLessThanOrEqual(4096, strlen($result));
     }
 
@@ -57,7 +56,7 @@ class NotificationFormatterTest extends TestCase
 
         $result = $this->formatter->formatTradeResolved($trade);
 
-        $this->assertStringContainsString('Trade Won', $result);
+        $this->assertStringContainsString('Simulation Won', $result);
         $this->assertStringContainsString('+$0.21', $result);
         $this->assertStringContainsString('BTC YES', $result);
     }
@@ -75,7 +74,7 @@ class NotificationFormatterTest extends TestCase
 
         $result = $this->formatter->formatTradeResolved($trade);
 
-        $this->assertStringContainsString('Trade Lost', $result);
+        $this->assertStringContainsString('Simulation Lost', $result);
         $this->assertStringContainsString('-$5.00', $result);
         $this->assertStringContainsString('ETH NO', $result);
     }
@@ -144,7 +143,7 @@ class NotificationFormatterTest extends TestCase
         $user = new User(['name' => 'Test']);
         $result = $this->formatter->formatErrorAlert('Connection timeout', 'Polymarket API', $user);
 
-        $this->assertStringContainsString('Bot Error', $result);
+        $this->assertStringContainsString('Simulator Error', $result);
         $this->assertStringContainsString('Connection timeout', $result);
         $this->assertStringContainsString('Polymarket API', $result);
     }

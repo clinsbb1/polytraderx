@@ -12,12 +12,25 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>{!! file_get_contents(resource_path('css/admin.css')) !!}</style>
     @stack('styles')
+
+    {{-- Google Analytics --}}
+    @php
+        $gaId = app(\App\Services\Settings\PlatformSettingsService::class)->getString('GOOGLE_ANALYTICS_ID', '');
+    @endphp
+    @if($gaId)
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $gaId }}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{{ $gaId }}');
+    </script>
+    @endif
 </head>
 <body class="ptx-admin">
     @php
         $settings = app(\App\Services\Settings\SettingsService::class);
-        $botEnabled = $settings->getBool('BOT_ENABLED', false);
-        $dryRun = $settings->getBool('DRY_RUN', true);
+        $simulatorEnabled = $settings->getBool('SIMULATOR_ENABLED', false);
     @endphp
 
     {{-- Impersonate Bar --}}
@@ -63,9 +76,10 @@
             <a class="nav-link {{ request()->routeIs('logs.*') ? 'active' : '' }}" href="{{ route('logs.index') }}">
                 <i class="bi bi-journal-text"></i> Logs
             </a>
-            <a class="nav-link {{ request()->routeIs('ai-costs.*') ? 'active' : '' }}" href="{{ route('ai-costs.index') }}">
+            {{-- Commented out - AI costs included in subscription, only admin sees them --}}
+            {{-- <a class="nav-link {{ request()->routeIs('ai-costs.*') ? 'active' : '' }}" href="{{ route('ai-costs.index') }}">
                 <i class="bi bi-cash-coin"></i> AI Costs
-            </a>
+            </a> --}}
 
             <div class="ptx-sidebar-divider"></div>
             <div class="nav-section-label">Settings</div>
@@ -73,9 +87,7 @@
             <a class="nav-link {{ request()->is('settings/profile') ? 'active' : '' }}" href="/settings/profile">
                 <i class="bi bi-person-gear"></i> Profile
             </a>
-            <a class="nav-link {{ request()->is('settings/credentials') ? 'active' : '' }}" href="/settings/credentials">
-                <i class="bi bi-key"></i> Polymarket Keys
-            </a>
+            {{-- Polymarket Keys removed - not needed for simulation-only platform --}}
             <a class="nav-link {{ request()->is('settings/telegram') ? 'active' : '' }}" href="/settings/telegram">
                 <i class="bi bi-telegram"></i> Telegram
             </a>
@@ -85,6 +97,11 @@
             <a class="nav-link {{ request()->is('subscription*') ? 'active' : '' }}" href="/subscription">
                 <i class="bi bi-credit-card"></i> Subscription
             </a>
+            @if(in_array(auth()->user()->subscription_plan, ['advanced', 'lifetime'], true))
+                <a class="nav-link {{ request()->is('contact') ? 'active' : '' }}" href="/contact">
+                    <i class="bi bi-life-preserver"></i> Support Center
+                </a>
+            @endif
 
             @if(auth()->user()->isSuperAdmin())
                 <div class="ptx-sidebar-divider"></div>
@@ -96,15 +113,10 @@
 
         <div class="ptx-sidebar-footer">
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                @if($botEnabled)
-                    <span class="ptx-badge-bot ptx-badge-on"><i class="bi bi-circle-fill" style="font-size:0.5rem"></i> Bot ON</span>
+                @if($simulatorEnabled)
+                    <span class="ptx-badge-bot ptx-badge-on"><i class="bi bi-circle-fill" style="font-size:0.5rem"></i> Simulator ON</span>
                 @else
-                    <span class="ptx-badge-bot ptx-badge-off"><i class="bi bi-circle-fill" style="font-size:0.5rem"></i> Bot OFF</span>
-                @endif
-                @if($dryRun)
-                    <span class="ptx-badge-bot ptx-badge-dry">DRY RUN</span>
-                @else
-                    <span class="ptx-badge-bot ptx-badge-live">LIVE</span>
+                    <span class="ptx-badge-bot ptx-badge-off"><i class="bi bi-circle-fill" style="font-size:0.5rem"></i> Simulator OFF</span>
                 @endif
             </div>
         </div>
@@ -126,8 +138,12 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="/settings/profile"><i class="bi bi-person-gear"></i> Profile</a></li>
-                    <li><a class="dropdown-item" href="/settings/credentials"><i class="bi bi-key"></i> API Keys</a></li>
+                    {{-- Commented out - Users don't need API keys for simulation --}}
+                    {{-- <li><a class="dropdown-item" href="/settings/credentials"><i class="bi bi-key"></i> API Keys</a></li> --}}
                     <li><a class="dropdown-item" href="/subscription"><i class="bi bi-credit-card"></i> Subscription</a></li>
+                    @if(in_array(auth()->user()->subscription_plan, ['advanced', 'lifetime'], true))
+                        <li><a class="dropdown-item" href="/contact"><i class="bi bi-life-preserver"></i> Support Center</a></li>
+                    @endif
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <form method="POST" action="{{ route('logout') }}">
@@ -141,19 +157,12 @@
             </div>
         </nav>
 
-        {{-- Dry Run Banner --}}
-        @if($dryRun)
-            <div class="ptx-dryrun-banner">
-                <i class="bi bi-exclamation-triangle me-1"></i> DRY RUN MODE — No real trades will be placed
-            </div>
-        @endif
-
         {{-- Flash Messages --}}
         @if(session('success'))
-            <div class="ptx-alert ptx-alert-success mx-4 mt-4 mb-0" role="alert">
+            <div class="alert alert-dismissible ptx-alert ptx-alert-success mx-4 mt-4 mb-0" role="alert">
                 <i class="bi bi-check-circle-fill"></i>
                 <span>{{ session('success') }}</span>
-                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         @endif
 
@@ -168,6 +177,9 @@
     <div class="ptx-toast" id="ptxToast">
         <i class="bi bi-check-circle-fill"></i>
         <span>{{ session('toast') }}</span>
+        <button type="button" class="ptx-toast-close" onclick="closeToast()" aria-label="Close">
+            <i class="bi bi-x-lg"></i>
+        </button>
     </div>
     @endif
 
@@ -195,9 +207,19 @@
 
         // Toast auto-dismiss
         const toast = document.getElementById('ptxToast');
+        let toastTimeout;
+
+        function closeToast() {
+            if (toast) {
+                clearTimeout(toastTimeout);
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }
+        }
+
         if (toast) {
             requestAnimationFrame(() => toast.classList.add('show'));
-            setTimeout(() => {
+            toastTimeout = setTimeout(() => {
                 toast.classList.remove('show');
                 setTimeout(() => toast.remove(), 400);
             }, 4000);

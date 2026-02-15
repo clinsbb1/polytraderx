@@ -9,9 +9,9 @@ use App\Services\Telegram\TelegramBotService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 
-class WeeklyReport extends Command
+class SimWeeklyReport extends Command
 {
-    protected $signature = 'bot:weekly-report';
+    protected $signature = 'sim:weekly-report';
     protected $description = 'Run AI Brain weekly performance deep analysis for all users';
 
     public function handle(

@@ -3,6 +3,13 @@
 @section('title', 'Payments')
 
 @section('content')
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
 <!-- Revenue Stats -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
@@ -121,12 +128,48 @@
                     </tr>
                     <tr class="collapse" id="ipn-{{ $payment->id }}">
                         <td colspan="7" class="bg-light p-3">
-                            <strong class="small d-block mb-2">IPN Data:</strong>
-                            @if($payment->ipn_data)
-                                <pre class="bg-white border rounded p-3 mb-0 small" style="max-height: 300px; overflow: auto;">{{ json_encode($payment->ipn_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
-                            @else
-                                <span class="text-muted small">No IPN data received yet.</span>
-                            @endif
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <strong class="small d-block mb-2">IPN Data:</strong>
+                                    @if($payment->ipn_data)
+                                        <pre class="bg-white border rounded p-3 mb-0 small" style="max-height: 300px; overflow: auto;">{{ json_encode($payment->ipn_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                    @else
+                                        <span class="text-muted small">No IPN data received yet.</span>
+                                    @endif
+
+                                    @if($payment->notes)
+                                        <div class="mt-3">
+                                            <strong class="small d-block mb-1">Notes:</strong>
+                                            <div class="bg-white border rounded p-2 small">{{ $payment->notes }}</div>
+                                        </div>
+                                    @endif
+                                </div>
+                                <div class="col-md-4">
+                                    <strong class="small d-block mb-2">Update Status:</strong>
+                                    <form method="POST" action="/admin/payments/{{ $payment->id }}" class="bg-white border rounded p-3">
+                                        @csrf
+                                        @method('PUT')
+
+                                        <div class="mb-3">
+                                            <label class="form-label small">Status</label>
+                                            <select name="status" class="form-select form-select-sm" required>
+                                                @foreach(['pending','confirming','finished','confirmed','failed','expired','refunded'] as $s)
+                                                    <option value="{{ $s }}" {{ $payment->status === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label small">Add Note (optional)</label>
+                                            <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Manually verified">
+                                        </div>
+
+                                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                                            <i class="bi bi-check-lg me-1"></i>Update Status
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     @empty

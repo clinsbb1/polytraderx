@@ -20,7 +20,7 @@ class StrategyUpdater
         'MIN_ENTRY_PRICE_THRESHOLD' => ['min' => 0.5, 'max' => 1.0, 'type' => 'float'],
         'MAX_ENTRY_PRICE_THRESHOLD' => ['min' => 0.01, 'max' => 0.5, 'type' => 'float'],
         'ENTRY_WINDOW_SECONDS' => ['min' => 5, 'max' => 300, 'type' => 'int'],
-        'BOT_ENABLED' => ['type' => 'bool'],
+        'SIMULATOR_ENABLED' => ['type' => 'bool'],
         'DRY_RUN' => ['type' => 'bool'],
     ];
 
@@ -39,7 +39,7 @@ class StrategyUpdater
         $value = $fix['suggested_value'] ?? null;
 
         if (!$this->validateFixValue($paramKey, $value)) {
-            Log::channel('bot')->warning('Fix rejected: invalid value', [
+            Log::channel('simulator')->warning('Fix rejected: invalid value', [
                 'audit_id' => $audit->id,
                 'param' => $paramKey,
                 'value' => $value,
@@ -62,7 +62,7 @@ class StrategyUpdater
             ]);
         }
 
-        Log::channel('bot')->info('Strategy fix applied', [
+        Log::channel('simulator')->info('Strategy fix applied', [
             'audit_id' => $audit->id,
             'param' => $paramKey,
             'value' => $value,

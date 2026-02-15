@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -18,7 +19,8 @@ class HealthCheckTest extends TestCase
         parent::setUp();
 
         // Clear cached health check between tests
-        Cache::forget('health_check');
+        Cache::forget('health_check:public');
+        Cache::forget('health_check:superadmin');
     }
 
     public function test_health_returns_ok_status(): void
@@ -30,33 +32,42 @@ class HealthCheckTest extends TestCase
         $response = $this->getJson('/health');
 
         $response->assertStatus(200)
-            ->assertJsonStructure([
-                'status',
-                'timestamp',
-                'services' => ['database', 'binance'],
-                'stats' => ['active_users', 'trades_today'],
-            ]);
+            ->assertJsonStructure(['status', 'timestamp'])
+            ->assertJsonMissingPath('services')
+            ->assertJsonMissingPath('stats');
     }
 
-    public function test_health_reports_database_ok(): void
+    public function test_health_reports_database_ok_for_superadmin(): void
     {
         Http::fake([
             'api.binance.com/*' => Http::response(['status' => 'ok'], 200),
         ]);
 
-        $response = $this->getJson('/health');
+        $superadmin = User::factory()->create([
+            'is_superadmin' => true,
+            'subscription_plan' => 'pro',
+            'subscription_ends_at' => now()->addDays(30),
+        ]);
+
+        $response = $this->actingAs($superadmin)->getJson('/health');
 
         $response->assertStatus(200)
             ->assertJsonPath('services.database', 'ok');
     }
 
-    public function test_health_reports_binance_degraded_on_failure(): void
+    public function test_health_reports_binance_degraded_on_failure_for_superadmin(): void
     {
         Http::fake([
             'api.binance.com/*' => Http::response([], 500),
         ]);
 
-        $response = $this->getJson('/health');
+        $superadmin = User::factory()->create([
+            'is_superadmin' => true,
+            'subscription_plan' => 'pro',
+            'subscription_ends_at' => now()->addDays(30),
+        ]);
+
+        $response = $this->actingAs($superadmin)->getJson('/health');
 
         $response->assertStatus(200)
             ->assertJsonPath('services.binance', 'degraded');

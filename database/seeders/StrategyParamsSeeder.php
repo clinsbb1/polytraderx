@@ -43,13 +43,20 @@ class StrategyParamsSeeder extends Seeder
             ],
             [
                 'key' => 'MAX_CONCURRENT_POSITIONS',
-                'value' => env('SEED_MAX_CONCURRENT_POSITIONS', '3'),
+                'value' => env('SEED_MAX_CONCURRENT_POSITIONS', '2'),
                 'type' => 'number',
-                'description' => 'Max open bets at once',
+                'description' => 'Max open bets at once (limited by subscription plan)',
                 'group' => 'risk',
             ],
 
             // Trading Rules
+            [
+                'key' => 'SIMULATOR_ENABLED',
+                'value' => env('SEED_SIMULATOR_ENABLED') !== null ? (env('SEED_SIMULATOR_ENABLED') ? 'true' : 'false') : 'false',
+                'type' => 'boolean',
+                'description' => 'Simulator Enabled - Master on/off switch',
+                'group' => 'trading',
+            ],
             [
                 'key' => 'MIN_CONFIDENCE_SCORE',
                 'value' => env('SEED_MIN_CONFIDENCE_SCORE', '0.92'),
@@ -86,17 +93,17 @@ class StrategyParamsSeeder extends Seeder
                 'group' => 'trading',
             ],
             [
-                'key' => 'BOT_ENABLED',
-                'value' => env('SEED_BOT_ENABLED') !== null ? (env('SEED_BOT_ENABLED') ? 'true' : 'false') : 'true',
-                'type' => 'boolean',
-                'description' => 'Master kill switch for the bot',
+                'key' => 'MONITORED_ASSETS',
+                'value' => 'BTC,ETH,SOL,XRP',
+                'type' => 'string',
+                'description' => 'Comma-separated list of monitored assets',
                 'group' => 'trading',
             ],
             [
-                'key' => 'MONITORED_ASSETS',
-                'value' => 'BTC,ETH,SOL',
+                'key' => 'MARKET_DURATIONS',
+                'value' => '5min,15min',
                 'type' => 'string',
-                'description' => 'Comma-separated list of monitored assets',
+                'description' => 'Which market durations to trade (5min, 15min, or both)',
                 'group' => 'trading',
             ],
 

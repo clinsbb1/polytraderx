@@ -62,7 +62,7 @@ class BinanceService
             // Return stale cached price if available
             $stalePrice = Cache::get($staleCacheKey);
             if ($stalePrice !== null) {
-                Log::channel('bot')->warning("Binance API failed, using stale price for {$symbol}", [
+                Log::channel('simulator')->warning("Binance API failed, using stale price for {$symbol}", [
                     'stale_price' => $stalePrice,
                     'error' => $e->getMessage(),
                 ]);
@@ -178,7 +178,7 @@ class BinanceService
             try {
                 $prices[$asset] = $this->getPriceForAsset($asset);
             } catch (\Exception $e) {
-                Log::channel('bot')->warning("Failed to fetch {$asset} price from Binance", [
+                Log::channel('simulator')->warning("Failed to fetch {$asset} price from Binance", [
                     'message' => $e->getMessage(),
                 ]);
                 $prices[$asset] = 0.0;
@@ -193,7 +193,7 @@ class BinanceService
         $count = (int) Cache::get(self::RATE_LIMIT_KEY, 0);
 
         if ($count >= self::RATE_LIMIT_MAX) {
-            Log::channel('bot')->warning('Binance rate limit approaching, sleeping 1s');
+            Log::channel('simulator')->warning('Binance rate limit approaching, sleeping 1s');
             sleep(1);
         }
 

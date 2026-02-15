@@ -27,12 +27,12 @@ class BrainService
     {
         try {
             if (!$this->anthropic->isConfigured()) {
-                Log::channel('bot')->debug('Brain audit skipped: Anthropic not configured');
+                Log::channel('simulator')->debug('Brain audit skipped: Anthropic not configured');
                 return null;
             }
 
             if ($this->costTracker->isOverBudget($userId)) {
-                Log::channel('bot')->warning('Brain audit skipped: AI budget exceeded', ['user_id' => $userId]);
+                Log::channel('simulator')->warning('Brain audit skipped: AI budget exceeded', ['user_id' => $userId]);
                 return null;
             }
 
@@ -57,7 +57,7 @@ class BrainService
             ]);
 
             if ($parsed === null) {
-                Log::channel('bot')->warning('Brain: Failed to parse audit response', [
+                Log::channel('simulator')->warning('Brain: Failed to parse audit response', [
                     'user_id' => $userId,
                     'trade_id' => $trade->id,
                 ]);
@@ -84,7 +84,7 @@ class BrainService
             if ($autoApply && !empty($suggestedFixes)) {
                 $updater = app(StrategyUpdater::class);
                 $applied = $updater->autoApplyFixes($audit, $userId);
-                Log::channel('bot')->info("Auto-applied {$applied} fixes from audit", [
+                Log::channel('simulator')->info("Auto-applied {$applied} fixes from audit", [
                     'user_id' => $userId,
                     'audit_id' => $audit->id,
                 ]);
@@ -92,7 +92,7 @@ class BrainService
 
             $trade->update(['audited' => true]);
 
-            Log::channel('bot')->info('Loss audit complete', [
+            Log::channel('simulator')->info('Loss audit complete', [
                 'user_id' => $userId,
                 'trade_id' => $trade->id,
                 'audit_id' => $audit->id,
@@ -103,7 +103,7 @@ class BrainService
 
             return $audit;
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Brain audit failed', [
+            Log::channel('simulator')->error('Brain audit failed', [
                 'user_id' => $userId,
                 'trade_id' => $trade->id,
                 'message' => $e->getMessage(),
@@ -152,7 +152,7 @@ class BrainService
                 'created_at' => now(),
             ]);
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Daily review failed', [
+            Log::channel('simulator')->error('Daily review failed', [
                 'user_id' => $userId,
                 'message' => $e->getMessage(),
             ]);
@@ -199,7 +199,7 @@ class BrainService
                 'created_at' => now(),
             ]);
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Weekly report failed', [
+            Log::channel('simulator')->error('Weekly report failed', [
                 'user_id' => $userId,
                 'message' => $e->getMessage(),
             ]);

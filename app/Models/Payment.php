@@ -13,6 +13,7 @@ class Payment extends Model
     protected $fillable = [
         'user_id',
         'subscription_plan_id',
+        'billing_interval',
         'nowpayments_id',
         'amount_usd',
         'amount_crypto',
@@ -54,6 +55,11 @@ class Payment extends Model
     public function scopeFinished(Builder $query): Builder
     {
         return $query->where('status', 'finished');
+    }
+
+    public function scopeExpired(Builder $query): Builder
+    {
+        return $query->where('status', 'expired');
     }
 
     public function scopeForUser(Builder $query, ?int $userId = null): Builder

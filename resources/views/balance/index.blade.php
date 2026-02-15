@@ -3,24 +3,40 @@
 @section('title', 'Balance & Equity')
 
 @section('content')
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0" style="font-family: var(--font-display);">Balance & Equity</h4>
+    <button type="button" class="btn btn-outline-danger btn-sm" onclick="showResetModal()">
+        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Balance
+    </button>
+</div>
+
+<div class="ptx-info-card mb-4" style="background: var(--card-bg); border-left: 4px solid var(--accent);">
+    <div class="info-body">
+        <p class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Simulated Figures:</strong> All balances, equity, and P&L shown below are from simulated trades. No real money is involved.
+        </p>
+    </div>
+</div>
+
 {{-- Row 1: Stat Cards --}}
 <div class="row g-4 mb-4">
     <div class="col-md-4 col-6">
         <div class="ptx-stat-card">
-            <div class="stat-label">Current Balance</div>
-            <div class="stat-value text-accent">${{ $latestSnapshot ? number_format((float)$latestSnapshot->balance_usdc, 2) : '0.00' }}</div>
+            <div class="stat-label">Current Balance (Simulated)</div>
+            <div class="stat-value text-accent">${{ $latestSnapshot ? number_format((float)$latestSnapshot->balance_usdc, 2) : '100.00' }}</div>
         </div>
     </div>
     <div class="col-md-4 col-6">
         <div class="ptx-stat-card">
-            <div class="stat-label">Open Positions Value</div>
+            <div class="stat-label">Open Positions (Simulated)</div>
             <div class="stat-value text-accent">${{ $latestSnapshot ? number_format((float)$latestSnapshot->open_positions_value, 2) : '0.00' }}</div>
         </div>
     </div>
     <div class="col-md-4 col-6">
         <div class="ptx-stat-card">
-            <div class="stat-label">Total Equity</div>
-            <div class="stat-value text-accent">${{ $latestSnapshot ? number_format((float)$latestSnapshot->total_equity, 2) : '0.00' }}</div>
+            <div class="stat-label">Total Equity (Simulated)</div>
+            <div class="stat-value text-accent">${{ $latestSnapshot ? number_format((float)$latestSnapshot->total_equity, 2) : '100.00' }}</div>
         </div>
     </div>
 </div>
@@ -104,10 +120,62 @@
         @endif
     </div>
 </div>
+
+{{-- Reset Balance Modal --}}
+<div class="modal fade" id="resetBalanceModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: #1a1d2e; border: 1px solid rgba(0,240,255,0.2); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); background: linear-gradient(135deg, rgba(0,240,255,0.05) 0%, transparent 100%);">
+                <h5 class="modal-title" style="color: #ffffff; font-weight: 600;">
+                    <i class="bi bi-arrow-counterclockwise me-2" style="color: var(--accent);"></i>
+                    Reset Balance
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('balance.reset') }}" method="POST">
+                @csrf
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <p style="color: #b8b8d1; margin-bottom: 1.25rem;">
+                        Enter your desired starting balance. All equity history and trade data will be preserved, but balance tracking will restart from this amount.
+                    </p>
+                    <div class="mb-3">
+                        <label for="reset_amount" class="form-label" style="color: #ffffff; font-weight: 500; margin-bottom: 0.5rem;">
+                            Reset Amount (USD)
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text" style="background: #12141f; border: 1px solid rgba(255,255,255,0.1); color: var(--accent); border-right: none;">$</span>
+                            <input type="number" class="form-control" id="reset_amount" name="amount" value="100" min="1" max="1000000" step="0.01" required style="background: #12141f; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; font-size: 1.1rem; font-weight: 500;">
+                        </div>
+                        <small style="color: #8888a0; display: block; margin-top: 0.5rem;">
+                            Recommended: $100 - $10,000
+                        </small>
+                    </div>
+                    <div class="alert mb-0" style="background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); color: #ff4757; border-radius: 8px;">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Warning:</strong> All balance snapshots and daily summaries will be permanently deleted.
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid rgba(255,255,255,0.1); padding: 1rem 1.5rem; background: rgba(0,0,0,0.2);">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="padding: 0.5rem 1.25rem;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-danger" style="padding: 0.5rem 1.25rem; font-weight: 500;">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Balance
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
+function showResetModal() {
+    const modal = new bootstrap.Modal(document.getElementById('resetBalanceModal'));
+    modal.show();
+}
+
 @if($equityCurve->count() > 1)
 new Chart(document.getElementById('equityChart'), {
     type: 'line',

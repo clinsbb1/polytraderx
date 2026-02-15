@@ -54,4 +54,34 @@ class BalanceController extends Controller
             'weeklyStatsWithCumulative',
         ));
     }
+
+    public function reset()
+    {
+        $userId = auth()->id();
+
+        // Validate and get the reset amount
+        $amount = (float) request()->input('amount', 100);
+
+        // Validate amount range
+        if ($amount < 1 || $amount > 1000000) {
+            return redirect()->route('balance.index')->with('toast', 'Invalid amount. Must be between $1 and $1,000,000.');
+        }
+
+        // Delete all balance snapshots for this user
+        BalanceSnapshot::forUser($userId)->delete();
+
+        // Delete all daily summaries for this user
+        DailySummary::forUser($userId)->delete();
+
+        // Create initial snapshot with specified balance
+        BalanceSnapshot::create([
+            'user_id' => $userId,
+            'balance_usdc' => $amount,
+            'open_positions_value' => 0.00,
+            'total_equity' => $amount,
+            'snapshot_at' => now(),
+        ]);
+
+        return redirect()->route('balance.index')->with('toast', 'Balance reset to $' . number_format($amount, 2) . '. All equity history cleared.');
+    }
 }

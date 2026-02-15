@@ -16,7 +16,7 @@ class StrategyController extends Controller
         $userId = auth()->id();
         $groups = [
             'risk' => $settings->getGroup('risk', $userId),
-            'trading' => $settings->getGroup('trading', $userId),
+            'trading' => $settings->getGroup('trading', $userId)->reject(fn($param) => $param->key === 'DRY_RUN'),
             'ai' => $settings->getGroup('ai', $userId),
             'notifications' => $settings->getGroup('notifications', $userId),
         ];

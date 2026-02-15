@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -77,5 +79,35 @@ class CheckSubscriptionsTest extends TestCase
 
         $user->refresh();
         $this->assertTrue($user->is_active);
+    }
+
+    public function test_subscription_activation_extends_from_existing_end_date(): void
+    {
+        $plan = SubscriptionPlan::create([
+            'slug' => 'pro',
+            'name' => 'Pro',
+            'price_usd' => 49.99,
+            'billing_period' => 'monthly',
+            'max_daily_trades' => 100,
+            'max_concurrent_positions' => 10,
+            'has_ai_muscles' => true,
+            'has_ai_brain' => true,
+            'trial_days' => 0,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $user = User::factory()->create([
+            'subscription_plan' => 'pro',
+            'subscription_ends_at' => now()->addDays(10),
+            'is_active' => true,
+        ]);
+
+        $beforeEnd = $user->subscription_ends_at->copy();
+        $service = app(SubscriptionService::class);
+
+        $newEnd = $service->activateSubscription($user->id, $plan);
+
+        $this->assertTrue($newEnd->greaterThan($beforeEnd->addDays(29)));
     }
 }

@@ -40,17 +40,17 @@
                                 {{ ucfirst($plan->billing_period) }}
                             </span>
                         </td>
-                        <td class="text-center">{{ $plan->max_daily_trades ?: 'Unlimited' }}</td>
+                        <td class="text-center">{{ $plan->max_signals_per_day ?: 'Unlimited' }}</td>
                         <td class="text-center">{{ $plan->max_concurrent_positions ?: 'Unlimited' }}</td>
                         <td class="text-center">
-                            @if($plan->has_ai_muscles)
+                            @if($plan->ai_muscles_enabled)
                                 <span class="badge bg-info">Yes</span>
                             @else
                                 <span class="badge bg-light text-muted">No</span>
                             @endif
                         </td>
                         <td class="text-center">
-                            @if($plan->has_ai_brain)
+                            @if($plan->ai_brain_enabled)
                                 <span class="badge bg-warning text-dark">Yes</span>
                             @else
                                 <span class="badge bg-light text-muted">No</span>

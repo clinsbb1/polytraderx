@@ -54,7 +54,7 @@ class TradeExecutor
         // 2. Place order
         try {
             $client = new PolymarketClient($user);
-            $orderService = new OrderService($client, $this->settings, $user->id);
+            $orderService = new OrderService($client, $this->settings, $user->id, app(\App\Services\Polymarket\Eip712SignerService::class));
             $orderResult = $orderService->placeOrder($tokenId, 'BUY', $entryPrice, $amount);
 
             // 3. Update trade to open
@@ -104,7 +104,7 @@ class TradeExecutor
                 'created_at' => now(),
             ]);
 
-            Log::channel('bot')->info('Trade executed', [
+            Log::channel('simulator')->info('Trade executed', [
                 'user_id' => $user->id,
                 'trade_id' => $trade->id,
                 'asset' => $market['asset'] ?? '',
@@ -136,7 +136,7 @@ class TradeExecutor
                 'created_at' => now(),
             ]);
 
-            Log::channel('bot')->error('Trade execution failed', [
+            Log::channel('simulator')->error('Trade execution failed', [
                 'user_id' => $user->id,
                 'trade_id' => $trade->id,
                 'message' => $e->getMessage(),

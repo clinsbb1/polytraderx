@@ -2,42 +2,85 @@
 <div class="accordion ptx-accordion" id="faqAccordion">
     <div class="accordion-item">
         <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq0">
+                Why do I need PolyTraderX?
+            </button>
+        </h2>
+        <div id="faq0" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">
+                <p class="mb-3">Most Polymarket traders rely on intuition, scattered charts, or hindsight. PolyTraderX gives you a structured way to turn ideas into tested strategies—without risking real money.</p>
+                <p class="mb-3"><strong>PolyTraderX helps you:</strong></p>
+                <ul class="mb-3">
+                    <li>Simulate strategies on real Polymarket market data and live price feeds</li>
+                    <li>Understand what actually works by tracking drawdowns, consistency, and stability—not just wins</li>
+                    <li>See why strategies fail through detailed analytics and AI-assisted analysis</li>
+                    <li>Test ideas safely before committing real capital</li>
+                    <li>Build discipline by removing emotion and guesswork from decision-making</li>
+                </ul>
+                <p class="mb-0">Instead of asking "Did I win today?", PolyTraderX helps you answer "Is this strategy sound over time?" It doesn't place real trades or promise profits. It gives you clarity, insight, and confidence—so when you do trade, you do it with intention.</p>
+            </div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq0b">
+                What are signals?
+            </button>
+        </h2>
+        <div id="faq0b" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">
+                Signals are trade opportunities identified by the simulator based on your strategy parameters. Each signal represents a moment when market conditions meet your criteria—like reaching a specific confidence threshold in the final seconds of a prediction market. The simulator evaluates these signals using AI analysis and real-time price data, then simulates how the trade would perform. Your plan determines how many signals can be generated per day.
+            </div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                What is PolyTraderX?
+            </button>
+        </h2>
+        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">PolyTraderX is a strategy simulation platform for Polymarket's crypto prediction markets. You design trading strategies with customizable parameters, and we test them against real market data in real-time. All activity is simulated — no live trades are placed. It's the perfect environment to learn, iterate, and refine strategies without risking real money.</div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                What do I need to get started?
+                Does PolyTraderX trade real money?
             </button>
         </h2>
         <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">You need a Polymarket account with API keys (API Key, Secret, Passphrase, and Wallet Address). That's it! AI is provided by the platform, and Telegram notifications can be set up with one command. No Anthropic key or private keys required.</div>
+            <div class="accordion-body"><strong>No. All activity is simulated.</strong> PolyTraderX generates trading signals and tracks simulated positions using real Polymarket market data, but no actual trades are placed. No real money is at risk. This is a learning and strategy development platform.</div>
         </div>
     </div>
     <div class="accordion-item">
         <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-                Is there a risk of losing money?
+                Will live trading be supported in the future?
             </button>
         </h2>
         <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">Yes. While the strategy aims for high-confidence trades, prediction markets carry inherent risk. API desyncs, unexpected market moves, or technical failures can result in losses. Always use paper trading mode first and never trade with money you cannot afford to lose.</div>
+            <div class="accordion-body">Possibly. Our focus is on perfecting the simulation experience first. If there's demand and it makes sense strategically, we may add optional live execution in the future. For now, simulation-only ensures you can safely learn and test strategies.</div>
         </div>
     </div>
     <div class="accordion-item">
         <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
-                How do I pay?
+                What do I need to get started?
             </button>
         </h2>
         <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">We accept cryptocurrency payments via NOWPayments. You can pay with BTC, ETH, USDC, and many other cryptocurrencies. A 7-day free trial is available to get started.</div>
+            <div class="accordion-body">Just sign up and start designing your strategy. No API keys required for simulation mode. You can configure all strategy parameters (confidence thresholds, position sizes, monitored assets, etc.) from the dashboard. AI analysis is provided by the platform. Optional: Connect Telegram for real-time notifications.</div>
         </div>
     </div>
     <div class="accordion-item">
         <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
-                Do you store my private keys?
+                How realistic are the simulations?
             </button>
         </h2>
         <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">No. We never ask for or store your private keys. We only need your Polymarket API credentials (API Key, Secret, and Passphrase) which provide limited trading access. Your funds remain in your Polymarket wallet at all times.</div>
+            <div class="accordion-body">Very realistic. We use real-time Polymarket market data and Binance spot prices. The simulator runs the exact same logic a live bot would use: market scanning, AI confidence scoring, risk management, and position tracking. The only difference is that orders aren't sent to Polymarket. Think of it as a flight simulator — full realism, zero risk.</div>
         </div>
     </div>
     <div class="accordion-item">
@@ -47,17 +90,17 @@
             </button>
         </h2>
         <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">Tier 1 (Reflexes) is free logic that scans markets every minute. Tier 2 (Muscles) uses Claude Haiku every 5 minutes for confidence scoring. Tier 3 (Brain) uses Claude Sonnet on-demand for post-loss analysis and strategy review. This tiered approach optimizes AI costs.</div>
+            <div class="accordion-body">Tier 1 (Reflexes) is free rule-based logic that scans markets every minute. Tier 2 (Muscles) uses Claude Haiku every 5 minutes for quick confidence scoring. Tier 3 (Brain) uses Claude Sonnet on-demand for deep forensic analysis after losing signals and daily/weekly strategy reviews. This tiered approach optimizes AI costs while maintaining intelligence.</div>
         </div>
     </div>
     <div class="accordion-item">
         <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq7">
-                Can I customize the trading strategy?
+                Can I customize the strategy?
             </button>
         </h2>
         <div id="faq7" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">Yes! All strategy parameters are fully customizable: confidence thresholds, bet sizes, daily trade limits, entry window timing, monitored assets, notification preferences, and more. Every change is logged for audit purposes.</div>
+            <div class="accordion-body">Yes! All strategy parameters are fully customizable: confidence thresholds, position sizes, daily signal limits, entry window timing, monitored assets (BTC/ETH/SOL), notification preferences, and more. Every change is logged for audit purposes. The platform is designed for experimentation.</div>
         </div>
     </div>
     <div class="accordion-item">
@@ -67,7 +110,17 @@
             </button>
         </h2>
         <div id="faq8" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">We have a platform-wide Telegram bot. After registering, go to Settings > Telegram, copy your Account ID, and send it to our bot. You'll receive real-time trade notifications, daily summaries, and alerts — all configurable.</div>
+            <div class="accordion-body">We have a platform-wide Telegram bot. After registering, go to Settings > Telegram, copy your Account ID, and send it to our bot. You'll receive real-time signal notifications, daily P&L summaries, AI audit results, and error alerts — all configurable based on your preferences.</div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq9">
+                How do I pay?
+            </button>
+        </h2>
+        <div id="faq9" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">We accept cryptocurrency payments via NOWPayments. You can pay with BTC, ETH, USDC, USDT, SOL, and over 100 other cryptocurrencies. A 7-day free trial is available with no payment required. No credit card needed.</div>
         </div>
     </div>
 </div>

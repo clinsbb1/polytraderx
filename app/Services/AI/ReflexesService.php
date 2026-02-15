@@ -24,14 +24,14 @@ class ReflexesService
         $rulesFailed = [];
         $details = [];
 
-        // 1. Bot enabled?
-        $botEnabled = $this->settings->getBool('BOT_ENABLED', true, $userId);
-        $details['bot_enabled'] = $botEnabled;
-        if (!$botEnabled) {
-            $rulesFailed[] = 'bot_disabled';
-            return $this->skipResult($rulesPassed, $rulesFailed, 'Bot is disabled for this user', $details);
+        // 1. Simulator enabled?
+        $simulatorEnabled = $this->settings->getBool('SIMULATOR_ENABLED', false, $userId);
+        $details['simulator_enabled'] = $simulatorEnabled;
+        if (!$simulatorEnabled) {
+            $rulesFailed[] = 'simulator_disabled';
+            return $this->skipResult($rulesPassed, $rulesFailed, 'Simulator is disabled for this user', $details);
         }
-        $rulesPassed[] = 'bot_enabled';
+        $rulesPassed[] = 'simulator_enabled';
 
         // 2. Entry window?
         $inWindow = $this->timingService->isInEntryWindow($market, $userId);

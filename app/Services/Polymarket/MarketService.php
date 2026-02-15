@@ -10,9 +10,14 @@ use Illuminate\Support\Facades\Log;
 
 class MarketService
 {
-    private const CRYPTO_ASSETS = ['BTC', 'ETH', 'SOL'];
+    private const CRYPTO_ASSETS = ['BTC', 'ETH', 'SOL', 'XRP'];
 
-    public function getActiveCryptoMarkets(PolymarketClient $client): Collection
+    public function __construct(private ?\App\Services\Settings\SettingsService $settings = null)
+    {
+        $this->settings = $this->settings ?? app(\App\Services\Settings\SettingsService::class);
+    }
+
+    public function getActiveCryptoMarkets(PolymarketClient $client, ?int $userId = null): Collection
     {
         try {
             $response = $client->get('/markets', [
@@ -25,12 +30,21 @@ class MarketService
                 return collect();
             }
 
-            return collect($markets)
+            $normalized = collect($markets)
                 ->map(fn(array $market) => $this->normalizeMarket($market))
-                ->filter(fn(?array $market) => $market !== null)
-                ->values();
+                ->filter(fn(?array $market) => $market !== null);
+
+            // Filter by user's selected durations if userId provided
+            if ($userId !== null) {
+                $allowedDurations = $this->getAllowedDurations($userId);
+                $normalized = $normalized->filter(fn(array $market) =>
+                    in_array($market['duration'], $allowedDurations)
+                );
+            }
+
+            return $normalized->values();
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Failed to fetch active crypto markets', [
+            Log::channel('simulator')->error('Failed to fetch active crypto markets', [
                 'user_id' => $client->getUserId(),
                 'message' => $e->getMessage(),
             ]);
@@ -38,9 +52,9 @@ class MarketService
         }
     }
 
-    public function getMarketsEndingSoon(PolymarketClient $client, int $withinSeconds = 180): Collection
+    public function getMarketsEndingSoon(PolymarketClient $client, int $withinSeconds = 180, ?int $userId = null): Collection
     {
-        return $this->getActiveCryptoMarkets($client)
+        return $this->getActiveCryptoMarkets($client, $userId)
             ->filter(fn(array $market) => $market['seconds_remaining'] <= $withinSeconds && $market['seconds_remaining'] > 0)
             ->sortBy('seconds_remaining')
             ->values();
@@ -88,6 +102,7 @@ class MarketService
             'BITCOIN' => 'BTC',
             'ETHEREUM' => 'ETH',
             'SOLANA' => 'SOL',
+            'RIPPLE' => 'XRP',
         ];
 
         foreach ($assetMap as $name => $symbol) {
@@ -97,6 +112,42 @@ class MarketService
         }
 
         return null;
+    }
+
+    public function identifyDuration(string $marketQuestion): ?string
+    {
+        $question = strtoupper($marketQuestion);
+
+        // Check for 5-minute market
+        if (str_contains($question, '5 MIN') ||
+            str_contains($question, '5-MIN') ||
+            str_contains($question, '5MIN') ||
+            str_contains($question, 'FIVE MINUTE')) {
+            return '5min';
+        }
+
+        // Check for 15-minute market
+        if (str_contains($question, '15 MIN') ||
+            str_contains($question, '15-MIN') ||
+            str_contains($question, '15MIN') ||
+            str_contains($question, 'FIFTEEN MINUTE')) {
+            return '15min';
+        }
+
+        // Default to 15min if not specified (legacy behavior)
+        return '15min';
+    }
+
+    private function getAllowedDurations(int $userId): array
+    {
+        $durationsString = $this->settings->getString('MARKET_DURATIONS', '5min,15min', $userId);
+        $durations = array_map('trim', explode(',', $durationsString));
+
+        // Validate and filter
+        $valid = array_filter($durations, fn($d) => in_array($d, ['5min', '15min']));
+
+        // If empty, default to both
+        return !empty($valid) ? $valid : ['5min', '15min'];
     }
 
     public function getMarketEndTime(array $market): ?Carbon
@@ -154,6 +205,12 @@ class MarketService
             return null;
         }
 
+        $duration = $this->identifyDuration($question);
+
+        if ($duration === null) {
+            return null;
+        }
+
         $endTime = $this->getMarketEndTime($market);
 
         if ($endTime === null) {
@@ -173,6 +230,7 @@ class MarketService
             'question' => $question,
             'slug' => $market['slug'] ?? $market['market_slug'] ?? '',
             'asset' => $asset,
+            'duration' => $duration,
             'yes_token_id' => $prices['yes_token_id'],
             'no_token_id' => $prices['no_token_id'],
             'yes_price' => $prices['yes_price'],

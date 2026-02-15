@@ -53,7 +53,7 @@ class PriceAggregator
         $context = $this->getMarketContext($asset, $polymarketPrices);
 
         if ($context['desync_detected']) {
-            Log::channel('bot')->warning('Price feed desync detected', [
+            Log::channel('simulator')->warning('Price feed desync detected', [
                 'asset' => $asset,
                 'details' => $context['desync_details'],
             ]);

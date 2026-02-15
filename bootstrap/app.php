@@ -14,6 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'subscribed' => \App\Http\Middleware\EnsureActiveSubscription::class,
             'superadmin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'live_trading' => \App\Http\Middleware\RequireLiveTrading::class,
+            'simulation_acknowledged' => \App\Http\Middleware\EnsureSimulationAcknowledged::class,
+        ]);
+
+        $middleware->web(append: [
+            \App\Http\Middleware\TrackLastLogin::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

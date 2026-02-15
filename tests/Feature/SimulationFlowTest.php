@@ -10,7 +10,7 @@ use App\Services\Settings\SettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class DryRunFlowTest extends TestCase
+class SimulationFlowTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -25,7 +25,7 @@ class DryRunFlowTest extends TestCase
         ], $overrides));
     }
 
-    public function test_dry_run_setting_defaults_to_true(): void
+    public function test_simulation_mode_is_default(): void
     {
         $user = $this->createSubscribedUser();
 
@@ -35,7 +35,7 @@ class DryRunFlowTest extends TestCase
         $this->assertTrue($settings->getBool('DRY_RUN', true, $user->id));
     }
 
-    public function test_dry_run_user_has_no_polymarket_keys(): void
+    public function test_simulation_user_has_no_polymarket_keys(): void
     {
         $user = $this->createSubscribedUser();
 
@@ -65,7 +65,7 @@ class DryRunFlowTest extends TestCase
         $this->assertEquals(2.50, $totalPnl);
     }
 
-    public function test_dashboard_loads_for_dry_run_user(): void
+    public function test_dashboard_loads_for_simulation_user(): void
     {
         $user = $this->createSubscribedUser();
 
@@ -75,21 +75,28 @@ class DryRunFlowTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
 
         $response->assertStatus(200);
-        $response->assertSee('DRY RUN', false);
+        $response->assertSee('Simulator', false);
     }
 
-    public function test_dashboard_shows_live_mode_when_dry_run_disabled(): void
+    public function test_platform_flag_forces_simulation(): void
     {
+        config(['app.feature_live_trading' => false]);
+
         $user = $this->createSubscribedUser();
 
         $settings = app(SettingsService::class);
         $settings->seedUserParams($user->id);
-        $settings->set('DRY_RUN', 'false', 'test', $user->id);
+
+        // Verify platform-level flag is set to false
+        $this->assertFalse(config('app.feature_live_trading'));
+
+        // Verify default DRY_RUN is true (simulation mode)
+        $this->assertTrue($settings->getBool('DRY_RUN', true, $user->id));
 
         $response = $this->actingAs($user)->get('/dashboard');
 
         $response->assertStatus(200);
-        $response->assertSee('LIVE', false);
+        $response->assertSee('Simulator', false);
     }
 
     public function test_csv_export_returns_csv_content_type(): void
@@ -119,7 +126,7 @@ class DryRunFlowTest extends TestCase
         $this->assertStringContainsString('BTC', $response->streamedContent());
     }
 
-    public function test_dry_run_trade_pnl_sum_correct(): void
+    public function test_simulation_trade_pnl_sum_correct(): void
     {
         $user = $this->createSubscribedUser();
 

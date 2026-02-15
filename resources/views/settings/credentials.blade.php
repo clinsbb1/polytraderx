@@ -1,144 +1,46 @@
 @extends('layouts.admin')
 
-@section('title', 'Polymarket Keys')
+@section('title', 'API Credentials')
 
 @section('content')
-<h4 class="mb-4" style="font-family: var(--font-display);">Polymarket API Keys</h4>
+<h4 class="mb-4" style="font-family: var(--font-display);">API Credentials</h4>
 
-<div class="ptx-alert ptx-alert-info mb-4">
-    <i class="bi bi-shield-lock"></i>
-    <span>All API keys are encrypted at rest. Leave fields blank to keep existing values.</span>
-</div>
-
-{{-- Setup Guide --}}
-<div class="ptx-info-card mb-4">
+<div class="ptx-info-card">
     <div class="info-header">
-        <span><i class="bi bi-book me-2"></i> How to Get Your Polymarket API Keys</span>
+        <span><i class="bi bi-shield-check me-2"></i> Simulation-Only Platform</span>
     </div>
     <div class="info-body">
-        <ol>
-            <li>Go to <strong>polymarket.com</strong> and log in to your account.</li>
-            <li>Navigate to <strong>Settings &gt; API Keys</strong> in your profile.</li>
-            <li>Click <strong>"Create API Key"</strong> to generate a new key.</li>
-            <li>Copy your <strong>API Key</strong> (UUID format), <strong>API Secret</strong> (base64 encoded), and <strong>Passphrase</strong> (hex string).</li>
-            <li>Your <strong>Wallet Address</strong> is displayed on your Polymarket profile page (starts with <code>0x</code>).</li>
-            <li>Paste all four values into the form below and click Save.</li>
-        </ol>
+        <p class="mb-3">
+            <strong>PolyTraderX operates exclusively in simulation mode.</strong> You don't need to provide any Polymarket API keys or credentials.
+        </p>
+
+        <div class="mb-3">
+            <h6 class="fw-bold mb-2">How It Works:</h6>
+            <ul class="mb-0">
+                <li>All market data is fetched using platform-wide API keys</li>
+                <li>All "trades" are simulated using real market data</li>
+                <li>No real orders are placed on Polymarket</li>
+                <li>No funds are moved or at risk</li>
+                <li>No private keys or wallet access required</li>
+            </ul>
+        </div>
+
+        <div class="ptx-alert ptx-alert-success mt-3 mb-0">
+            <i class="bi bi-check-circle"></i>
+            <span>You're all set! No additional credentials needed to use PolyTraderX.</span>
+        </div>
     </div>
 </div>
 
-<form method="POST" action="/settings/credentials">
-    @csrf
-
-    <div class="ptx-info-card mb-4">
-        <div class="info-header">
-            <span>Polymarket Credentials</span>
-            <span class="ptx-badge {{ $credential->hasPolymarketKeys() ? 'ptx-badge-success' : 'ptx-badge-warning' }}">
-                {{ $credential->hasPolymarketKeys() ? 'Configured' : 'Not configured' }}
-            </span>
-        </div>
-        <div class="info-body">
-            <div class="mb-3">
-                <label class="ptx-label">API Key <small style="color: var(--text-secondary);">(UUID format)</small></label>
-                <input type="password" name="polymarket_api_key" class="ptx-input @error('polymarket_api_key') is-invalid @enderror"
-                       placeholder="{{ $credential->polymarket_api_key ? '••••••• (saved)' : 'e.g. 12345678-abcd-efgh-ijkl-123456789012' }}">
-                @error('polymarket_api_key') <div class="ptx-input-error">{{ $message }}</div> @enderror
-            </div>
-            <div class="mb-3">
-                <label class="ptx-label">API Secret <small style="color: var(--text-secondary);">(base64 encoded)</small></label>
-                <input type="password" name="polymarket_api_secret" class="ptx-input @error('polymarket_api_secret') is-invalid @enderror"
-                       placeholder="{{ $credential->polymarket_api_secret ? '••••••• (saved)' : 'Base64 encoded string' }}">
-                @error('polymarket_api_secret') <div class="ptx-input-error">{{ $message }}</div> @enderror
-            </div>
-            <div class="mb-3">
-                <label class="ptx-label">Passphrase <small style="color: var(--text-secondary);">(hex string)</small></label>
-                <input type="password" name="polymarket_api_passphrase" class="ptx-input @error('polymarket_api_passphrase') is-invalid @enderror"
-                       placeholder="{{ $credential->polymarket_api_passphrase ? '••••••• (saved)' : 'Hex passphrase' }}">
-                @error('polymarket_api_passphrase') <div class="ptx-input-error">{{ $message }}</div> @enderror
-            </div>
-            <div class="mb-3">
-                <label class="ptx-label">Wallet Address <small style="color: var(--text-secondary);">(0x...)</small></label>
-                <input type="text" name="polymarket_wallet_address" class="ptx-input @error('polymarket_wallet_address') is-invalid @enderror"
-                       value="{{ $credential->polymarket_wallet_address ?? '' }}"
-                       placeholder="0x1234...abcd">
-                @error('polymarket_wallet_address') <div class="ptx-input-error">{{ $message }}</div> @enderror
-            </div>
-        </div>
+<div class="ptx-info-card mt-4">
+    <div class="info-header">
+        <span><i class="bi bi-lightbulb me-2"></i> Future Live Trading</span>
     </div>
-
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn-ptx-primary btn-ptx-sm">Save Credentials</button>
-        <button type="button" class="btn-ptx-secondary btn-ptx-sm" id="testPolymarketBtn" onclick="testPolymarket()">
-            <i class="bi bi-plug"></i> Test Polymarket
-        </button>
-        <button type="button" class="btn-ptx-secondary btn-ptx-sm" id="testBinanceBtn" onclick="testBinance()">
-            <i class="bi bi-graph-up"></i> Test Binance
-        </button>
+    <div class="info-body">
+        <p class="mb-0">
+            If live trading is enabled in the future, you'll be able to configure your Polymarket credentials here.
+            For now, focus on testing and refining your strategies risk-free in simulation mode.
+        </p>
     </div>
-</form>
-
-<div id="testResult" class="mt-3" style="display:none;"></div>
-
+</div>
 @endsection
-
-@push('scripts')
-<script>
-function testPolymarket() {
-    const btn = document.getElementById('testPolymarketBtn');
-    const result = document.getElementById('testResult');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing...';
-    result.style.display = 'none';
-
-    fetch('/settings/credentials/test-polymarket', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json',
-        },
-    })
-    .then(r => r.json())
-    .then(data => {
-        result.style.display = 'block';
-        result.className = 'mt-3 ptx-alert ' + (data.success ? 'ptx-alert-success' : 'ptx-alert-danger');
-        result.innerHTML = '<i class="bi bi-' + (data.success ? 'check-circle' : 'x-circle') + '"></i> ' + data.message;
-    })
-    .catch(() => {
-        result.style.display = 'block';
-        result.className = 'mt-3 ptx-alert ptx-alert-danger';
-        result.innerHTML = '<i class="bi bi-x-circle"></i> Request failed. Please try again.';
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-plug"></i> Test Polymarket';
-    });
-}
-
-function testBinance() {
-    const btn = document.getElementById('testBinanceBtn');
-    const result = document.getElementById('testResult');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing...';
-    result.style.display = 'none';
-
-    fetch('/settings/credentials/test-binance', {
-        headers: { 'Accept': 'application/json' },
-    })
-    .then(r => r.json())
-    .then(data => {
-        result.style.display = 'block';
-        result.className = 'mt-3 ptx-alert ' + (data.success ? 'ptx-alert-success' : 'ptx-alert-danger');
-        result.innerHTML = '<i class="bi bi-' + (data.success ? 'check-circle' : 'x-circle') + '"></i> ' + data.message;
-    })
-    .catch(() => {
-        result.style.display = 'block';
-        result.className = 'mt-3 ptx-alert ptx-alert-danger';
-        result.innerHTML = '<i class="bi bi-x-circle"></i> Request failed. Please try again.';
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-graph-up"></i> Test Binance';
-    });
-}
-</script>
-@endpush

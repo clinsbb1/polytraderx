@@ -52,6 +52,33 @@
     <div class="col-md-4"><div class="card"><div class="card-header"><h6 class="mb-0">Trades (30d)</h6></div><div class="card-body"><canvas id="tradesChart" height="200"></canvas></div></div></div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">System Health</h6>
+        <span class="badge bg-{{ $health['status'] === 'ok' ? 'success' : 'warning' }}">{{ strtoupper($health['status']) }}</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-2">
+            @foreach($health['services'] as $service => $status)
+                @php
+                    $badge = match($status) {
+                        'ok', 'configured' => 'success',
+                        'degraded' => 'warning',
+                        default => 'secondary',
+                    };
+                @endphp
+                <div class="col-md-4">
+                    <div class="d-flex justify-content-between border rounded p-2">
+                        <span class="small text-muted">{{ ucwords(str_replace('_', ' ', $service)) }}</span>
+                        <span class="badge bg-{{ $badge }}">{{ strtoupper($status) }}</span>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        <div class="small text-muted mt-2">Checked {{ $health['checked_at']->diffForHumans() }}</div>
+    </div>
+</div>
+
 <div class="row g-4">
     <div class="col-md-4">
         <div class="card">

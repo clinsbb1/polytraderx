@@ -15,9 +15,10 @@
                 <label class="form-label small text-muted">Plan</label>
                 <select name="plan" class="form-select">
                     <option value="">All Plans</option>
-                    <option value="free_trial" {{ request('plan') === 'free_trial' ? 'selected' : '' }}>Free Trial</option>
-                    <option value="basic" {{ request('plan') === 'basic' ? 'selected' : '' }}>Basic</option>
+                    <option value="free" {{ request('plan') === 'free' ? 'selected' : '' }}>Free</option>
                     <option value="pro" {{ request('plan') === 'pro' ? 'selected' : '' }}>Pro</option>
+                    <option value="advanced" {{ request('plan') === 'advanced' ? 'selected' : '' }}>Advanced</option>
+                    <option value="lifetime" {{ request('plan') === 'lifetime' ? 'selected' : '' }}>Lifetime</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -66,8 +67,8 @@
                         <td><code class="small">{{ $user->account_id }}</code></td>
                         <td>
                             @php
-                                $planColors = ['free_trial' => 'secondary', 'basic' => 'primary', 'pro' => 'warning'];
-                                $planLabel = $user->subscription_plan ?? 'free_trial';
+                                $planColors = ['free' => 'secondary', 'pro' => 'primary', 'advanced' => 'warning', 'lifetime' => 'success'];
+                                $planLabel = $user->subscription_plan ?? 'free';
                             @endphp
                             <span class="badge bg-{{ $planColors[$planLabel] ?? 'secondary' }}">{{ str_replace('_', ' ', ucfirst($planLabel)) }}</span>
                         </td>

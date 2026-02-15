@@ -9,10 +9,10 @@ use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
-class ExecuteTrades extends Command
+class SimEvaluateSignals extends Command
 {
-    protected $signature = 'bot:execute-trades';
-    protected $description = 'Evaluate markets and execute trades for all active users';
+    protected $signature = 'sim:evaluate-signals';
+    protected $description = 'Evaluate trading signals for all active users (simulation mode)';
 
     public function handle(UserBotRunner $runner, StrategyEngine $engine): int
     {
@@ -31,7 +31,7 @@ class ExecuteTrades extends Command
             $this->info("User #{$userId}: scanned={$r['markets_scanned']} window={$r['in_entry_window']} signals={$r['signals_generated']} trades={$r['trades_placed']} skipped={$skippedCount}");
 
             if ($r['trades_placed'] > 0) {
-                Log::channel('bot')->info("Trades placed for user #{$userId}", $r);
+                Log::channel('simulator')->info("Signals evaluated for user #{$userId}", $r);
             }
         }
 

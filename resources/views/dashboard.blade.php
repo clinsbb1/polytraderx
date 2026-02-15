@@ -13,46 +13,136 @@
 @endforeach
 
 {{-- Status Banners --}}
-@if(!$botEnabled)
-    <div class="ptx-alert ptx-alert-danger">
-        <i class="bi bi-pause-circle"></i>
-        <span><strong>Bot is paused.</strong> <a href="{{ route('strategy.index') }}">Enable in Strategy settings</a> to start trading.</span>
-    </div>
-@endif
-
-@if(!$credentialsConfigured)
-    <div class="ptx-alert ptx-alert-warning">
-        <i class="bi bi-link-45deg"></i>
-        <span><strong>Polymarket keys not configured.</strong> <a href="/settings/credentials">Set up your API keys</a> to start trading.</span>
-    </div>
-@endif
-
-@if(!$telegramLinked)
+@if(!$telegramLinked && in_array($user->subscription_plan, ['pro', 'advanced', 'lifetime']))
     <div class="ptx-alert ptx-alert-info">
         <i class="bi bi-telegram"></i>
         <span><strong>Telegram not linked.</strong> <a href="/settings/telegram">Link your Telegram</a> to receive trade notifications.</span>
     </div>
 @endif
 
-@if($user->subscription_plan === 'free_trial')
-    <div class="ptx-alert ptx-alert-info">
-        <i class="bi bi-clock"></i>
-        <span>
-            <strong>Free Trial</strong> —
-            @if($user->isTrialExpired())
-                Your trial has expired. <a href="/subscription">Upgrade now</a>.
-            @else
-                {{ $user->daysLeftInTrial() }} days remaining. <a href="/subscription">View plans</a>
-            @endif
-        </span>
-    </div>
+@if($user->subscription_plan === 'free' && !$user->is_lifetime)
+    @if($user->subscription_ends_at && $user->subscription_ends_at->isPast())
+        <div class="ptx-alert ptx-alert-warning">
+            <i class="bi bi-clock"></i>
+            <span>
+                <strong>Subscription Expired</strong> — You're on the Free plan. <a href="/subscription">Upgrade to unlock more features</a>.
+            </span>
+        </div>
+    @endif
 @endif
+
+{{-- Getting Started Guide --}}
+<div class="ptx-card mb-4">
+    <div class="ptx-card-header" style="cursor: pointer;" onclick="document.getElementById('gettingStartedContent').classList.toggle('d-none')">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5><i class="bi bi-rocket-takeoff me-2" style="color: var(--accent);"></i> Getting Started with PolyTraderX</h5>
+            <i class="bi bi-chevron-down"></i>
+        </div>
+    </div>
+    <div class="ptx-card-body d-none" id="gettingStartedContent">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div style="border-left: 3px solid var(--accent); padding-left: 1rem; margin-bottom: 1.5rem;">
+                    <h6 style="color: var(--accent); margin-bottom: 0.5rem;">
+                        <i class="bi bi-1-circle-fill me-2"></i>What is PolyTraderX?
+                    </h6>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0;">
+                        A <strong>simulation platform</strong> for testing trading strategies on Polymarket's 5-minute and 15-minute crypto prediction markets.
+                        <span style="color: var(--accent);">No real money, no risk</span> — all trades are simulated using real market data.
+                    </p>
+                </div>
+
+                <div style="border-left: 3px solid var(--profit); padding-left: 1rem; margin-bottom: 1.5rem;">
+                    <h6 style="color: var(--profit); margin-bottom: 0.5rem;">
+                        <i class="bi bi-2-circle-fill me-2"></i>Configure Your Strategy
+                    </h6>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                        Go to <a href="{{ route('strategy.index') }}">Strategy Parameters</a> to customize:
+                    </p>
+                    <ul style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0;">
+                        <li><strong>Risk limits:</strong> Max bet size, daily loss limits</li>
+                        <li><strong>Trading rules:</strong> Confidence thresholds, entry timing</li>
+                        <li><strong>Market selection:</strong> Choose 5-min, 15-min, or both markets</li>
+                        <li><strong>Assets:</strong> Which cryptos to trade (BTC, ETH, SOL)</li>
+                    </ul>
+                </div>
+
+                <div style="border-left: 3px solid #ffc107; padding-left: 1rem;">
+                    <h6 style="color: #ffc107; margin-bottom: 0.5rem;">
+                        <i class="bi bi-3-circle-fill me-2"></i>Start the Simulator
+                    </h6>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                        In <a href="{{ route('strategy.index') }}">Strategy Parameters</a>, set <code>Simulator Enabled</code> to <span class="ptx-badge ptx-badge-success">true</span>
+                    </p>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0;">
+                        The bot runs automatically every minute, scanning for markets in the final 60 seconds before close (configurable).
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div style="border-left: 3px solid #00d4ff; padding-left: 1rem; margin-bottom: 1.5rem;">
+                    <h6 style="color: #00d4ff; margin-bottom: 0.5rem;">
+                        <i class="bi bi-4-circle-fill me-2"></i>Monitor Performance
+                    </h6>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">Track your strategy's performance:</p>
+                    <ul style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0;">
+                        <li><strong>Dashboard:</strong> Real-time P&L, win rates, active trades</li>
+                        <li><strong><a href="{{ route('trades.index') }}">Trades</a>:</strong> Full trade history with execution details</li>
+                        <li><strong><a href="{{ route('balance.index') }}">Balance</a>:</strong> Equity curve and drawdown analysis</li>
+                        <li><strong><a href="{{ route('logs.index') }}">Logs</a>:</strong> Detailed simulator activity logs</li>
+                    </ul>
+                </div>
+
+                <div style="border-left: 3px solid #a855f7; padding-left: 1rem; margin-bottom: 1.5rem;">
+                    <h6 style="color: #a855f7; margin-bottom: 0.5rem;">
+                        <i class="bi bi-5-circle-fill me-2"></i>Optional: AI Analysis
+                    </h6>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                        The platform uses AI to analyze losing trades and suggest parameter improvements.
+                    </p>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0;">
+                        Check <a href="{{ route('audits.index') }}">AI Audits</a> to review suggestions and approve/reject changes.
+                    </p>
+                </div>
+
+                <div style="border-left: 3px solid var(--loss); padding-left: 1rem;">
+                    <h6 style="color: var(--loss); margin-bottom: 0.5rem;">
+                        <i class="bi bi-6-circle-fill me-2"></i>Reset & Experiment
+                    </h6>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0;">
+                        Not happy with results? Go to <a href="{{ route('balance.index') }}">Balance</a> and click <strong>Reset Balance</strong>
+                        to clear your equity history and start fresh with a new starting balance.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert mt-3 mb-0" style="background: linear-gradient(135deg, rgba(255,193,7,0.15) 0%, rgba(255,193,7,0.05) 100%); border: 2px solid #ffc107; border-radius: 8px; padding: 1rem 1.25rem;">
+            <div style="display: flex; align-items: start; gap: 1rem;">
+                <i class="bi bi-lightbulb-fill" style="color: #ffc107; font-size: 1.5rem; flex-shrink: 0;"></i>
+                <div>
+                    <h6 style="color: #ffc107; margin-bottom: 0.5rem; font-weight: 600;">
+                        💡 Pro Tip for Beginners
+                    </h6>
+                    <p style="color: var(--text-primary); margin-bottom: 0.5rem; line-height: 1.6;">
+                        Start with conservative settings: <strong>low bet sizes ($5-10)</strong>, <strong>high confidence thresholds (0.92-0.95)</strong>,
+                        and gradually optimize as you understand the markets better.
+                    </p>
+                    <p style="color: var(--text-secondary); margin-bottom: 0; font-size: 0.9rem;">
+                        The platform simulates trades using <strong>real market data</strong> from Polymarket and Binance.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 {{-- Row 1: Key Stats --}}
 <div class="row g-4 mb-4">
     <div class="col-md-3 col-6">
         <div class="ptx-stat-card">
-            <div class="stat-label">Today's P&L</div>
+            <div class="stat-label">Today's P&L (Simulated)</div>
             <div class="stat-value {{ $todayPnl >= 0 ? 'text-profit' : 'text-loss' }}">{{ $todayPnl >= 0 ? '+' : '-' }}${{ number_format(abs($todayPnl), 2) }}</div>
             <div style="color: var(--text-secondary); font-size: 0.8rem;">{{ $todayTradeCount }} trades today</div>
         </div>
@@ -61,7 +151,7 @@
         <div class="ptx-stat-card">
             <div class="stat-label">Current Balance</div>
             <div class="stat-value text-accent">${{ $latestBalance ? number_format((float)$latestBalance->total_equity, 2) : '0.00' }}</div>
-            @if($dryRun)<div style="color: var(--warning); font-size: 0.75rem;">Simulated</div>@endif
+            <div style="color: var(--text-secondary); font-size: 0.75rem;">Simulated Balance</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
@@ -73,9 +163,42 @@
     </div>
     <div class="col-md-3 col-6">
         <div class="ptx-stat-card">
-            <div class="stat-label">Win Rate (7d)</div>
+            <div class="stat-label">Win Rate (7d) (Simulated)</div>
             <div class="stat-value text-accent">{{ $winRate7d }}%</div>
             <div style="color: var(--text-secondary); font-size: 0.75rem;">Today {{ $winRateToday }}% · 30d {{ $winRate30d }}%</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="ptx-stat-card">
+            <div class="stat-label">Strategy Health</div>
+            <div class="stat-value text-accent">
+                @if(isset($strategyHealth))
+                    @if($strategyHealth === 'Insufficient_data')
+                        No Data
+                    @else
+                        {{ ucfirst($strategyHealth) }}
+                    @endif
+                @else
+                    N/A
+                @endif
+            </div>
+            <div style="color: var(--text-secondary); font-size: 0.75rem;">Drawdown: {{ isset($maxDrawdown) ? number_format($maxDrawdown, 1) : '0.0' }}%</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="ptx-stat-card">
+            <div class="stat-label">Total Trades</div>
+            <div class="stat-value text-accent">{{ $totalTrades ?? 0 }}</div>
+            <div style="color: var(--text-secondary); font-size: 0.75rem;">{{ $totalWins ?? 0 }}W · {{ $totalLosses ?? 0 }}L</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="ptx-stat-card">
+            <div class="stat-label">Best Day (7d)</div>
+            <div class="stat-value {{ ($bestDay7d ?? 0) >= 0 ? 'text-profit' : 'text-loss' }}">
+                {{ ($bestDay7d ?? 0) >= 0 ? '+' : '' }}${{ number_format(abs($bestDay7d ?? 0), 2) }}
+            </div>
+            <div style="color: var(--text-secondary); font-size: 0.75rem;">{{ $bestDayDate ?? 'No data' }}</div>
         </div>
     </div>
 </div>
@@ -142,7 +265,7 @@
                 @else
                 <div class="ptx-empty-state">
                     <i class="bi bi-currency-exchange d-block"></i>
-                    <p>No trades yet. Your bot will start trading when markets are in the entry window.</p>
+                    <p>No trades yet. Simulator will evaluate signals when markets are in the entry window.</p>
                 </div>
                 @endif
             </div>
@@ -150,7 +273,7 @@
     </div>
     <div class="col-lg-5">
         <div class="ptx-card">
-            <div class="ptx-card-header"><h5>Bot Status</h5></div>
+            <div class="ptx-card-header"><h5>Simulator Status</h5></div>
             <div class="ptx-card-body">
                 <table class="w-100" style="font-size: 0.9rem;">
                     <tr>
@@ -169,11 +292,9 @@
                             @endif
                         </td>
                     </tr>
-                    <tr><td style="color: var(--text-secondary); padding: 6px 0;">Bot</td><td class="text-end">@if($botEnabled)<span class="ptx-badge ptx-badge-success">Active</span>@else<span class="ptx-badge ptx-badge-danger">Paused</span>@endif</td></tr>
-                    <tr><td style="color: var(--text-secondary); padding: 6px 0;">Mode</td><td class="text-end">@if($dryRun)<span class="ptx-badge ptx-badge-warning">DRY RUN</span>@else<span class="ptx-badge ptx-badge-success">LIVE</span>@endif</td></tr>
+                    <tr><td style="color: var(--text-secondary); padding: 6px 0;">Simulator</td><td class="text-end">@if($simulatorEnabled)<span class="ptx-badge ptx-badge-success">Active</span>@else<span class="ptx-badge ptx-badge-danger">Paused</span>@endif</td></tr>
                     <tr><td style="color: var(--text-secondary); padding: 6px 0;">Last heartbeat</td><td class="text-end" style="font-size:0.85rem">{{ $user->last_bot_heartbeat ? $user->last_bot_heartbeat->diffForHumans() : 'Never' }}</td></tr>
                     <tr><td style="color: var(--text-secondary); padding: 6px 0;">Telegram</td><td class="text-end">@if($telegramLinked)<span style="color:var(--profit)">Linked</span>@else<a href="/settings/telegram" style="font-size:0.85rem">Not linked</a>@endif</td></tr>
-                    <tr><td style="color: var(--text-secondary); padding: 6px 0;">Polymarket</td><td class="text-end">@if($credentialsConfigured)<span style="color:var(--profit)">Connected</span>@else<a href="/settings/credentials" style="font-size:0.85rem">Not configured</a>@endif</td></tr>
                     @if($pendingAudits > 0)
                     <tr><td style="color: var(--text-secondary); padding: 6px 0;">Pending audits</td><td class="text-end"><a href="{{ route('audits.index') }}">{{ $pendingAudits }} pending</a></td></tr>
                     @endif

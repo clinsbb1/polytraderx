@@ -6,6 +6,7 @@ namespace App\Services\AI;
 
 use App\Models\AiAudit;
 use App\Models\Trade;
+use App\Models\User;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Log;
 
@@ -25,9 +26,21 @@ class AIRouter
             return null;
         }
 
-        $tiers = $this->getAvailableTiers($userId);
-        if (!$tiers['muscles']) {
+        $user = User::find($userId);
+        if (!$user) {
             return null;
+        }
+
+        // Check if Muscles is available for this plan
+        $plan = $this->subscriptionService->getUserPlan($user);
+        if (!$plan || !$plan->ai_muscles_enabled) {
+            return null;
+        }
+
+        // Check usage limits
+        if (!$this->subscriptionService->canCallMuscles($user)) {
+            Log::channel('simulator')->info("User {$user->account_id} hit Muscles AI daily limit");
+            return null; // Falls back to reflexes-only
         }
 
         return $this->muscles->analyze($market, $spotData, $userId);
@@ -39,11 +52,14 @@ class AIRouter
             return null;
         }
 
-        $tiers = $this->getAvailableTiers($userId);
-        if (!$tiers['brain']) {
-            Log::channel('bot')->debug('Loss audit skipped: plan does not include Brain tier', [
-                'user_id' => $userId,
-            ]);
+        $user = User::find($userId);
+        if (!$user) {
+            return null;
+        }
+
+        // Check if Brain is available and within limits
+        if (!$this->subscriptionService->canCallBrain($user)) {
+            Log::channel('simulator')->info("User {$user->account_id} hit Brain AI limit — skipping audit");
             return null;
         }
 
@@ -56,8 +72,14 @@ class AIRouter
             return null;
         }
 
-        $tiers = $this->getAvailableTiers($userId);
-        if (!$tiers['brain']) {
+        $user = User::find($userId);
+        if (!$user) {
+            return null;
+        }
+
+        // Check if Brain is available and within limits
+        if (!$this->subscriptionService->canCallBrain($user)) {
+            Log::channel('simulator')->info("User {$user->account_id} hit Brain AI limit — skipping daily review");
             return null;
         }
 
@@ -70,8 +92,14 @@ class AIRouter
             return null;
         }
 
-        $tiers = $this->getAvailableTiers($userId);
-        if (!$tiers['brain']) {
+        $user = User::find($userId);
+        if (!$user) {
+            return null;
+        }
+
+        // Check if Brain is available and within limits
+        if (!$this->subscriptionService->canCallBrain($user)) {
+            Log::channel('simulator')->info("User {$user->account_id} hit Brain AI limit — skipping weekly report");
             return null;
         }
 
@@ -80,12 +108,21 @@ class AIRouter
 
     public function getAvailableTiers(int $userId): array
     {
-        $limits = $this->subscriptionService->getPlanLimits($userId);
+        $user = User::find($userId);
+        if (!$user) {
+            return [
+                'reflexes' => true,
+                'muscles' => false,
+                'brain' => false,
+            ];
+        }
+
+        $plan = $this->subscriptionService->getUserPlan($user);
 
         return [
-            'reflexes' => true,
-            'muscles' => (bool) ($limits['has_ai_muscles'] ?? false),
-            'brain' => (bool) ($limits['has_ai_brain'] ?? false),
+            'reflexes' => true, // Always available
+            'muscles' => $plan ? (bool) $plan->ai_muscles_enabled : false,
+            'brain' => $plan ? (bool) $plan->ai_brain_enabled : false,
         ];
     }
 }

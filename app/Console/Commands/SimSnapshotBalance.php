@@ -14,9 +14,9 @@ use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
-class SnapshotBalance extends Command
+class SimSnapshotBalance extends Command
 {
-    protected $signature = 'bot:snapshot-balance';
+    protected $signature = 'sim:snapshot-balance';
     protected $description = 'Record balance snapshots and check for alerts';
 
     public function handle(
@@ -59,7 +59,7 @@ class SnapshotBalance extends Command
                         $positionsValue = (float) $lastSnapshot->open_positions_value;
                     }
 
-                    Log::channel('bot')->warning('Balance fetch failed, using last known', [
+                    Log::channel('simulator')->warning('Balance fetch failed, using last known', [
                         'user_id' => $user->id,
                         'message' => $e->getMessage(),
                     ]);

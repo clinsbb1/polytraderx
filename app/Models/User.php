@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Email\LifecycleEmailService;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable
@@ -25,16 +28,20 @@ class User extends Authenticatable
         'is_active',
         'is_superadmin',
         'subscription_plan',
+        'billing_interval',
+        'is_lifetime',
         'subscription_ends_at',
         'trial_ends_at',
         'onboarding_completed',
         'last_bot_heartbeat',
+        'last_login_at',
         'avatar_url',
         'telegram_chat_id',
         'telegram_username',
         'telegram_linked_at',
         'google_id',
         'referred_by',
+        'simulation_acknowledged_at',
     ];
 
     protected $hidden = [
@@ -49,11 +56,14 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'is_superadmin' => 'boolean',
+            'is_lifetime' => 'boolean',
             'subscription_ends_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'onboarding_completed' => 'boolean',
             'last_bot_heartbeat' => 'datetime',
+            'last_login_at' => 'datetime',
             'telegram_linked_at' => 'datetime',
+            'simulation_acknowledged_at' => 'datetime',
         ];
     }
 
@@ -114,7 +124,7 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        return $this->is_superadmin;
+        return (bool) $this->is_superadmin;
     }
 
     public function isSubscriptionActive(): bool
@@ -123,7 +133,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if ($this->subscription_plan === 'free_trial' && !$this->isTrialExpired()) {
+        if ($this->subscription_plan === 'free' && !$this->isTrialExpired()) {
             return true;
         }
 
@@ -167,6 +177,25 @@ class User extends Authenticatable
         return $this->credential && $this->credential->hasPolymarketKeys();
     }
 
+    public function sendPasswordResetNotification($token): void
+    {
+        $resetUrl = route('password.reset', [
+            'token' => $token,
+            'email' => $this->email,
+        ]);
+
+        $sent = app(LifecycleEmailService::class)->sendPasswordReset($this, $resetUrl);
+
+        if (!$sent) {
+            Log::channel('simulator')->warning('Custom password reset email failed, using default notification', [
+                'user_id' => $this->id,
+                'email' => $this->email,
+            ]);
+
+            $this->notify(new ResetPassword($token));
+        }
+    }
+
     // --- Scopes ---
 
     public function scopeActive(Builder $query): Builder
@@ -178,7 +207,7 @@ class User extends Authenticatable
     {
         return $query->where(function (Builder $q) {
             $q->where(function (Builder $q2) {
-                $q2->where('subscription_plan', 'free_trial')
+                $q2->where('subscription_plan', 'free')
                    ->where('trial_ends_at', '>', now());
             })->orWhere('subscription_ends_at', '>', now());
         });

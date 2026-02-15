@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'Contact — PolyTraderX')
+@section('meta_description', 'Contact PolyTraderX support for technical issues, billing questions, and feature feedback. Advanced and Lifetime subscribers can use priority support form access.')
 
 @section('content')
     <section class="ptx-section" style="padding-top: 140px;">
@@ -15,7 +16,7 @@
                         <div class="ptx-contact-item-icon"><i class="bi bi-envelope"></i></div>
                         <div>
                             <h6>Email Support</h6>
-                            <p>support@polytraderx.com</p>
+                            <p>support@polytraderx.xyz</p>
                         </div>
                     </div>
 
@@ -53,34 +54,69 @@
                 {{-- Right: Contact Form --}}
                 <div>
                     <div class="glass-card">
-                        <h4 class="mb-4">Send a Message</h4>
-                        <form>
-                            <div class="mb-3">
-                                <label class="ptx-label">Name</label>
-                                <input type="text" class="ptx-input" placeholder="Your name">
+                        <h4 class="mb-4">Support Contact</h4>
+
+                        @if (session('success'))
+                            <div style="background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; color: var(--profit); font-size: 0.9rem;">
+                                {{ session('success') }}
                             </div>
-                            <div class="mb-3">
-                                <label class="ptx-label">Email</label>
-                                <input type="email" class="ptx-input" placeholder="your@email.com">
+                        @endif
+
+                        @if (session('error'))
+                            <div style="background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.25); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; color: #ff7583; font-size: 0.9rem;">
+                                {{ session('error') }}
                             </div>
-                            <div class="mb-3">
-                                <label class="ptx-label">Subject</label>
-                                <select class="ptx-input">
-                                    <option value="">Select a topic</option>
-                                    <option value="support">Technical Support</option>
-                                    <option value="billing">Billing Question</option>
-                                    <option value="bug">Bug Report</option>
-                                    <option value="feature">Feature Request</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            <div class="mb-4">
-                                <label class="ptx-label">Message</label>
-                                <textarea class="ptx-input" rows="5" placeholder="Tell us how we can help..."></textarea>
-                            </div>
-                            <button type="button" class="btn btn-ptx-primary w-100">Send Message</button>
-                            <p class="text-center mt-3" style="color: var(--text-secondary); font-size: 0.8rem;">This form is for display only. Please email us directly at support@polytraderx.com.</p>
-                        </form>
+                        @endif
+
+                        @if($canSubmitContact)
+                            <form method="POST" action="{{ route('contact.submit') }}" enctype="multipart/form-data">
+                                @csrf
+
+                                <div class="mb-3">
+                                    <label class="ptx-label">Name</label>
+                                    <input type="text" class="ptx-input" value="{{ auth()->user()->name }}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="ptx-label">Email</label>
+                                    <input type="email" class="ptx-input" value="{{ auth()->user()->email }}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="ptx-label">Subject</label>
+                                    <select class="ptx-input" name="subject" required>
+                                        <option value="">Select a topic</option>
+                                        <option value="support" {{ old('subject') === 'support' ? 'selected' : '' }}>Technical Support</option>
+                                        <option value="billing" {{ old('subject') === 'billing' ? 'selected' : '' }}>Billing Question</option>
+                                        <option value="bug" {{ old('subject') === 'bug' ? 'selected' : '' }}>Bug Report</option>
+                                        <option value="feature" {{ old('subject') === 'feature' ? 'selected' : '' }}>Feature Request</option>
+                                        <option value="other" {{ old('subject') === 'other' ? 'selected' : '' }}>Other</option>
+                                    </select>
+                                    @error('subject')
+                                        <div class="ptx-input-error">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="mb-3">
+                                    <label class="ptx-label">Screenshot (optional)</label>
+                                    <input type="file" class="ptx-input" name="screenshot" accept=".jpg,.jpeg,.png,.webp,.gif,image/*">
+                                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 6px;">Upload an image to describe the issue (max 5MB).</div>
+                                    @error('screenshot')
+                                        <div class="ptx-input-error">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="mb-4">
+                                    <label class="ptx-label">Message</label>
+                                    <textarea class="ptx-input" name="message" rows="6" placeholder="Tell us how we can help..." required>{{ old('message') }}</textarea>
+                                    @error('message')
+                                        <div class="ptx-input-error">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <button type="submit" class="btn btn-ptx-primary w-100">Send Message</button>
+                            </form>
+                        @else
+                            <p style="color: var(--text-secondary); margin-bottom: 0;">
+                                The priority support form is available only for <strong>Advanced</strong> and <strong>Early Bird Lifetime</strong> subscribers.
+                                Please email <a href="mailto:support@polytraderx.xyz">support@polytraderx.xyz</a> for assistance.
+                            </p>
+                        @endif
                     </div>
                 </div>
             </div>

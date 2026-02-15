@@ -20,16 +20,9 @@
     <div class="ptx-card-body">
         <div class="row">
             <div class="col-md-6">
-                <p class="mb-2"><span class="ptx-label d-inline">Plan:</span> <strong>{{ $currentPlan ? $currentPlan->name : ucfirst(str_replace('_', ' ', $user->subscription_plan ?? 'Free Trial')) }}</strong></p>
-                @if($user->subscription_plan === 'free_trial' && $user->trial_ends_at)
-                    <p class="mb-2"><span class="ptx-label d-inline">Trial Ends:</span> <strong>{{ $user->trial_ends_at->format('M j, Y') }}</strong></p>
-                    <p class="mb-0">
-                        @if($user->isTrialExpired())
-                            <span class="ptx-badge ptx-badge-danger">Trial Expired</span>
-                        @else
-                            <span class="ptx-badge ptx-badge-info">{{ $user->daysLeftInTrial() }} days remaining</span>
-                        @endif
-                    </p>
+                <p class="mb-2"><span class="ptx-label d-inline">Plan:</span> <strong>{{ $currentPlan ? $currentPlan->name : ucfirst(str_replace('_', ' ', $user->subscription_plan ?? 'Free')) }}</strong></p>
+                @if($user->is_lifetime)
+                    <p class="mb-0"><span class="ptx-badge ptx-badge-success">Lifetime Access</span></p>
                 @elseif($user->subscription_ends_at)
                     <p class="mb-2"><span class="ptx-label d-inline">Renews:</span> <strong>{{ $user->subscription_ends_at->format('M j, Y') }}</strong></p>
                     <span class="ptx-badge ptx-badge-success">Active</span>
@@ -37,10 +30,10 @@
             </div>
             @if($currentPlan)
             <div class="col-md-6">
-                <p class="mb-2"><span class="ptx-label d-inline">Max Daily Trades:</span> <strong>{{ $currentPlan->max_daily_trades ?: 'Unlimited' }}</strong></p>
+                <p class="mb-2"><span class="ptx-label d-inline">Max Daily Trades:</span> <strong>{{ $currentPlan->max_signals_per_day ?: 'Unlimited' }}</strong></p>
                 <p class="mb-2"><span class="ptx-label d-inline">Max Concurrent:</span> <strong>{{ $currentPlan->max_concurrent_positions ?: 'Unlimited' }}</strong></p>
-                <p class="mb-2"><span class="ptx-label d-inline">AI Muscles:</span> <strong>{{ $currentPlan->has_ai_muscles ? 'Yes' : 'No' }}</strong></p>
-                <p class="mb-0"><span class="ptx-label d-inline">AI Brain:</span> <strong>{{ $currentPlan->has_ai_brain ? 'Yes' : 'No' }}</strong></p>
+                <p class="mb-2"><span class="ptx-label d-inline">AI Muscles:</span> <strong>{{ $currentPlan->ai_muscles_enabled ? 'Yes' : 'No' }}</strong></p>
+                <p class="mb-0"><span class="ptx-label d-inline">AI Brain:</span> <strong>{{ $currentPlan->ai_brain_enabled ? 'Yes' : 'No' }}</strong></p>
             </div>
             @endif
         </div>
@@ -66,10 +59,10 @@
                 @endif
             </div>
             <ul class="plan-features">
-                <li><i class="bi bi-check-circle-fill check"></i> {{ $plan->max_daily_trades ?: 'Unlimited' }} trades/day</li>
+                <li><i class="bi bi-check-circle-fill check"></i> {{ $plan->max_signals_per_day ?: 'Unlimited' }} signals/day</li>
                 <li><i class="bi bi-check-circle-fill check"></i> {{ $plan->max_concurrent_positions ?: 'Unlimited' }} positions</li>
-                <li><i class="bi {{ $plan->has_ai_muscles ? 'bi-check-circle-fill check' : 'bi-x-circle cross' }}"></i> AI Muscles</li>
-                <li><i class="bi {{ $plan->has_ai_brain ? 'bi-check-circle-fill check' : 'bi-x-circle cross' }}"></i> AI Brain</li>
+                <li><i class="bi {{ $plan->ai_muscles_enabled ? 'bi-check-circle-fill check' : 'bi-x-circle cross' }}"></i> AI Muscles</li>
+                <li><i class="bi {{ $plan->ai_brain_enabled ? 'bi-check-circle-fill check' : 'bi-x-circle cross' }}"></i> AI Brain</li>
             </ul>
             @if($user->subscription_plan !== $plan->slug && (float)$plan->price_usd > 0)
                 <form method="POST" action="/subscription/checkout">

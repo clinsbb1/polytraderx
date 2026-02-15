@@ -180,13 +180,13 @@ class NotificationService
             $sent = $this->telegram->sendToUser($user->id, $message);
 
             if ($sent) {
-                Log::channel('bot')->debug('Notification sent', [
+                Log::channel('simulator')->debug('Notification sent', [
                     'user_id' => $user->id,
                     'length' => strlen($message),
                 ]);
             }
         } catch (\Exception $e) {
-            Log::channel('bot')->warning('Notification send failed', [
+            Log::channel('simulator')->warning('Notification send failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);

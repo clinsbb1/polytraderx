@@ -25,10 +25,19 @@ class AdminSettingController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $settings = $request->input('settings', []);
+        $submitted = $request->input('settings', []);
+        $allSettings = PlatformSetting::query()->select('key', 'type')->get();
 
-        foreach ($settings as $key => $value) {
-            $this->platformSettings->set($key, $value);
+        foreach ($allSettings as $setting) {
+            if ($setting->type === 'boolean') {
+                $value = array_key_exists($setting->key, $submitted) ? $submitted[$setting->key] : 'false';
+                $this->platformSettings->set($setting->key, $value);
+                continue;
+            }
+
+            if (array_key_exists($setting->key, $submitted)) {
+                $this->platformSettings->set($setting->key, $submitted[$setting->key]);
+            }
         }
 
         return back()->with('success', 'Platform settings updated.');

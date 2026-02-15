@@ -13,13 +13,22 @@ class OrderService
         private PolymarketClient $client,
         private SettingsService $settings,
         private int $userId,
+        private Eip712SignerService $signer,
     ) {}
 
     public function placeOrder(string $tokenId, string $side, float $price, float $amount): array
     {
-        $isDryRun = $this->settings->getBool('DRY_RUN', true, $this->userId);
+        // Platform-level enforcement: force simulation if live trading disabled
+        $liveEnabled = app(\App\Services\Settings\PlatformSettingsService::class)
+            ->getBool('FEATURE_LIVE_TRADING', false);
 
-        $orderPayload = $this->buildOrderPayload($tokenId, $side, $price, $amount);
+        if (!$liveEnabled) {
+            $isDryRun = true;  // Force simulation regardless of user preference
+        } else {
+            $isDryRun = $this->settings->getBool('DRY_RUN', true, $this->userId);
+        }
+
+        $orderIntent = $this->buildOrderIntent($tokenId, $side, $price, $amount);
 
         if ($isDryRun) {
             $simulatedOrder = [
@@ -33,7 +42,7 @@ class OrderService
                 'created_at' => now()->toIso8601String(),
             ];
 
-            Log::channel('bot')->info('DRY RUN order placed', [
+            Log::channel('simulator')->info('DRY RUN order placed', [
                 'user_id' => $this->userId,
                 'order' => $simulatedOrder,
             ]);
@@ -42,9 +51,10 @@ class OrderService
         }
 
         try {
-            $response = $this->client->post('/order', $orderPayload);
+            $signedOrderPayload = $this->signer->signOrder($this->client->getUser(), $orderIntent);
+            $response = $this->client->post('/order', $signedOrderPayload);
 
-            Log::channel('bot')->info('Order placed', [
+            Log::channel('simulator')->info('Order placed', [
                 'user_id' => $this->userId,
                 'order_id' => $response['orderID'] ?? $response['id'] ?? null,
                 'token_id' => $tokenId,
@@ -55,7 +65,7 @@ class OrderService
 
             return $response;
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Failed to place order', [
+            Log::channel('simulator')->error('Failed to place order', [
                 'user_id' => $this->userId,
                 'token_id' => $tokenId,
                 'side' => $side,
@@ -69,10 +79,18 @@ class OrderService
 
     public function cancelOrder(string $orderId): array
     {
-        $isDryRun = $this->settings->getBool('DRY_RUN', true, $this->userId);
+        // Platform-level enforcement: force simulation if live trading disabled
+        $liveEnabled = app(\App\Services\Settings\PlatformSettingsService::class)
+            ->getBool('FEATURE_LIVE_TRADING', false);
+
+        if (!$liveEnabled) {
+            $isDryRun = true;  // Force simulation regardless of user preference
+        } else {
+            $isDryRun = $this->settings->getBool('DRY_RUN', true, $this->userId);
+        }
 
         if ($isDryRun) {
-            Log::channel('bot')->info('DRY RUN order cancelled', [
+            Log::channel('simulator')->info('Simulated order cancelled', [
                 'user_id' => $this->userId,
                 'order_id' => $orderId,
             ]);
@@ -98,19 +116,14 @@ class OrderService
         return $this->client->get('/trades', ['limit' => (string) $limit]);
     }
 
-    private function buildOrderPayload(string $tokenId, string $side, float $price, float $amount): array
+    private function buildOrderIntent(string $tokenId, string $side, float $price, float $amount): array
     {
         return [
-            'order' => [
-                'tokenID' => $tokenId,
-                'price' => (string) $price,
-                'size' => (string) $amount,
-                'side' => strtoupper($side),
-                'feeRateBps' => '0',
-                'nonce' => '0',
-                'expiration' => '0',
-            ],
-            'orderType' => 'GTC',
+            'token_id' => $tokenId,
+            'side' => strtoupper($side),
+            'price' => (string) $price,
+            'size' => (string) $amount,
+            'order_type' => 'GTC',
         ];
     }
 }

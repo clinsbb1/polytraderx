@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'Reset Password — PolyTraderX')
+@section('meta_robots', 'noindex, nofollow')
 
 @section('content')
     <div class="ptx-auth-wrapper">

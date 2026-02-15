@@ -53,8 +53,8 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Max Daily Trades</label>
-                    <input type="number" name="max_daily_trades" class="form-control @error('max_daily_trades') is-invalid @enderror" min="0" value="{{ old('max_daily_trades', $plan->max_daily_trades ?? '') }}" placeholder="0 = unlimited">
-                    @error('max_daily_trades') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <input type="number" name="max_signals_per_day" class="form-control @error('max_signals_per_day') is-invalid @enderror" min="0" value="{{ old('max_signals_per_day', $plan->max_signals_per_day ?? '') }}" placeholder="0 = unlimited">
+                    @error('max_signals_per_day') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Max Concurrent Positions</label>
@@ -70,6 +70,21 @@
                 <div class="form-text">Number of free trial days for new subscribers.</div>
             </div>
 
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Lifetime Cap</label>
+                    <input type="number" name="lifetime_cap" class="form-control @error('lifetime_cap') is-invalid @enderror" min="0" value="{{ old('lifetime_cap', $plan->lifetime_cap ?? '') }}" placeholder="0 = unlimited">
+                    @error('lifetime_cap') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="form-text">Maximum lifetime memberships allowed for this plan.</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Lifetime Sold</label>
+                    <input type="number" name="lifetime_sold" class="form-control @error('lifetime_sold') is-invalid @enderror" min="0" value="{{ old('lifetime_sold', $plan->lifetime_sold ?? '0') }}">
+                    @error('lifetime_sold') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="form-text">Number of lifetime memberships already sold.</div>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label class="form-label fw-semibold">Sort Order</label>
                 <input type="number" name="sort_order" class="form-control @error('sort_order') is-invalid @enderror" min="0" value="{{ old('sort_order', $plan->sort_order ?? '0') }}">
@@ -78,20 +93,73 @@
             </div>
 
             <hr>
+            <h6 class="mb-3">AI Limits</h6>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Muscles Calls/Day</label>
+                    <input type="number" name="max_ai_muscles_calls_per_day" class="form-control" min="0" value="{{ old('max_ai_muscles_calls_per_day', $plan->max_ai_muscles_calls_per_day ?? '') }}" placeholder="0 = unlimited">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Brain Calls/Day</label>
+                    <input type="number" name="max_ai_brain_calls_per_day" class="form-control" min="0" value="{{ old('max_ai_brain_calls_per_day', $plan->max_ai_brain_calls_per_day ?? '') }}" placeholder="0 = unlimited">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Brain Calls/Month</label>
+                    <input type="number" name="max_ai_brain_calls_per_month" class="form-control" min="0" value="{{ old('max_ai_brain_calls_per_month', $plan->max_ai_brain_calls_per_month ?? '') }}" placeholder="0 = unlimited">
+                </div>
+            </div>
 
             <div class="mb-3">
-                <label class="form-label fw-semibold d-block">AI Features</label>
+                <label class="form-label fw-semibold d-block">AI Features Enabled</label>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" name="has_ai_muscles" value="1" id="aiMuscles"
-                        {{ old('has_ai_muscles', $plan->has_ai_muscles ?? false) ? 'checked' : '' }}>
+                    <input class="form-check-input" type="checkbox" name="ai_muscles_enabled" value="1" id="aiMuscles"
+                        {{ old('ai_muscles_enabled', $plan->ai_muscles_enabled ?? false) ? 'checked' : '' }}>
                     <label class="form-check-label" for="aiMuscles">AI Muscles (Haiku)</label>
                 </div>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" name="has_ai_brain" value="1" id="aiBrain"
-                        {{ old('has_ai_brain', $plan->has_ai_brain ?? false) ? 'checked' : '' }}>
+                    <input class="form-check-input" type="checkbox" name="ai_brain_enabled" value="1" id="aiBrain"
+                        {{ old('ai_brain_enabled', $plan->ai_brain_enabled ?? false) ? 'checked' : '' }}>
                     <label class="form-check-label" for="aiBrain">AI Brain (Sonnet)</label>
                 </div>
             </div>
+
+            <hr>
+            <h6 class="mb-3">Feature Access</h6>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Historical Data (Days)</label>
+                    <input type="number" name="historical_days" class="form-control" min="0" value="{{ old('historical_days', $plan->historical_days ?? '7') }}">
+                    <div class="form-text">How many days of historical data users can access</div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold d-block">Features Enabled</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="csv_export_enabled" value="1" id="csvExport"
+                        {{ old('csv_export_enabled', $plan->csv_export_enabled ?? false) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="csvExport">CSV Export</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="strategy_health_metrics" value="1" id="strategyHealth"
+                        {{ old('strategy_health_metrics', $plan->strategy_health_metrics ?? false) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="strategyHealth">Strategy Health Metrics</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="telegram_enabled" value="1" id="telegram"
+                        {{ old('telegram_enabled', $plan->telegram_enabled ?? false) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="telegram">Telegram Notifications</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="priority_processing" value="1" id="priority"
+                        {{ old('priority_processing', $plan->priority_processing ?? false) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="priority">Priority Processing</label>
+                </div>
+            </div>
+
+            <hr>
 
             <div class="mb-4">
                 <div class="form-check">

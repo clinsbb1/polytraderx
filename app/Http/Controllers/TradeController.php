@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AiAudit;
 use App\Models\Trade;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -40,6 +41,12 @@ class TradeController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
+        // Check if user has CSV export permission
+        $subscriptionService = app(SubscriptionService::class);
+        if (!$subscriptionService->canExportCsv(auth()->user())) {
+            return back()->with('error', 'CSV export is available on Pro and Advanced plans.');
+        }
+
         $query = $this->applyFilters(Trade::forUser(auth()->id()), $request);
         $trades = $query->latest('entry_at')->get();
 

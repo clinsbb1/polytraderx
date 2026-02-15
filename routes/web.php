@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\AdminPaymentController;
 use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\SimulationAcknowledgmentController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 
@@ -48,18 +49,28 @@ Route::get('/', function () {
 Route::get('/pricing', [PublicController::class, 'pricing']);
 Route::get('/terms', [PublicController::class, 'terms']);
 Route::get('/privacy', [PublicController::class, 'privacy']);
+Route::get('/refund-policy', [PublicController::class, 'refundPolicy']);
 Route::get('/contact', [PublicController::class, 'contact']);
+Route::post('/contact', [PublicController::class, 'submitContact'])->middleware('auth')->name('contact.submit');
 
 // Webhooks (no auth, no CSRF)
 Route::post('/api/webhooks/nowpayments', [WebhookController::class, 'nowpayments']);
 Route::post('/api/webhooks/telegram', TelegramWebhookController::class);
 
-// User settings (auth only, accessible even with expired subscription)
+// Simulation acknowledgment (auth only, no subscription or acknowledgment required)
 Route::middleware(['auth'])->group(function () {
-    Route::get('/settings/credentials', [CredentialController::class, 'edit']);
-    Route::post('/settings/credentials', [CredentialController::class, 'update']);
-    Route::post('/settings/credentials/test-polymarket', [CredentialController::class, 'testPolymarket']);
-    Route::get('/settings/credentials/test-binance', [CredentialController::class, 'testBinance']);
+    Route::get('/acknowledge-simulation', [SimulationAcknowledgmentController::class, 'show'])->name('simulation.acknowledge');
+    Route::post('/acknowledge-simulation', [SimulationAcknowledgmentController::class, 'accept'])->name('simulation.accept');
+    Route::post('/admin/stop-impersonating', [AdminUserController::class, 'stopImpersonating'])->name('admin.stop-impersonating');
+});
+
+// User settings (auth only, accessible even with expired subscription)
+Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
+    // Commented out - Users don't need Polymarket credentials for simulation
+    // Route::get('/settings/credentials', [CredentialController::class, 'edit']);
+    // Route::post('/settings/credentials', [CredentialController::class, 'update']);
+    // Route::post('/settings/credentials/test-polymarket', [CredentialController::class, 'testPolymarket']);
+    // Route::get('/settings/credentials/test-binance', [CredentialController::class, 'testBinance']);
     Route::get('/settings/profile', [ProfileSettingsController::class, 'edit']);
     Route::post('/settings/profile', [ProfileSettingsController::class, 'update']);
     Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit']);
@@ -71,10 +82,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
 });
 
 // Subscription (auth only, accessible even with expired subscription)
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
     Route::get('/subscription', [SubscriptionController::class, 'index']);
     Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout']);
     Route::get('/subscription/success', [SubscriptionController::class, 'success']);
@@ -82,7 +94,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // Main app (auth + active subscription required)
-Route::middleware(['auth', 'subscribed'])->group(function () {
+Route::middleware(['auth', 'simulation_acknowledged', 'subscribed'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/trades', [TradeController::class, 'index'])->name('trades.index');
@@ -99,12 +111,14 @@ Route::middleware(['auth', 'subscribed'])->group(function () {
     Route::post('/strategy/{group}', [StrategyController::class, 'update'])->name('strategy.update');
 
     Route::get('/balance', [BalanceController::class, 'index'])->name('balance.index');
+    Route::post('/balance/reset', [BalanceController::class, 'reset'])->name('balance.reset');
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
-    Route::get('/ai-costs', [AiCostController::class, 'index'])->name('ai-costs.index');
+    // Commented out - AI costs are included in subscription, only admin needs to see them
+    // Route::get('/ai-costs', [AiCostController::class, 'index'])->name('ai-costs.index');
 });
 
 // Super Admin panel
-Route::middleware(['auth', 'superadmin'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'superadmin', 'simulation_acknowledged'])->prefix('admin')->group(function () {
     Route::get('/', [AdminDashboardController::class, 'index']);
 
     Route::get('/users', [AdminUserController::class, 'index']);
@@ -113,9 +127,9 @@ Route::middleware(['auth', 'superadmin'])->prefix('admin')->group(function () {
     Route::post('/users/{user}/change-plan', [AdminUserController::class, 'changePlan']);
     Route::post('/users/{user}/grant-free-subscription', [AdminUserController::class, 'grantFreeSubscription']);
     Route::post('/users/{user}/impersonate', [AdminUserController::class, 'impersonate']);
-    Route::post('/stop-impersonating', [AdminUserController::class, 'stopImpersonating'])->name('admin.stop-impersonating');
 
     Route::get('/payments', [AdminPaymentController::class, 'index']);
+    Route::put('/payments/{payment}', [AdminPaymentController::class, 'update']);
 
     Route::get('/plans', [AdminPlanController::class, 'index']);
     Route::get('/plans/create', [AdminPlanController::class, 'create']);

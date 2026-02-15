@@ -19,17 +19,32 @@ class NOWPaymentsService
 
     public function __construct(private PlatformSettingsService $platformSettings)
     {
-        $this->apiKey = (string) $this->platformSettings->get('NOWPAYMENTS_API_KEY', '');
-        $this->ipnSecret = (string) $this->platformSettings->get('NOWPAYMENTS_IPN_SECRET', '');
+        // Trim whitespace from API credentials
+        $this->apiKey = trim((string) $this->platformSettings->get('NOWPAYMENTS_API_KEY', ''));
+        $this->ipnSecret = trim((string) $this->platformSettings->get('NOWPAYMENTS_IPN_SECRET', ''));
 
         $sandbox = $this->platformSettings->getBool('NOWPAYMENTS_SANDBOX_MODE', true);
         $this->baseUrl = $sandbox
             ? 'https://api-sandbox.nowpayments.io/v1'
             : 'https://api.nowpayments.io/v1';
+
+        // Log configuration for debugging (without exposing full key)
+        Log::channel('simulator')->info('NOWPayments configured', [
+            'sandbox_mode' => $sandbox,
+            'base_url' => $this->baseUrl,
+            'api_key_length' => strlen($this->apiKey),
+            'api_key_first_4' => substr($this->apiKey, 0, 4),
+        ]);
     }
 
     public function createInvoice(User $user, SubscriptionPlan $plan): ?array
     {
+        // Check if API key is configured
+        if (empty($this->apiKey)) {
+            Log::channel('simulator')->error('NOWPayments API key not configured');
+            throw new \Exception('Payment system is not configured. Please contact admin.');
+        }
+
         try {
             $response = Http::withHeaders([
                 'x-api-key' => $this->apiKey,
@@ -50,26 +65,44 @@ class NOWPaymentsService
                 Payment::create([
                     'user_id' => $user->id,
                     'subscription_plan_id' => $plan->id,
+                    'billing_interval' => match ($plan->billing_period) {
+                        'lifetime' => 'lifetime',
+                        'yearly' => 'yearly',
+                        default => 'monthly',
+                    },
                     'nowpayments_id' => (string) ($data['id'] ?? ''),
                     'amount_usd' => $plan->price_usd,
                     'status' => 'pending',
+                    'payment_url' => $data['invoice_url'] ?? null,
                 ]);
 
                 return $data;
             }
 
-            Log::channel('bot')->error('NOWPayments invoice creation failed', [
+            // Get error message from API response
+            $errorData = $response->json();
+            $errorMessage = $errorData['message'] ?? $errorData['error'] ?? 'Unknown error';
+
+            // Log all technical details for admin debugging
+            Log::channel('simulator')->error('NOWPayments invoice creation failed', [
                 'status' => $response->status(),
                 'body' => $response->body(),
+                'error' => $errorMessage,
+                'sandbox_mode' => $this->platformSettings->getBool('NOWPAYMENTS_SANDBOX_MODE', true),
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
             ]);
 
-            return null;
+            // Throw generic user-friendly error
+            throw new \Exception('Payment processing failed. Please contact admin.');
         } catch (\Exception $e) {
-            Log::channel('bot')->error('NOWPayments invoice exception', [
+            Log::channel('simulator')->error('NOWPayments invoice exception', [
                 'message' => $e->getMessage(),
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
             ]);
 
-            return null;
+            throw $e;
         }
     }
 
@@ -86,7 +119,7 @@ class NOWPaymentsService
 
             return null;
         } catch (\Exception $e) {
-            Log::channel('bot')->error('NOWPayments status check failed', [
+            Log::channel('simulator')->error('NOWPayments status check failed', [
                 'payment_id' => $paymentId,
                 'message' => $e->getMessage(),
             ]);
@@ -119,7 +152,7 @@ class NOWPaymentsService
 
             return [];
         } catch (\Exception $e) {
-            Log::channel('bot')->error('NOWPayments currencies fetch failed', [
+            Log::channel('simulator')->error('NOWPayments currencies fetch failed', [
                 'message' => $e->getMessage(),
             ]);
 

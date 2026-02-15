@@ -10,9 +10,9 @@ use App\Services\Telegram\NotificationService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 
-class AiAuditLosses extends Command
+class SimAuditLosses extends Command
 {
-    protected $signature = 'bot:ai-audit-losses';
+    protected $signature = 'sim:audit-losses';
     protected $description = 'Run AI Brain audit on unaudited losing trades';
 
     public function handle(

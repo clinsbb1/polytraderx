@@ -9,21 +9,22 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('subscriptions:check-expired')->hourly();
+Schedule::command('payments:expire-pending')->hourly();
 
 // Tier 1: Reflexes — Every minute
-Schedule::command('bot:scan-markets')->everyMinute()->withoutOverlapping()->runInBackground();
-Schedule::command('bot:execute-trades')->everyMinute()->withoutOverlapping()->runInBackground();
-Schedule::command('bot:monitor-positions')->everyMinute()->withoutOverlapping()->runInBackground();
+Schedule::command('sim:scan-markets')->everyMinute()->withoutOverlapping()->runInBackground();
+Schedule::command('sim:execute-trades')->everyMinute()->withoutOverlapping()->runInBackground();
+Schedule::command('sim:monitor-positions')->everyMinute()->withoutOverlapping()->runInBackground();
 
 // Tier 2: Muscles (Haiku) — Every 5 minutes
-Schedule::command('bot:ai-analyze-markets')->everyFiveMinutes()->withoutOverlapping()->runInBackground();
+Schedule::command('sim:ai-analyze-markets')->everyFiveMinutes()->withoutOverlapping()->runInBackground();
 
 // Tier 3: Brain (Sonnet) — Event-driven + scheduled
-Schedule::command('bot:ai-audit-losses')->everyFiveMinutes()->withoutOverlapping()->runInBackground();
-Schedule::command('bot:daily-review')->dailyAt('23:55')->withoutOverlapping()->runInBackground();
-Schedule::command('bot:weekly-report')->weeklyOn(0, '23:55')->withoutOverlapping()->runInBackground();
+Schedule::command('sim:ai-audit-losses')->everyFiveMinutes()->withoutOverlapping()->runInBackground();
+Schedule::command('sim:daily-review')->dailyAt('23:55')->withoutOverlapping()->runInBackground();
+Schedule::command('sim:weekly-report')->weeklyOn(0, '23:55')->withoutOverlapping()->runInBackground();
 
 // Housekeeping
-Schedule::command('bot:snapshot-balance')->everyFifteenMinutes()->withoutOverlapping()->runInBackground();
-Schedule::command('bot:daily-summary')->dailyAt('00:05')->withoutOverlapping()->runInBackground();
-Schedule::command('bot:cleanup-logs')->daily()->withoutOverlapping()->runInBackground();
+Schedule::command('sim:snapshot-balance')->everyFifteenMinutes()->withoutOverlapping()->runInBackground();
+Schedule::command('sim:daily-summary')->dailyAt('00:05')->withoutOverlapping()->runInBackground();
+Schedule::command('sim:cleanup-logs')->daily()->withoutOverlapping()->runInBackground();

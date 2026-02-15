@@ -127,9 +127,9 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
-        'bot' => [
+        'simulator' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/bot.log'),
+            'path' => storage_path('logs/simulator.log'),
             'level' => 'debug',
             'days' => 30,
             'replace_placeholders' => true,

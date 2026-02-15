@@ -13,9 +13,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
-class AiAnalyzeMarkets extends Command
+class SimAnalyzeMarkets extends Command
 {
-    protected $signature = 'bot:ai-analyze-markets';
+    protected $signature = 'sim:analyze-markets';
     protected $description = 'Run AI Muscles analysis on markets approaching entry window';
 
     public function handle(

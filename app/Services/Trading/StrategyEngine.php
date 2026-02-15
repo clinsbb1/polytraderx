@@ -13,6 +13,7 @@ use App\Services\Polymarket\PolymarketClient;
 use App\Services\PriceFeed\BinanceService;
 use App\Services\PriceFeed\PriceAggregator;
 use App\Services\Settings\SettingsService;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Log;
 
 class StrategyEngine
@@ -25,6 +26,7 @@ class StrategyEngine
         private SignalGenerator $signalGenerator,
         private TradeExecutor $tradeExecutor,
         private SettingsService $settings,
+        private SubscriptionService $subscriptionService,
     ) {}
 
     public function runForUser(User $user): array
@@ -38,8 +40,15 @@ class StrategyEngine
             'skipped' => [],
         ];
 
-        if (!$this->settings->getBool('BOT_ENABLED', true, $user->id)) {
-            $summary['skipped'][] = 'Bot disabled';
+        if (!$this->settings->getBool('SIMULATOR_ENABLED', false, $user->id)) {
+            $summary['skipped'][] = 'Simulator disabled';
+            return $summary;
+        }
+
+        // Check signal limit
+        if (!$this->subscriptionService->canSimulateMore($user)) {
+            Log::channel('simulator')->info("User {$user->account_id} hit daily signal limit");
+            $summary['skipped'][] = 'Daily signal limit reached';
             return $summary;
         }
 
@@ -50,8 +59,8 @@ class StrategyEngine
             return $summary;
         }
 
-        // Fetch markets
-        $markets = $this->marketService->getActiveCryptoMarkets($client);
+        // Fetch markets (filtered by user's selected durations)
+        $markets = $this->marketService->getActiveCryptoMarkets($client, $user->id);
         $summary['markets_scanned'] = $markets->count();
 
         // Filter to entry window
@@ -91,7 +100,7 @@ class StrategyEngine
                     $aiRouter = app(\App\Services\AI\AIRouter::class);
                     $musclesResult = $aiRouter->getMusclesAnalysis($market, $spotData, $user->id);
                 } catch (\Exception $e) {
-                    Log::channel('bot')->debug('Muscles unavailable, using reflexes only', [
+                    Log::channel('simulator')->debug('Muscles unavailable, using reflexes only', [
                         'user_id' => $user->id,
                         'message' => $e->getMessage(),
                     ]);
@@ -121,7 +130,7 @@ class StrategyEngine
                     $summary['trades_placed']++;
                 }
             } catch (\Exception $e) {
-                Log::channel('bot')->error('Error processing market for user', [
+                Log::channel('simulator')->error('Error processing market for user', [
                     'user_id' => $user->id,
                     'market' => $market['condition_id'] ?? 'unknown',
                     'message' => $e->getMessage(),
@@ -205,7 +214,7 @@ class StrategyEngine
                 $summary['resolved']++;
                 $summary[$status]++;
 
-                Log::channel('bot')->info('Trade resolved', [
+                Log::channel('simulator')->info('Trade resolved', [
                     'user_id' => $user->id,
                     'trade_id' => $trade->id,
                     'asset' => $trade->asset,
@@ -220,7 +229,7 @@ class StrategyEngine
                     // Notification failure must never crash trading
                 }
             } catch (\Exception $e) {
-                Log::channel('bot')->error('Error resolving trade', [
+                Log::channel('simulator')->error('Error resolving trade', [
                     'user_id' => $user->id,
                     'trade_id' => $trade->id,
                     'message' => $e->getMessage(),
@@ -265,7 +274,7 @@ class StrategyEngine
                 'method' => 'polymarket_resolution',
             ];
         } catch (\Exception $e) {
-            Log::channel('bot')->warning('Failed to fetch market resolution, using price fallback', [
+            Log::channel('simulator')->warning('Failed to fetch market resolution, using price fallback', [
                 'trade_id' => $trade->id,
                 'message' => $e->getMessage(),
             ]);
@@ -308,7 +317,7 @@ class StrategyEngine
             return $balanceService->getTotalEquity();
         } catch (\Exception $e) {
             // Fallback: use a conservative estimate
-            Log::channel('bot')->warning('Could not fetch bankroll, using default', [
+            Log::channel('simulator')->warning('Could not fetch bankroll, using default', [
                 'user_id' => $user->id,
                 'message' => $e->getMessage(),
             ]);

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class PolymarketClient
 {
+    private User $user;
     private string $baseUrl;
     private string $apiKey;
     private string $apiSecret;
@@ -24,6 +25,7 @@ class PolymarketClient
 
     public function __construct(User $user)
     {
+        $this->user = $user;
         $creds = $user->credential;
 
         if (!$creds || !$creds->hasPolymarketKeys()) {
@@ -41,6 +43,11 @@ class PolymarketClient
     public function getUserId(): int
     {
         return $this->userId;
+    }
+
+    public function getUser(): User
+    {
+        return $this->user;
     }
 
     public function getWalletAddress(): string
@@ -76,7 +83,7 @@ class PolymarketClient
             $this->get('/time');
             return true;
         } catch (\Exception $e) {
-            Log::channel('bot')->warning('Polymarket connection test failed', [
+            Log::channel('simulator')->warning('Polymarket connection test failed', [
                 'user_id' => $this->userId,
                 'message' => $e->getMessage(),
             ]);
@@ -130,7 +137,7 @@ class PolymarketClient
 
                 if ($status === 429) {
                     $retryAfter = (int) ($response->header('Retry-After') ?: self::RATE_LIMIT_WAIT);
-                    Log::channel('bot')->warning('Polymarket rate limited', [
+                    Log::channel('simulator')->warning('Polymarket rate limited', [
                         'user_id' => $this->userId,
                         'attempt' => $attempt + 1,
                         'retry_after' => $retryAfter,
@@ -140,7 +147,7 @@ class PolymarketClient
                 }
 
                 if ($status >= 500) {
-                    Log::channel('bot')->warning('Polymarket server error', [
+                    Log::channel('simulator')->warning('Polymarket server error', [
                         'user_id' => $this->userId,
                         'status' => $status,
                         'path' => $path,
@@ -155,7 +162,7 @@ class PolymarketClient
 
                 // 4xx (except 429) — don't retry
                 $errorBody = $response->body();
-                Log::channel('bot')->error('Polymarket API error', [
+                Log::channel('simulator')->error('Polymarket API error', [
                     'user_id' => $this->userId,
                     'method' => $method,
                     'path' => $path,
@@ -168,7 +175,7 @@ class PolymarketClient
                 throw $e;
             } catch (\Exception $e) {
                 $lastException = $e;
-                Log::channel('bot')->warning('Polymarket request exception', [
+                Log::channel('simulator')->warning('Polymarket request exception', [
                     'user_id' => $this->userId,
                     'path' => $path,
                     'attempt' => $attempt + 1,

@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'Login — PolyTraderX')
+@section('meta_robots', 'noindex, nofollow')
 
 @section('content')
     <div class="ptx-auth-wrapper">
@@ -54,6 +55,8 @@
                         <a href="{{ route('password.request') }}" style="font-size: 0.9rem;">Forgot password?</a>
                     @endif
                 </div>
+
+                <x-turnstile />
 
                 <button type="submit" class="btn btn-ptx-primary w-100">Sign In</button>
             </form>

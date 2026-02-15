@@ -37,7 +37,7 @@ class TelegramBotService
     public function sendMessage(string $chatId, string $message): bool
     {
         if (empty($this->botToken)) {
-            Log::channel('bot')->warning('Telegram bot token not configured');
+            Log::channel('simulator')->warning('Telegram bot token not configured');
             return false;
         }
 
@@ -49,7 +49,7 @@ class TelegramBotService
             ]);
 
             if (!$response->successful()) {
-                Log::channel('bot')->error('Telegram sendMessage failed', [
+                Log::channel('simulator')->error('Telegram sendMessage failed', [
                     'chat_id' => $chatId,
                     'status' => $response->status(),
                     'body' => $response->body(),
@@ -59,7 +59,7 @@ class TelegramBotService
 
             return true;
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Telegram sendMessage exception', [
+            Log::channel('simulator')->error('Telegram sendMessage exception', [
                 'chat_id' => $chatId,
                 'message' => $e->getMessage(),
             ]);
@@ -101,13 +101,21 @@ class TelegramBotService
         }
 
         try {
-            $response = Http::post("{$this->baseUrl}/setWebhook", [
+            $secret = trim((string) $this->platformSettings->get('TELEGRAM_WEBHOOK_SECRET', ''));
+
+            $payload = [
                 'url' => $url,
-            ]);
+            ];
+
+            if ($secret !== '') {
+                $payload['secret_token'] = $secret;
+            }
+
+            $response = Http::post("{$this->baseUrl}/setWebhook", $payload);
 
             return $response->successful();
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Telegram setWebhook failed', [
+            Log::channel('simulator')->error('Telegram setWebhook failed', [
                 'message' => $e->getMessage(),
             ]);
             return false;
@@ -139,7 +147,7 @@ class TelegramBotService
         }
 
         $this->linkUser($user, $chatId, $username);
-        $this->sendMessage($chatId, "Successfully linked to PolyTraderX account <b>{$user->account_id}</b>!\n\nYou will now receive trading notifications here.\n\nCommands:\n/status - Bot status & today's stats\n/today - Today's trades\n/balance - Current balance\n/unlink - Unlink this account\n/help - Show help");
+        $this->sendMessage($chatId, "Successfully linked to PolyTraderX account <b>{$user->account_id}</b>!\n\nYou will now receive simulator notifications here.\n\nCommands:\n/status - Simulator status & today's stats\n/today - Today's trades\n/balance - Current balance\n/unlink - Unlink this account\n/help - Show help");
     }
 
     private function handleUnlink(string $chatId): void
@@ -170,27 +178,23 @@ class TelegramBotService
 
         try {
             $settings = app(SettingsService::class);
-            $isDryRun = $settings->getBool('DRY_RUN', true, $user->id);
-            $botEnabled = $settings->getBool('BOT_ENABLED', true, $user->id);
+            $simulatorEnabled = $settings->getBool('SIMULATOR_ENABLED', false, $user->id);
         } catch (\Exception) {
-            $isDryRun = true;
-            $botEnabled = false;
+            $simulatorEnabled = false;
         }
 
         $todayTrades = Trade::forUser($user->id)->whereDate('created_at', today())->count();
         $todayPnl = (float) Trade::forUser($user->id)->whereDate('resolved_at', today())->sum('pnl');
         $openPositions = Trade::forUser($user->id)->open()->count();
 
-        $statusEmoji = $botEnabled ? '🟢 Active' : '🔴 Paused';
-        $mode = $isDryRun ? '📝 DRY RUN' : '💰 LIVE';
+        $statusEmoji = $simulatorEnabled ? '🟢 Running' : '🔴 Paused';
         $pnlFormatted = $todayPnl >= 0 ? "+\$" . number_format($todayPnl, 2) : "-\$" . number_format(abs($todayPnl), 2);
 
         $plan = $user->currentPlan();
         $planName = $plan ? $plan->name : 'None';
 
-        $message = "<b>Bot Status</b>\n\n"
-            . "Status: {$statusEmoji}\n"
-            . "Mode: {$mode}\n"
+        $message = "<b>Simulator Status</b>\n\n"
+            . "Simulator: {$statusEmoji}\n"
             . "Today: {$todayTrades} trades, {$pnlFormatted}\n"
             . "Open positions: {$openPositions}\n"
             . "Plan: {$planName}";
@@ -262,7 +266,7 @@ class TelegramBotService
     {
         $this->sendMessage($chatId, "<b>PolyTraderX Commands</b>\n\n"
             . "/start ACCOUNT-ID - Link your account\n"
-            . "/status - Bot status & today's stats\n"
+            . "/status - Simulator status & today's stats\n"
             . "/today - Today's trades\n"
             . "/balance - Current balance\n"
             . "/unlink - Unlink account\n"

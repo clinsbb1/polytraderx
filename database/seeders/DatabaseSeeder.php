@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
 
         // Create superadmin user
         $superadmin = User::updateOrCreate(
-            ['email' => env('SUPERADMIN_EMAIL', 'admin@polytraderx.com')],
+            ['email' => env('SUPERADMIN_EMAIL', 'admin@polytraderx.xyz')],
             [
                 'name' => 'Super Admin',
                 'password' => Hash::make(env('SUPERADMIN_PASSWORD', 'password')),
@@ -45,14 +45,14 @@ class DatabaseSeeder extends Seeder
         // In local/dev, create a demo user
         if (app()->environment('local')) {
             $demo = User::updateOrCreate(
-                ['email' => 'demo@polytraderx.com'],
+                ['email' => 'demo@polytraderx.xyz'],
                 [
                     'name' => 'Demo User',
                     'password' => Hash::make('password'),
                     'is_active' => true,
                     'onboarding_completed' => true,
-                    'subscription_plan' => 'free_trial',
-                    'trial_ends_at' => now()->addDays(7),
+                    'subscription_plan' => 'free',
+                    'billing_interval' => 'free',
                     'timezone' => 'Africa/Lagos',
                 ]
             );

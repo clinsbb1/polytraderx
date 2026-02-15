@@ -14,19 +14,16 @@ class NotificationFormatter
 {
     public function formatTradeExecuted(Trade $trade): string
     {
-        $isDryRun = ($trade->decision_reasoning['order_result']['dry_run'] ?? false);
-        $mode = $isDryRun ? '[DRY RUN]' : '[LIVE]';
         $remaining = $trade->decision_reasoning['order_result']['seconds_remaining']
             ?? ($trade->market_end_time ? now()->diffInSeconds($trade->market_end_time) : '?');
 
         $potential = number_format((float) $trade->potential_payout, 2);
         $confidence = round((float) $trade->confidence_score * 100);
 
-        return "🟢 Trade Placed\n\n"
+        return "🟢 Signal Evaluated\n\n"
             . "<b>{$trade->asset} {$trade->side}</b> @ \${$trade->entry_price}\n"
             . "Amount: \${$trade->amount} → Potential: \${$potential}\n"
             . "Confidence: {$confidence}% ({$trade->decision_tier})\n"
-            . "Mode: {$mode}\n"
             . "Window: {$remaining}s remaining";
     }
 
@@ -36,13 +33,13 @@ class NotificationFormatter
 
         if ($trade->status === 'won') {
             $pnlFormatted = '+$' . number_format(abs($pnl), 2);
-            return "✅ Trade Won\n\n"
+            return "✅ Simulation Won\n\n"
                 . "<b>{$trade->asset} {$trade->side}</b> — {$pnlFormatted}\n"
                 . "Entry: \${$trade->entry_price} → Resolved: \${$trade->exit_price}";
         }
 
         $pnlFormatted = '-$' . number_format(abs($pnl), 2);
-        return "❌ Trade Lost\n\n"
+        return "❌ Simulation Lost\n\n"
             . "<b>{$trade->asset} {$trade->side}</b> — {$pnlFormatted}\n"
             . "Entry: \${$trade->entry_price} → Resolved: \${$trade->exit_price}";
     }
@@ -146,7 +143,7 @@ class NotificationFormatter
         return "🔴 Drawdown Alert\n\n"
             . "Today's P&L: -\$" . number_format(abs($dailyPnl), 2) . "\n"
             . "Drawdown: " . number_format($drawdownPct, 1) . "% (threshold: " . number_format($threshold, 1) . "%)\n\n"
-            . "Bot is still active. Adjust in Strategy settings.";
+            . "Simulator is still active. Adjust in Strategy settings.";
     }
 
     public function formatErrorAlert(string $error, ?string $context, User $user): string
@@ -154,10 +151,10 @@ class NotificationFormatter
         $errorTruncated = substr($error, 0, 500);
         $contextLine = $context ? "\nContext: " . substr($context, 0, 200) : '';
 
-        return "⛔ Bot Error\n\n"
+        return "⛔ Simulator Error\n\n"
             . "{$errorTruncated}"
             . $contextLine . "\n\n"
-            . "The bot will retry automatically. Check logs if this persists.";
+            . "The simulator will retry automatically. Check logs if this persists.";
     }
 
     public function formatSubscriptionActivated(User $user, string $planName, ?Carbon $expiresAt): string
@@ -167,7 +164,7 @@ class NotificationFormatter
         return "✅ Subscription Activated!\n\n"
             . "Plan: {$planName}\n"
             . "Expires: {$expires}\n\n"
-            . "Happy trading!";
+            . "Happy simulating!";
     }
 
     public function formatSubscriptionExpiring(User $user, int $daysLeft): string
@@ -185,13 +182,13 @@ class NotificationFormatter
         $appUrl = config('app.url', 'https://polytraderx.xyz');
 
         return "❌ Subscription Expired\n\n"
-            . "Your bot has been paused.\n"
-            . "Renew at {$appUrl}/subscription to resume trading.";
+            . "Your simulator has been paused.\n"
+            . "Renew at {$appUrl}/subscription to resume simulating.";
     }
 
     public function formatBotPaused(string $reason, User $user): string
     {
-        return "⏸ Bot Paused\n\n"
+        return "⏸ Simulator Paused\n\n"
             . "Reason: {$reason}\n"
             . "Re-enable in Strategy settings or dashboard.";
     }
@@ -203,7 +200,7 @@ class NotificationFormatter
         return "👋 Welcome to PolyTraderX!\n\n"
             . "Your account (<code>{$user->account_id}</code>) is linked.\n\n"
             . "You'll receive:\n"
-            . "• Trade alerts (if enabled)\n"
+            . "• Signal alerts (if enabled)\n"
             . "• Daily P&L summaries\n"
             . "• AI audit reports\n"
             . "• Balance warnings\n\n"

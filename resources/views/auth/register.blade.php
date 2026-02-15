@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'Register — PolyTraderX')
+@section('meta_robots', 'noindex, nofollow')
 
 @section('content')
     <div class="ptx-auth-wrapper">
@@ -75,6 +76,8 @@
                         <div class="ptx-input-error">{{ $message }}</div>
                     @enderror
                 </div>
+
+                <x-turnstile />
 
                 <button type="submit" class="btn btn-ptx-primary w-100">Create Account</button>
             </form>

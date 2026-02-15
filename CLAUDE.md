@@ -1,7 +1,9 @@
-# PolyTraderX — Multi-Tenant SaaS Polymarket Trading Bot
+# PolyTraderX — Multi-Tenant SaaS Polymarket Strategy Simulator
 
 ## Project Overview
-PolyTraderX is a **multi-tenant SaaS** Laravel application that auto-trades Polymarket's 15-minute crypto prediction markets (BTC, ETH, SOL). The core edge is **late-minute certainty trading**: enter only in the final 30–60 seconds when outcome is near-certain (>92% confidence). Uses a 3-tier AI cost architecture (Reflexes/Muscles/Brain), logs everything with full forensics, and self-audits after every loss.
+PolyTraderX is a **multi-tenant SaaS** Laravel application that provides strategy simulation and backtesting for Polymarket's 5-minute and 15-minute crypto prediction markets (BTC, ETH, SOL). The platform operates in **simulation-only mode**, allowing users to test and optimize trading strategies without risking real capital. The core edge is **late-minute certainty trading**: signals are generated only in the final 30–60 seconds when outcome is near-certain (>92% confidence). Uses a 3-tier AI cost architecture (Reflexes/Muscles/Brain), logs everything with full forensics, and self-audits after every loss. Users can choose to trade one or both market durations via strategy parameters.
+
+**Product positioning**: This is a strategy lab, not a live trading bot. All "trades" are simulated using real market data.
 
 **Multi-tenant architecture**: Each user has their own strategy_params, trades, API credentials (encrypted), and subscription. The `BelongsToUser` trait provides user scoping on all data models. No global scopes — commands use `UserBotRunner` to iterate users explicitly.
 
@@ -28,51 +30,55 @@ php artisan test                     # Run tests (161 tests)
 php artisan schedule:run             # Run scheduler manually
 php artisan queue:work               # Process queued jobs
 
-# Bot commands (run for all active users via UserBotRunner)
-php artisan bot:scan-markets         # Find active 15-min markets in entry window
-php artisan bot:execute-trades       # Generate signals + place orders
-php artisan bot:monitor-positions    # Track open positions, resolve completed markets
-php artisan bot:ai-analyze-markets   # Haiku: pre-score markets near close
-php artisan bot:ai-audit-losses      # Sonnet: post-loss forensics on unaudited trades
-php artisan bot:daily-review         # Sonnet: daily performance review
-php artisan bot:weekly-report        # Sonnet: weekly deep analysis
-php artisan bot:snapshot-balance     # Record balance/equity + alert on drawdown
-php artisan bot:daily-summary        # Compile yesterday's stats + Telegram notification
-php artisan bot:cleanup-logs         # Prune trade_logs >90d, snapshots >180d, decisions >90d
+# Simulation commands (run for all active users via UserBotRunner)
+php artisan sim:scan-markets         # Find active 15-min markets in entry window
+php artisan sim:execute-trades       # Generate signals + simulate orders
+php artisan sim:monitor-positions    # Track open positions, resolve completed markets
+php artisan sim:ai-analyze-markets   # Haiku: pre-score markets near close
+php artisan sim:ai-audit-losses      # Sonnet: post-loss forensics on unaudited trades
+php artisan sim:daily-review         # Sonnet: daily performance review
+php artisan sim:weekly-report        # Sonnet: weekly deep analysis
+php artisan sim:snapshot-balance     # Record balance/equity + alert on drawdown
+php artisan sim:daily-summary        # Compile yesterday's stats + Telegram notification
+php artisan sim:cleanup-logs         # Prune trade_logs >90d, snapshots >180d, decisions >90d
 php artisan subscriptions:check-expired  # Warn/deactivate expired subscriptions
+php artisan payments:expire-pending  # Auto-expire pending payments after 5 hours
 ```
 
 ## Scheduled Commands
 ```
 HOURLY:
   subscriptions:check-expired     — Warn 3/1 days before expiry, deactivate expired
+  payments:expire-pending         — Auto-expire pending payments after 5 hours
 
 EVERY MINUTE (Tier 1 — Reflexes):
-  bot:scan-markets                — Find entry windows
-  bot:execute-trades              — Signal generation + trade placement
-  bot:monitor-positions           — Resolve completed markets
+  sim:scan-markets                — Find entry windows
+  sim:execute-trades              — Signal generation + simulated trade placement
+  sim:monitor-positions           — Resolve completed markets
 
 EVERY 5 MINUTES (Tier 2 — Muscles):
-  bot:ai-analyze-markets          — Pre-score with Haiku
-  bot:ai-audit-losses             — Audit losing trades with Sonnet
+  sim:ai-analyze-markets          — Pre-score with Haiku
+  sim:ai-audit-losses             — Audit losing trades with Sonnet
 
 EVERY 15 MINUTES:
-  bot:snapshot-balance            — Record equity, check low balance + drawdown alerts
+  sim:snapshot-balance            — Record equity, check low balance + drawdown alerts
 
 DAILY AT 23:55:
-  bot:daily-review                — Daily AI review (Sonnet)
+  sim:daily-review                — Daily AI review (Sonnet)
 
 DAILY AT 00:05:
-  bot:daily-summary               — Compile yesterday's stats + send Telegram
+  sim:daily-summary               — Compile yesterday's stats + send Telegram
 
 DAILY:
-  bot:cleanup-logs                — Prune old records
+  sim:cleanup-logs                — Prune old records
 
 WEEKLY (Sunday 23:55):
-  bot:weekly-report               — Weekly deep analysis (Sonnet)
+  sim:weekly-report               — Weekly deep analysis (Sonnet)
 ```
 
 All scheduled commands use `->withoutOverlapping()->runInBackground()`.
+
+**Note**: Live trading infrastructure is preserved behind the `FEATURE_LIVE_TRADING` platform setting (default: false). The platform currently operates in simulation-only mode for strategy testing and optimization.
 
 ## Architecture Rules
 
@@ -95,7 +101,7 @@ All scheduled commands use `->withoutOverlapping()->runInBackground()`.
 3. **Brain** (`BrainService`) — Expensive Claude Sonnet. On-demand: loss audits, daily/weekly reviews with forensic analysis and suggested parameter fixes.
 
 ### Trading Pipeline
-`StrategyEngine` orchestrates the full pipeline per user:
+`StrategyEngine` orchestrates the full simulation pipeline per user:
 1. `MarketService` fetches active Polymarket crypto markets
 2. `MarketTimingService` identifies markets in entry window (last 60s)
 3. `PriceAggregator` combines Binance + Polymarket prices, detects desync
@@ -103,7 +109,7 @@ All scheduled commands use `->withoutOverlapping()->runInBackground()`.
 5. `ReflexesService` applies rule-based filters
 6. `SignalGenerator` combines Reflexes + Muscles, enforces confidence threshold
 7. `RiskManager` enforces daily loss, trade count, concurrent position limits, calculates bet size
-8. `TradeExecutor` creates trade record, places order via `OrderService`, logs forensics
+8. `TradeExecutor` creates simulated trade record, simulates order execution, logs forensics
 
 ### Admin-Editable Parameters
 **CRITICAL**: ALL trading parameters live in the `strategy_params` DB table (per-user), read via `SettingsService`. NEVER hardcode trading rules. Platform-wide settings (API keys, AI models, budgets) live in `platform_settings` table, read via `PlatformSettingsService`.
@@ -146,17 +152,17 @@ All scheduled commands use `->withoutOverlapping()->runInBackground()`.
 ```
 app/
 ├── Console/Commands/              # 11 Artisan commands (thin, call services)
-│   ├── AiAnalyzeMarkets           # Haiku market pre-scoring
-│   ├── AiAuditLosses              # Sonnet loss forensics
+│   ├── SimAiAnalyzeMarkets        # Haiku market pre-scoring
+│   ├── SimAiAuditLosses           # Sonnet loss forensics
 │   ├── CheckExpiredSubscriptions  # Hourly subscription check
-│   ├── CleanupLogs               # Prune old records
-│   ├── DailyReview               # Sonnet daily review
-│   ├── DailySummaryCommand       # Compile daily stats
-│   ├── ExecuteTrades             # Signal generation + trade placement
-│   ├── MonitorPositions          # Resolve completed markets
-│   ├── ScanMarkets               # Find entry windows
-│   ├── SnapshotBalance           # Record equity + alerts
-│   └── WeeklyReport              # Sonnet weekly analysis
+│   ├── SimCleanupLogs            # Prune old records
+│   ├── SimDailyReview            # Sonnet daily review
+│   ├── SimDailySummaryCommand    # Compile daily stats
+│   ├── SimExecuteTrades          # Signal generation + simulated trade placement
+│   ├── SimMonitorPositions       # Resolve completed markets
+│   ├── SimScanMarkets            # Find entry windows
+│   ├── SimSnapshotBalance        # Record equity + alerts
+│   └── SimWeeklyReport           # Sonnet weekly analysis
 ├── Exceptions/
 │   └── Handler                    # Global exception handler
 ├── Http/
@@ -277,18 +283,20 @@ Webhook (no auth/CSRF):     POST /api/webhooks/nowpayments, POST /api/webhooks/t
 ```
 
 ## Key Gotchas
-- Polymarket uses HMAC-SHA256 for CLOB API auth — implemented in `PolymarketClient`
-- 15-minute markets are TIME-CRITICAL: server clock must use NTP
-- Every cron command uses `->withoutOverlapping()` to prevent duplicate trades
+- **SIMULATION-ONLY MODE**: All trades are simulated. No real orders are placed on Polymarket.
+- **Live trading infrastructure** is preserved behind `FEATURE_LIVE_TRADING=false` for potential future use
+- 15-minute markets are TIME-CRITICAL: server clock must use NTP for accurate simulation
+- Every cron command uses `->withoutOverlapping()` to prevent duplicate simulations
 - Polymarket API can change without notice — all calls wrapped in try/catch with exponential backoff retry
-- The bot only enters in the LAST 30-60 seconds of each 15-min cycle
+- The simulator only generates signals in the LAST 30-60 seconds of each 15-min cycle
 - API desync between Binance and Polymarket is the #1 historical failure mode — `PriceAggregator` detects this
 - Always scope queries by user_id — use `forUser()` scope, never query without user context
 - UserCredential uses encrypted casts — never log decrypted values
 - Webhook routes are excluded from CSRF in `bootstrap/app.php`
-- `DRY_RUN=true` is the default for all new users — simulates trades without Polymarket API calls
-- Telegram, Anthropic, and Polymarket API keys are stored in `platform_settings` (global) and `user_credentials` (per-user)
-- `SubscriptionService` enforces plan limits on max trades, max positions, and available AI tiers
+- All users operate in simulation mode by default — no real capital at risk
+- Telegram and Anthropic API keys are stored in `platform_settings` (global)
+- Polymarket API keys (if stored) are per-user in `user_credentials` but NOT used for live trading
+- `SubscriptionService` enforces plan limits on max simulated trades, max positions, and available AI tiers
 
 ## Reference
 The full detailed specification is in `SPEC.md` in the project root.

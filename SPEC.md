@@ -4,6 +4,12 @@
 **Test Suite**: 161 tests, 387 assertions (all passing)
 **Last Updated**: February 14, 2026
 
+## Product Mode: Simulation Only
+
+PolyTraderX operates exclusively in simulation mode. All trading activity is simulated using real Polymarket market data and Binance price feeds. No real orders are placed, no funds are moved, and no private keys are required from users.
+
+Live trading code is preserved behind the `FEATURE_LIVE_TRADING` platform setting (default: false) for potential future use.
+
 ## 1. Trading Strategy
 
 ### The Edge: Late-Minute Certainty
@@ -196,22 +202,22 @@ created_at      timestamp
 // routes/console.php
 
 // TIER 1: REFLEXES — Every minute
-Schedule::command('bot:scan-markets')->everyMinute()->withoutOverlapping();
-Schedule::command('bot:execute-trades')->everyMinute()->withoutOverlapping();
-Schedule::command('bot:monitor-positions')->everyMinute()->withoutOverlapping();
+Schedule::command('sim:scan-markets')->everyMinute()->withoutOverlapping();
+Schedule::command('sim:execute-trades')->everyMinute()->withoutOverlapping();
+Schedule::command('sim:monitor-positions')->everyMinute()->withoutOverlapping();
 
 // TIER 2: MUSCLES — Every 5 minutes
-Schedule::command('bot:ai-analyze-markets')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('sim:ai-analyze-markets')->everyFiveMinutes()->withoutOverlapping();
 
 // TIER 3: BRAIN — Reactive + scheduled
-Schedule::command('bot:ai-audit-losses')->everyFiveMinutes()->withoutOverlapping();
-Schedule::command('bot:daily-review')->dailyAt('23:55')->withoutOverlapping();
-Schedule::command('bot:weekly-report')->weeklyOn(0, '23:55')->withoutOverlapping();
+Schedule::command('sim:ai-audit-losses')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('sim:daily-review')->dailyAt('23:55')->withoutOverlapping();
+Schedule::command('sim:weekly-report')->weeklyOn(0, '23:55')->withoutOverlapping();
 
 // HOUSEKEEPING
-Schedule::command('bot:snapshot-balance')->everyFifteenMinutes();
-Schedule::command('bot:daily-summary')->dailyAt('00:05');
-Schedule::command('bot:cleanup-logs')->daily();
+Schedule::command('sim:snapshot-balance')->everyFifteenMinutes();
+Schedule::command('sim:daily-summary')->dailyAt('00:05');
+Schedule::command('sim:cleanup-logs')->daily();
 ```
 
 Crontab: `* * * * * cd /path-to-project && php artisan schedule:run >> /dev/null 2>&1`
@@ -350,7 +356,7 @@ bot:ai-audit-losses (every 5 min)
 - Telegram notification sent
 - Admin reviews in dashboard → approve or reject (with notes)
 - Approved fixes applied to strategy_params automatically
-- After 100+ profitable trades: enable AI_AUTO_APPLY_FIXES for low-risk auto-apply
+- After 100+ profitable simulations: enable AI_AUTO_APPLY_FIXES for low-risk auto-apply
 
 ---
 
@@ -530,13 +536,13 @@ Every trade captures this JSON in trade_logs:
 
 ## 11. Key Technical Notes
 
-1. **DRY_RUN=true is default**. Test for 1+ week before going live.
+1. **SIMULATION-ONLY**: All trades are simulated. No real orders are placed. `FEATURE_LIVE_TRADING=false` by default.
 2. **SettingsService** reads from DB with Laravel cache. Clear cache on any param update.
-3. **Never log wallet private key** — not in trade logs, not in AI prompts.
-4. **Idempotency**: All commands use `withoutOverlapping()`. ExecuteTrades must check for existing open position on same market before placing.
-5. **Server clock**: Must use NTP. Time drift = missed entry windows.
-6. **EIP-712 signing**: Investigate `kornrunner/keccak` + `simplito/elliptic-php`. If PHP crypto libs fail, use a Node.js helper script in `scripts/sign-order.js`.
+3. **Never log wallet private key** — not in trade logs, not in AI prompts (if live trading is enabled in future).
+4. **Idempotency**: All commands use `withoutOverlapping()`. SimExecuteTrades must check for existing open position on same market before simulating.
+5. **Server clock**: Must use NTP. Time drift = missed entry windows in simulation.
+6. **EIP-712 signing**: Live trading infrastructure (if enabled) requires EIP-712 signer service. See `docs/POLYMARKET_SIGNER_SERVICE.md`.
 7. **API desync detection**: When Binance and Polymarket disagree on direction → auto-SKIP, log the desync.
-8. **Kill switch**: `BOT_ENABLED=false` stops all trading. AI can trigger via `should_pause_trading`.
+8. **Kill switch**: `BOT_ENABLED=false` stops all simulations. AI can trigger via `should_pause_trading`.
 9. **Approval flow**: AI proposes fix → Telegram notification → admin approves/rejects in `/audits` → approved fixes auto-applied to strategy_params.
 10. **Rate limits**: Implement exponential backoff for Polymarket, Binance, and Anthropic APIs.

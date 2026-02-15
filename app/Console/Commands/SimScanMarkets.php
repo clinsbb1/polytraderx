@@ -11,10 +11,10 @@ use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
-class ScanMarkets extends Command
+class SimScanMarkets extends Command
 {
-    protected $signature = 'bot:scan-markets';
-    protected $description = 'Scan for active 15-minute crypto prediction markets';
+    protected $signature = 'sim:scan-markets';
+    protected $description = 'Scan for active 5-min and 15-min crypto prediction markets';
 
     public function handle(
         UserBotRunner $runner,
@@ -23,12 +23,12 @@ class ScanMarkets extends Command
     ): int {
         $results = $runner->runForEachUser(function ($user) use ($marketService, $timingService) {
             $client = new PolymarketClient($user);
-            $markets = $marketService->getActiveCryptoMarkets($client);
+            $markets = $marketService->getActiveCryptoMarkets($client, $user->id);
             $entryWindows = $timingService->getActiveEntryWindows($markets, $user->id);
 
             $assets = $markets->pluck('asset')->unique()->values()->toArray();
 
-            Log::channel('bot')->info("Market scan for {$user->account_id}", [
+            Log::channel('simulator')->info("Market scan for {$user->account_id}", [
                 'total_markets' => $markets->count(),
                 'in_entry_window' => $entryWindows->count(),
                 'assets' => $assets,

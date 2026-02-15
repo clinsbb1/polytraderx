@@ -24,10 +24,20 @@ class NotificationSettingsController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $userId = auth()->id();
-        $params = $request->input('params', []);
+        $inputParams = $request->input('params', []);
+        $notificationParams = $this->settings->getGroup('notifications', $userId)->keyBy('key');
 
-        foreach ($params as $key => $value) {
-            $this->settings->set($key, $value, 'user', $userId);
+        foreach ($notificationParams as $key => $param) {
+            // Unchecked checkboxes are omitted from POST payload, so force false.
+            if ($param->type === 'boolean') {
+                $value = array_key_exists($key, $inputParams) ? 'true' : 'false';
+                $this->settings->set($key, $value, 'system', $userId);
+                continue;
+            }
+
+            if (array_key_exists($key, $inputParams)) {
+                $this->settings->set($key, (string) $inputParams[$key], 'system', $userId);
+            }
         }
 
         return back()->with('success', 'Notification settings updated.');

@@ -21,7 +21,7 @@ class VolatilityCalculator
 
             return $this->standardDeviation($changes);
         } catch (\Exception $e) {
-            Log::channel('bot')->warning('Failed to estimate volatility', [
+            Log::channel('simulator')->warning('Failed to estimate volatility', [
                 'asset' => $asset,
                 'message' => $e->getMessage(),
             ]);
@@ -79,7 +79,7 @@ class VolatilityCalculator
 
             return $recentVol > (2.0 * $hourVol);
         } catch (\Exception $e) {
-            Log::channel('bot')->warning('Failed to check extreme volatility', [
+            Log::channel('simulator')->warning('Failed to check extreme volatility', [
                 'asset' => $asset,
                 'message' => $e->getMessage(),
             ]);

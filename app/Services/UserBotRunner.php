@@ -44,7 +44,7 @@ class UserBotRunner
 
                 $user->update(['last_bot_heartbeat' => now()]);
             } catch (\Throwable $e) {
-                Log::channel('bot')->error("Bot run failed for user {$user->account_id}", [
+                Log::channel('simulator')->error("Bot run failed for user {$user->account_id}", [
                     'user_id' => $user->id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
@@ -65,7 +65,7 @@ class UserBotRunner
         }
 
         $elapsed = round(microtime(true) - $startTime, 2);
-        Log::channel('bot')->info('Bot run completed', [
+        Log::channel('simulator')->info('Bot run completed', [
             'users_processed' => count($users),
             'elapsed_seconds' => $elapsed,
         ]);

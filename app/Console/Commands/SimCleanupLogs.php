@@ -10,9 +10,9 @@ use App\Models\TradeLog;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
-class CleanupLogs extends Command
+class SimCleanupLogs extends Command
 {
-    protected $signature = 'bot:cleanup-logs';
+    protected $signature = 'sim:cleanup-logs';
     protected $description = 'Delete old trade logs and prune stale data';
 
     public function handle(): int
@@ -37,7 +37,7 @@ class CleanupLogs extends Command
 
         $totalAi = $aiDecisions + $orphaned;
 
-        Log::channel('bot')->info('Cleanup completed', [
+        Log::channel('simulator')->info('Cleanup completed', [
             'trade_logs' => $tradeLogs,
             'snapshots' => $snapshots,
             'ai_decisions' => $totalAi,

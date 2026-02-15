@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\PlatformSetting;
 use App\Models\Trade;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +61,26 @@ class SecurityTest extends TestCase
 
         // Should not be 419 (CSRF token mismatch)
         $this->assertNotEquals(419, $response->getStatusCode());
+    }
+
+    public function test_telegram_webhook_requires_valid_secret(): void
+    {
+        PlatformSetting::create([
+            'key' => 'TELEGRAM_WEBHOOK_SECRET',
+            'value' => 'test-webhook-secret',
+            'type' => 'string',
+            'group' => 'telegram',
+            'description' => 'test',
+        ]);
+
+        $unauthorized = $this->postJson('/api/webhooks/telegram', ['update_id' => 1]);
+        $unauthorized->assertStatus(401);
+
+        $authorized = $this->withHeaders([
+            'X-Telegram-Bot-Api-Secret-Token' => 'test-webhook-secret',
+        ])->postJson('/api/webhooks/telegram', ['update_id' => 2]);
+
+        $authorized->assertOk()->assertJson(['ok' => true]);
     }
 
     public function test_expired_trial_redirects_to_subscription(): void

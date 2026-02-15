@@ -16,7 +16,10 @@ class HealthCheckController extends Controller
 {
     public function __invoke(): JsonResponse
     {
-        return Cache::remember('health_check', 30, function (): JsonResponse {
+        $isSuperAdmin = auth()->check() && auth()->user()->isSuperAdmin();
+        $cacheKey = $isSuperAdmin ? 'health_check:superadmin' : 'health_check:public';
+
+        return Cache::remember($cacheKey, 30, function () use ($isSuperAdmin): JsonResponse {
             $services = [];
 
             // Database
@@ -41,6 +44,7 @@ class HealthCheckController extends Controller
 
             // Anthropic
             $services['anthropic'] = $platformSettings->get('ANTHROPIC_API_KEY') ? 'configured' : 'not_configured';
+            $services['polymarket_signer'] = $platformSettings->get('POLYMARKET_SIGNER_URL') ? 'configured' : 'not_configured';
 
             $overallStatus = collect($services)->contains('error') ? 'degraded' : 'ok';
 
@@ -49,12 +53,17 @@ class HealthCheckController extends Controller
                 'trades_today' => Trade::whereDate('created_at', today())->count(),
             ];
 
-            return new JsonResponse([
+            $payload = [
                 'status' => $overallStatus,
                 'timestamp' => now()->toIso8601String(),
-                'services' => $services,
-                'stats' => $stats,
-            ]);
+            ];
+
+            if ($isSuperAdmin) {
+                $payload['services'] = $services;
+                $payload['stats'] = $stats;
+            }
+
+            return new JsonResponse($payload);
         });
     }
 }

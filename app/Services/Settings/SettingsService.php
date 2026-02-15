@@ -64,10 +64,51 @@ class SettingsService
             self::CACHE_PREFIX . $userId . ':group.' . $group,
             self::CACHE_TTL,
             function () use ($group, $userId) {
-                return StrategyParam::where('user_id', $userId)
+                // Get user's existing params for this group
+                $userParams = StrategyParam::where('user_id', $userId)
                     ->where('group', $group)
-                    ->orderBy('key')
                     ->get();
+
+                // Get default params for this group
+                $defaults = collect($this->getDefaultParams())
+                    ->where('group', $group);
+
+                // Check if user is missing any params from defaults
+                $missingKeys = $defaults->pluck('key')
+                    ->diff($userParams->pluck('key'));
+
+                // Seed missing params
+                if ($missingKeys->isNotEmpty()) {
+                    foreach ($defaults as $param) {
+                        if ($missingKeys->contains($param['key'])) {
+                            StrategyParam::create([
+                                'user_id' => $userId,
+                                'key' => $param['key'],
+                                'value' => (string) $param['value'],
+                                'type' => $param['type'],
+                                'description' => $param['description'],
+                                'group' => $param['group'],
+                                'updated_by' => 'system',
+                            ]);
+                        }
+                    }
+
+                    // Re-fetch params after seeding
+                    $userParams = StrategyParam::where('user_id', $userId)
+                        ->where('group', $group)
+                        ->get();
+                }
+
+                // Sort by the order defined in defaults
+                $defaultKeys = collect($this->getDefaultParams())
+                    ->where('group', $group)
+                    ->pluck('key')
+                    ->values();
+
+                return $userParams->sortBy(function ($param) use ($defaultKeys) {
+                    $index = $defaultKeys->search($param->key);
+                    return $index !== false ? $index : 999;
+                })->values();
             }
         );
     }
@@ -117,13 +158,14 @@ class SettingsService
             ['key' => 'MAX_DAILY_LOSS', 'value' => '50', 'type' => 'decimal', 'description' => 'Stop all trading after this daily loss in USDC', 'group' => 'risk'],
             ['key' => 'MAX_DAILY_TRADES', 'value' => '48', 'type' => 'number', 'description' => 'Max trades per day', 'group' => 'risk'],
             ['key' => 'MAX_CONCURRENT_POSITIONS', 'value' => '3', 'type' => 'number', 'description' => 'Max open bets at once', 'group' => 'risk'],
+            ['key' => 'SIMULATOR_ENABLED', 'value' => 'false', 'type' => 'boolean', 'description' => 'Simulator Enabled - Master on/off switch', 'group' => 'trading'],
             ['key' => 'MIN_CONFIDENCE_SCORE', 'value' => '0.92', 'type' => 'decimal', 'description' => 'Minimum AI confidence to trade', 'group' => 'trading'],
             ['key' => 'MIN_ENTRY_PRICE_THRESHOLD', 'value' => '0.92', 'type' => 'decimal', 'description' => 'Only buy locked-in side at this price or above', 'group' => 'trading'],
             ['key' => 'MAX_ENTRY_PRICE_THRESHOLD', 'value' => '0.08', 'type' => 'decimal', 'description' => 'Only buy cheap contrarian side at this price or below', 'group' => 'trading'],
             ['key' => 'ENTRY_WINDOW_SECONDS', 'value' => '60', 'type' => 'number', 'description' => 'Only enter within this many seconds of market close', 'group' => 'trading'],
             ['key' => 'DRY_RUN', 'value' => 'true', 'type' => 'boolean', 'description' => 'Paper trading mode', 'group' => 'trading'],
-            ['key' => 'BOT_ENABLED', 'value' => 'true', 'type' => 'boolean', 'description' => 'Master kill switch for the bot', 'group' => 'trading'],
-            ['key' => 'MONITORED_ASSETS', 'value' => 'BTC,ETH,SOL', 'type' => 'string', 'description' => 'Comma-separated list of monitored assets', 'group' => 'trading'],
+            ['key' => 'MONITORED_ASSETS', 'value' => 'BTC,ETH,SOL,XRP', 'type' => 'string', 'description' => 'Comma-separated list of monitored assets', 'group' => 'trading'],
+            ['key' => 'MARKET_DURATIONS', 'value' => '5min,15min', 'type' => 'string', 'description' => 'Which market durations to trade (5min, 15min, or both)', 'group' => 'trading'],
             ['key' => 'AI_AUTO_APPLY_FIXES', 'value' => 'false', 'type' => 'boolean', 'description' => 'Auto-apply low-risk AI suggestions', 'group' => 'ai'],
             ['key' => 'NOTIFY_DAILY_PNL', 'value' => 'true', 'type' => 'boolean', 'description' => 'Daily P&L summary', 'group' => 'notifications'],
             ['key' => 'NOTIFY_BALANCE_ALERTS', 'value' => 'true', 'type' => 'boolean', 'description' => 'Low balance alerts', 'group' => 'notifications'],

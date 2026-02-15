@@ -4,149 +4,387 @@ declare(strict_types=1);
 
 namespace App\Services\Subscription;
 
+use App\Models\AiDecision;
 use App\Models\Payment;
 use App\Models\SubscriptionPlan;
+use App\Models\Trade;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Services\Settings\PlatformSettingsService;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class SubscriptionService
 {
-    public function getActivePlan(int $userId): ?SubscriptionPlan
-    {
-        $user = User::find($userId);
+    private const CACHE_TTL = 3600; // 1 hour
 
-        if (!$user || !$user->subscription_plan) {
+    public function __construct(private PlatformSettingsService $platformSettings) {}
+
+    // ──────────── Plan Resolution ────────────
+
+    public function getUserPlan(User $user): ?SubscriptionPlan
+    {
+        if (!$user->subscription_plan) {
             return null;
         }
 
-        return SubscriptionPlan::where('slug', $user->subscription_plan)->first();
+        return Cache::remember(
+            "subscription_plan:{$user->subscription_plan}",
+            self::CACHE_TTL,
+            fn() => SubscriptionPlan::where('slug', $user->subscription_plan)->first()
+        );
     }
 
-    public function getPlanLimits(int $userId): array
+    public function isActive(User $user): bool
     {
-        $plan = $this->getActivePlan($userId);
-
-        if (!$plan) {
-            return [
-                'max_daily_trades' => 0,
-                'max_concurrent_positions' => 0,
-                'has_ai_muscles' => false,
-                'has_ai_brain' => false,
-            ];
-        }
-
-        return [
-            'max_daily_trades' => $plan->max_daily_trades,
-            'max_concurrent_positions' => $plan->max_concurrent_positions,
-            'has_ai_muscles' => $plan->has_ai_muscles,
-            'has_ai_brain' => $plan->has_ai_brain,
-        ];
-    }
-
-    public function isWithinLimits(int $userId, string $limitKey, int $currentCount): bool
-    {
-        $limits = $this->getPlanLimits($userId);
-
-        if (!isset($limits[$limitKey])) {
-            return false;
-        }
-
-        $limit = $limits[$limitKey];
-
-        if ($limit === 0 || $limit === null) {
-            return true; // 0 or null = unlimited
-        }
-
-        return $currentCount < $limit;
-    }
-
-    public function isTrialExpired(int $userId): bool
-    {
-        $user = User::find($userId);
-
-        if (!$user || $user->subscription_plan !== 'free_trial') {
-            return false;
-        }
-
-        if (!$user->trial_ends_at) {
+        // Free plan: always active
+        if ($user->subscription_plan === 'free') {
             return true;
         }
 
-        return Carbon::now()->greaterThan($user->trial_ends_at);
+        // Lifetime: always active
+        if ($user->is_lifetime) {
+            return true;
+        }
+
+        // Paid: check expiry
+        if ($user->subscription_ends_at && $user->subscription_ends_at->isFuture()) {
+            return true;
+        }
+
+        return false;
     }
 
-    public function activateSubscription(int $userId, SubscriptionPlan $plan, ?Payment $payment = null): void
+    public function isPaid(User $user): bool
     {
-        $user = User::findOrFail($userId);
+        return in_array($user->subscription_plan, ['pro', 'advanced', 'lifetime']);
+    }
 
-        $endsAt = match ($plan->billing_period) {
-            'lifetime' => Carbon::now()->addYears(100),
-            'yearly' => Carbon::now()->addDays(365),
-            default => Carbon::now()->addDays(30),
+    public function isLifetime(User $user): bool
+    {
+        return $user->is_lifetime === true;
+    }
+
+    // ──────────── Feature Gates (CRITICAL) ────────────
+
+    public function getMaxSignalsPerDay(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? $plan->max_signals_per_day : 0;
+    }
+
+    public function getMaxConcurrentSimulations(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? $plan->max_concurrent_positions : 0;
+    }
+
+    public function getMaxConcurrentPositions(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? $plan->max_concurrent_positions : 0;
+    }
+
+    public function getMaxAiMusclesPerDay(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? $plan->max_ai_muscles_calls_per_day : 0;
+    }
+
+    public function getMaxAiBrainPerDay(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? $plan->max_ai_brain_calls_per_day : 0;
+    }
+
+    public function getMaxAiBrainPerMonth(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? $plan->max_ai_brain_calls_per_month : 0;
+    }
+
+    public function canExportCsv(User $user): bool
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? (bool) $plan->csv_export_enabled : false;
+    }
+
+    public function canUseStrategyHealth(User $user): bool
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? (bool) $plan->strategy_health_metrics : false;
+    }
+
+    public function canUseTelegram(User $user): bool
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? (bool) $plan->telegram_enabled : false;
+    }
+
+    public function canUseBrain(User $user): bool
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? (bool) $plan->ai_brain_enabled : false;
+    }
+
+    public function getHistoricalDays(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? $plan->historical_days : 7;
+    }
+
+    public function hasPriorityProcessing(User $user): bool
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? (bool) $plan->priority_processing : false;
+    }
+
+    // ──────────── Usage Tracking ────────────
+
+    public function getSignalsToday(User $user): int
+    {
+        return Trade::forUser($user->id)
+            ->whereDate('created_at', today())
+            ->count();
+    }
+
+    public function canSimulateMore(User $user): bool
+    {
+        $max = $this->getMaxSignalsPerDay($user);
+        if ($max === 0) {
+            return true; // unlimited
+        }
+
+        $current = $this->getSignalsToday($user);
+        return $current < $max;
+    }
+
+    public function getAiMusclesCallsToday(User $user): int
+    {
+        return AiDecision::forUser($user->id)
+            ->where('tier', 'muscles')
+            ->whereDate('created_at', today())
+            ->count();
+    }
+
+    public function canCallMuscles(User $user): bool
+    {
+        $max = $this->getMaxAiMusclesPerDay($user);
+        if ($max === 0) {
+            return true; // unlimited
+        }
+
+        $current = $this->getAiMusclesCallsToday($user);
+        return $current < $max;
+    }
+
+    public function getAiBrainCallsToday(User $user): int
+    {
+        return AiDecision::forUser($user->id)
+            ->where('tier', 'brain')
+            ->whereDate('created_at', today())
+            ->count();
+    }
+
+    public function getAiBrainCallsThisMonth(User $user): int
+    {
+        return AiDecision::forUser($user->id)
+            ->where('tier', 'brain')
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+    }
+
+    public function canCallBrain(User $user): bool
+    {
+        // Check if Brain is enabled for this plan
+        if (!$this->canUseBrain($user)) {
+            return false;
+        }
+
+        // Check daily limit
+        $maxDaily = $this->getMaxAiBrainPerDay($user);
+        if ($maxDaily > 0) {
+            $currentDaily = $this->getAiBrainCallsToday($user);
+            if ($currentDaily >= $maxDaily) {
+                return false;
+            }
+        }
+
+        // Check monthly limit
+        $maxMonthly = $this->getMaxAiBrainPerMonth($user);
+        if ($maxMonthly > 0) {
+            $currentMonthly = $this->getAiBrainCallsThisMonth($user);
+            if ($currentMonthly >= $maxMonthly) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // ──────────── Subscription Management ────────────
+
+    public function activate(User $user, string $planSlug, string $billingInterval, ?int $durationDays = null): void
+    {
+        $plan = SubscriptionPlan::where('slug', $planSlug)->firstOrFail();
+
+        $updateData = [
+            'subscription_plan' => $planSlug,
+            'billing_interval' => $billingInterval,
+            'is_active' => true,
+        ];
+
+        if ($billingInterval === 'lifetime') {
+            $updateData['is_lifetime'] = true;
+            $updateData['subscription_ends_at'] = null; // never expires
+
+            // Increment sold count
+            $plan->increment('lifetime_sold');
+        } elseif ($billingInterval === 'yearly') {
+            $days = $durationDays ?? 365;
+            $updateData['subscription_ends_at'] = now()->addDays($days);
+        } elseif ($billingInterval === 'monthly') {
+            $days = $durationDays ?? 30;
+            $updateData['subscription_ends_at'] = now()->addDays($days);
+        } elseif ($billingInterval === 'free') {
+            $updateData['subscription_ends_at'] = null;
+        }
+
+        $user->update($updateData);
+    }
+
+    public function renew(User $user): void
+    {
+        if ($user->is_lifetime) {
+            return; // lifetime doesn't renew
+        }
+
+        if ($user->billing_interval === 'free') {
+            return; // free doesn't renew
+        }
+
+        $days = match ($user->billing_interval) {
+            'yearly' => 365,
+            'monthly' => 30,
+            default => 30,
         };
 
+        // If currently active, extend from current end date
+        // If expired, extend from now
+        $baseDate = ($user->subscription_ends_at && $user->subscription_ends_at->isFuture())
+            ? $user->subscription_ends_at
+            : now();
+
         $user->update([
-            'subscription_plan' => $plan->slug,
-            'subscription_ends_at' => $endsAt,
-            'is_active' => true,
+            'subscription_ends_at' => $baseDate->addDays($days),
         ]);
     }
 
-    public function cancelSubscription(int $userId): void
+    public function expire(User $user): void
     {
-        $user = User::findOrFail($userId);
-
+        // Downgrade to free plan
         $user->update([
-            'subscription_plan' => 'free_trial',
+            'subscription_plan' => 'free',
+            'billing_interval' => 'free',
+            'is_lifetime' => false,
+            'is_active' => true, // Free users still active
             'subscription_ends_at' => null,
         ]);
     }
 
-    public function isSubscriptionExpired(int $userId): bool
+    public function canPurchaseLifetime(): bool
+    {
+        $plan = SubscriptionPlan::where('slug', 'lifetime')->where('is_active', true)->first();
+
+        if (!$plan) {
+            return false;
+        }
+
+        if (!$plan->lifetime_cap) {
+            return true; // no cap set
+        }
+
+        return $plan->lifetime_sold < $plan->lifetime_cap;
+    }
+
+    public function getLifetimeRemaining(): int
+    {
+        $plan = SubscriptionPlan::where('slug', 'lifetime')->first();
+
+        if (!$plan || !$plan->lifetime_cap) {
+            return 999; // essentially unlimited
+        }
+
+        return max(0, $plan->lifetime_cap - $plan->lifetime_sold);
+    }
+
+    public function grantFree(User $user, string $planSlug, ?int $durationDays = null): Payment
+    {
+        $plan = SubscriptionPlan::where('slug', $planSlug)->firstOrFail();
+
+        $billingInterval = match ($plan->billing_period) {
+            'lifetime' => 'lifetime',
+            'yearly' => 'yearly',
+            default => 'monthly',
+        };
+
+        $this->activate($user, $planSlug, $billingInterval, $durationDays);
+
+        return Payment::create([
+            'user_id' => $user->id,
+            'subscription_plan_id' => $plan->id,
+            'billing_interval' => $billingInterval,
+            'amount_usd' => 0.00,
+            'status' => 'finished',
+            'paid_at' => now(),
+            'expires_at' => $user->subscription_ends_at,
+            'notes' => 'Free subscription granted by admin (user #' . auth()->id() . ')',
+        ]);
+    }
+
+    public function getAvailablePlans(): Collection
+    {
+        return SubscriptionPlan::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    public function getPlanBySlug(string $slug): ?SubscriptionPlan
+    {
+        return SubscriptionPlan::where('slug', $slug)->first();
+    }
+
+    public function activateSubscription(int $userId, SubscriptionPlan $plan, Payment $payment): ?\Illuminate\Support\Carbon
     {
         $user = User::find($userId);
 
         if (!$user) {
-            return true;
+            return null;
         }
 
-        if ($user->subscription_plan === 'free_trial') {
-            return $this->isTrialExpired($userId);
-        }
+        $billingInterval = $payment->billing_interval ?: match ($plan->billing_period) {
+            'lifetime' => 'lifetime',
+            'yearly' => 'yearly',
+            default => 'monthly',
+        };
 
-        if (!$user->subscription_ends_at) {
-            return true;
-        }
+        $this->activate($user, $plan->slug, $billingInterval);
+        $user->refresh();
 
-        return Carbon::now()->greaterThan($user->subscription_ends_at);
+        return $user->subscription_ends_at;
     }
 
-    public function grantFreeSubscription(int $userId, string $planSlug, int $durationDays, int $grantedBy): Payment
+    public function grantFreeSubscription(int $userId, string $planSlug, int $durationDays, ?int $grantedByUserId = null): Payment
     {
         $user = User::findOrFail($userId);
-        $plan = SubscriptionPlan::where('slug', $planSlug)->firstOrFail();
+        $payment = $this->grantFree($user, $planSlug, $durationDays);
 
-        $endsAt = Carbon::now()->addDays($durationDays);
+        if ($grantedByUserId !== null) {
+            $payment->update([
+                'notes' => "Free subscription granted by admin (user #{$grantedByUserId})",
+            ]);
+        }
 
-        $user->update([
-            'subscription_plan' => $plan->slug,
-            'subscription_ends_at' => $endsAt,
-            'is_active' => true,
-        ]);
-
-        return Payment::create([
-            'user_id' => $userId,
-            'subscription_plan_id' => $plan->id,
-            'amount_usd' => '0.00',
-            'status' => 'finished',
-            'paid_at' => now(),
-            'expires_at' => $endsAt,
-            'notes' => "Free subscription granted by admin (user #{$grantedBy})",
-        ]);
-    }
-
-    public function getAvailablePlans(): \Illuminate\Database\Eloquent\Collection
-    {
-        return SubscriptionPlan::active()->ordered()->get();
+        return $payment;
     }
 }

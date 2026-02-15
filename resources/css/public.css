@@ -157,6 +157,16 @@ body.ptx-public::before {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255,255,255,0.7)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
+/* Mobile nav panel */
+#ptxNavCollapse {
+    background: rgba(10, 10, 15, 0.96);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 10px 8px 6px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
 /* ---------- Buttons ---------- */
 .btn-ptx-primary {
     background: var(--profit);
@@ -777,7 +787,7 @@ select.ptx-input option {
 }
 
 /* Google button */
-.btn-google {
+body.ptx-public a.btn-google {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -785,7 +795,7 @@ select.ptx-input option {
     width: 100%;
     padding: 12px 20px;
     background: #fff;
-    color: #333;
+    color: #333333;
     font-weight: 600;
     font-size: 0.95rem;
     border: none;
@@ -794,9 +804,15 @@ select.ptx-input option {
     text-decoration: none;
 }
 
-.btn-google:hover {
+body.ptx-public a.btn-google:visited {
+    color: #333333;
+}
+
+body.ptx-public a.btn-google:hover,
+body.ptx-public a.btn-google:focus,
+body.ptx-public a.btn-google:active {
     background: #f5f5f5;
-    color: #333;
+    color: #333333;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }

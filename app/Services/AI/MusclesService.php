@@ -20,12 +20,12 @@ class MusclesService
     {
         try {
             if (!$this->anthropic->isConfigured()) {
-                Log::channel('bot')->debug('Muscles skipped: Anthropic not configured');
+                Log::channel('simulator')->debug('Muscles skipped: Anthropic not configured');
                 return null;
             }
 
             if ($this->costTracker->isOverBudget($userId)) {
-                Log::channel('bot')->warning('Muscles skipped: AI budget exceeded', ['user_id' => $userId]);
+                Log::channel('simulator')->warning('Muscles skipped: AI budget exceeded', ['user_id' => $userId]);
                 return null;
             }
 
@@ -50,14 +50,14 @@ class MusclesService
             ]);
 
             if ($parsed === null) {
-                Log::channel('bot')->warning('Muscles: Failed to parse AI response', [
+                Log::channel('simulator')->warning('Muscles: Failed to parse AI response', [
                     'user_id' => $userId,
                     'response' => substr($response['content'], 0, 500),
                 ]);
                 return null;
             }
 
-            Log::channel('bot')->info('Muscles analysis complete', [
+            Log::channel('simulator')->info('Muscles analysis complete', [
                 'user_id' => $userId,
                 'asset' => $market['asset'] ?? 'unknown',
                 'side' => $parsed['side'] ?? 'unknown',
@@ -67,7 +67,7 @@ class MusclesService
 
             return $parsed;
         } catch (\Exception $e) {
-            Log::channel('bot')->error('Muscles analysis failed', [
+            Log::channel('simulator')->error('Muscles analysis failed', [
                 'user_id' => $userId,
                 'message' => $e->getMessage(),
             ]);

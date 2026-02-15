@@ -19,11 +19,11 @@ class RiskManager
     {
         $checks = [];
 
-        if (!$this->isBotEnabled($userId)) {
-            $checks['bot_enabled'] = false;
-            return ['allowed' => false, 'reason' => 'Bot is disabled', 'checks' => $checks];
+        if (!$this->isSimulatorEnabled($userId)) {
+            $checks['simulator_enabled'] = false;
+            return ['allowed' => false, 'reason' => 'Simulator is disabled', 'checks' => $checks];
         }
-        $checks['bot_enabled'] = true;
+        $checks['simulator_enabled'] = true;
 
         if (!$this->checkDailyLossLimit($userId)) {
             $checks['daily_loss'] = false;
@@ -52,9 +52,9 @@ class RiskManager
         return ['allowed' => true, 'reason' => null, 'checks' => $checks];
     }
 
-    public function isBotEnabled(int $userId): bool
+    public function isSimulatorEnabled(int $userId): bool
     {
-        return $this->settings->getBool('BOT_ENABLED', true, $userId);
+        return $this->settings->getBool('SIMULATOR_ENABLED', false, $userId);
     }
 
     public function checkDailyLossLimit(int $userId): bool
@@ -83,13 +83,20 @@ class RiskManager
 
     public function checkSubscriptionLimits(int $userId): bool
     {
-        $dailyCount = $this->getDailyTradeCount($userId);
+        $user = \App\Models\User::find($userId);
+        if (!$user) {
+            return false;
+        }
+
+        // Use the new SubscriptionService API
+        $canSimulate = $this->subscriptionService->canSimulateMore($user);
+
+        // Check concurrent positions against plan limit
         $openCount = $this->getOpenPositionCount($userId);
+        $maxConcurrent = $this->subscriptionService->getMaxConcurrentPositions($user);
+        $withinConcurrent = $maxConcurrent === 0 || $openCount < $maxConcurrent;
 
-        $withinDaily = $this->subscriptionService->isWithinLimits($userId, 'max_daily_trades', $dailyCount);
-        $withinConcurrent = $this->subscriptionService->isWithinLimits($userId, 'max_concurrent_positions', $openCount);
-
-        return $withinDaily && $withinConcurrent;
+        return $canSimulate && $withinConcurrent;
     }
 
     public function calculateBetSize(float $confidence, float $currentBankroll, int $userId): float

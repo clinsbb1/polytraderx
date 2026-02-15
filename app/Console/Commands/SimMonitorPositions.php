@@ -10,9 +10,9 @@ use App\Services\Trading\StrategyEngine;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 
-class MonitorPositions extends Command
+class SimMonitorPositions extends Command
 {
-    protected $signature = 'bot:monitor-positions';
+    protected $signature = 'sim:monitor-positions';
     protected $description = 'Check open positions and resolve completed trades';
 
     public function handle(

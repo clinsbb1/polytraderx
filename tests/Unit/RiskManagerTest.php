@@ -19,7 +19,7 @@ class RiskManagerTest extends TestCase
     private function makeRiskManager(array $settingsOverrides = []): RiskManager
     {
         $defaults = [
-            'BOT_ENABLED' => true,
+            'SIMULATOR_ENABLED' => true,
             'MAX_DAILY_LOSS' => 50.0,
             'MAX_DAILY_TRADES' => 48,
             'MAX_CONCURRENT_POSITIONS' => 3,
@@ -44,14 +44,14 @@ class RiskManagerTest extends TestCase
         return new RiskManager($settings, $subService);
     }
 
-    public function test_can_trade_bot_disabled(): void
+    public function test_can_trade_simulator_disabled(): void
     {
         $user = User::factory()->create();
-        $rm = $this->makeRiskManager(['BOT_ENABLED' => false]);
+        $rm = $this->makeRiskManager(['SIMULATOR_ENABLED' => false]);
 
         $result = $rm->canTrade($user->id);
         $this->assertFalse($result['allowed']);
-        $this->assertEquals('Bot is disabled', $result['reason']);
+        $this->assertEquals('Simulator is disabled', $result['reason']);
     }
 
     public function test_can_trade_all_checks_pass(): void

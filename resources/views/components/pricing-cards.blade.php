@@ -1,10 +1,14 @@
 {{-- Shared pricing cards component — used on homepage + /pricing --}}
 <div class="row g-4 justify-content-center">
     @forelse($plans as $plan)
-    <div class="col-md-6 col-lg-4 reveal reveal-delay-{{ $loop->iteration }}">
+    <div class="col-md-6 col-lg-3 reveal reveal-delay-{{ $loop->iteration }}">
         <div class="ptx-pricing-card {{ $plan->slug === 'pro' ? 'featured' : '' }}">
             @if($plan->slug === 'pro')
                 <span class="ptx-pricing-badge">Most Popular</span>
+            @elseif($plan->slug === 'lifetime')
+                <span class="ptx-pricing-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    Limited: few spots left
+                </span>
             @endif
             <h4 class="mt-2">{{ $plan->name }}</h4>
             <div class="my-3">
@@ -18,50 +22,36 @@
             </div>
             <ul class="ptx-pricing-features">
                 <li>
-                    <i class="bi bi-check-circle-fill check"></i>
-                    {{ $plan->max_daily_trades >= 9999 ? 'Unlimited' : $plan->max_daily_trades }} trades/day
+                    <i class="bi bi-lightning-charge-fill"></i>
+                    <strong>{{ $plan->max_signals_per_day === 0 ? 'Unlimited' : $plan->max_signals_per_day }}</strong> signals/day
                 </li>
                 <li>
-                    <i class="bi bi-check-circle-fill check"></i>
-                    {{ $plan->max_concurrent_positions }} concurrent positions
+                    <i class="bi bi-cpu-fill"></i>
+                    @if($plan->ai_brain_enabled)
+                        AI Brain + Muscles
+                    @elseif($plan->ai_muscles_enabled)
+                        AI Muscles only
+                    @else
+                        Reflexes only
+                    @endif
                 </li>
                 <li>
-                    <i class="bi bi-check-circle-fill check"></i>
-                    Tier 1: AI Reflexes (rule-based)
+                    <i class="bi {{ $plan->strategy_health_metrics ? 'bi-heart-pulse-fill' : 'bi-x-circle-fill cross' }}"></i>
+                    Strategy Health Metrics
                 </li>
                 <li>
-                    <i class="bi {{ $plan->has_ai_muscles ? 'bi-check-circle-fill check' : 'bi-x-circle-fill cross' }}"></i>
-                    Tier 2: AI Muscles (Claude Haiku)
+                    <i class="bi {{ $plan->telegram_enabled ? 'bi-telegram' : 'bi-x-circle-fill cross' }}"></i>
+                    Telegram Notifications
                 </li>
                 <li>
-                    <i class="bi {{ $plan->has_ai_brain ? 'bi-check-circle-fill check' : 'bi-x-circle-fill cross' }}"></i>
-                    Tier 3: AI Brain (Claude Sonnet)
+                    <i class="bi {{ $plan->priority_processing ? 'bi-headset' : 'bi-headset cross' }}"></i>
+                    {{ $plan->priority_processing ? 'Priority Support' : 'Standard Support' }}
                 </li>
+                @if($plan->slug === 'lifetime')
                 <li>
-                    <i class="bi bi-check-circle-fill check"></i>
-                    Full dashboard &amp; analytics
+                    <i class="bi bi-infinity"></i>
+                    <strong>Lifetime access</strong>
                 </li>
-                <li>
-                    <i class="bi bi-check-circle-fill check"></i>
-                    Telegram notifications
-                </li>
-                <li>
-                    <i class="bi bi-check-circle-fill check"></i>
-                    Paper trading (DRY RUN)
-                </li>
-                @if($plan->trial_days > 0)
-                <li>
-                    <i class="bi bi-check-circle-fill check"></i>
-                    {{ $plan->trial_days }}-day free trial
-                </li>
-                @endif
-                @if($plan->features_json)
-                    @foreach($plan->features_json as $feature)
-                    <li>
-                        <i class="bi bi-check-circle-fill check"></i>
-                        {{ $feature }}
-                    </li>
-                    @endforeach
                 @endif
             </ul>
             @auth
@@ -84,7 +74,6 @@
     @endforelse
 </div>
 <p class="text-center mt-4" style="color: var(--text-secondary); font-size: 0.9rem;">
-    Your keys, your funds <span class="mx-2" style="opacity:.4;">|</span>
     Cancel anytime <span class="mx-2" style="opacity:.4;">|</span>
     Pay with crypto <span class="mx-2" style="opacity:.4;">|</span>
     7-day free trial

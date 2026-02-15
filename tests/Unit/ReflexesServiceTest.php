@@ -18,7 +18,7 @@ class ReflexesServiceTest extends TestCase
     private function makeReflexes(array $settingsOverrides = [], bool $isExtreme = false, float $reversalProb = 0.02): ReflexesService
     {
         $defaults = [
-            'BOT_ENABLED' => true,
+            'SIMULATOR_ENABLED' => true,
             'ENTRY_WINDOW_SECONDS' => 60,
             'MONITORED_ASSETS' => 'BTC,ETH,SOL',
             'MIN_ENTRY_PRICE_THRESHOLD' => 0.92,
@@ -90,13 +90,13 @@ class ReflexesServiceTest extends TestCase
         $this->assertEquals('NO', $result['side']);
     }
 
-    public function test_bot_disabled_skip(): void
+    public function test_simulator_disabled_skip(): void
     {
-        $reflexes = $this->makeReflexes(['BOT_ENABLED' => false]);
+        $reflexes = $this->makeReflexes(['SIMULATOR_ENABLED' => false]);
         $result = $reflexes->evaluate($this->makeMarket(), $this->makeSpotData(), 1);
 
         $this->assertEquals('SKIP', $result['action']);
-        $this->assertContains('bot_disabled', $result['rules_failed']);
+        $this->assertContains('simulator_disabled', $result['rules_failed']);
     }
 
     public function test_desync_detected_skip(): void

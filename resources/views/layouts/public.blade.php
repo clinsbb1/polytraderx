@@ -4,7 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'PolyTraderX — AI-Powered Polymarket Trading Bot')</title>
+    @php
+        $seoTitle = trim($__env->yieldContent('title', 'PolyTraderX — AI-Powered Polymarket Strategy Simulation Platform'));
+        $seoDescription = trim($__env->yieldContent('meta_description', 'PolyTraderX is an AI-powered strategy lab for Polymarket crypto prediction markets. Design, simulate, and analyze strategies with real market data, without risking real money.'));
+        $seoCanonical = trim($__env->yieldContent('canonical_url', url()->current()));
+        $seoRobots = trim($__env->yieldContent('meta_robots', 'index, follow'));
+        $seoOgType = trim($__env->yieldContent('og_type', 'website'));
+        $seoImage = trim($__env->yieldContent('og_image', url('/favicon.ico')));
+    @endphp
+
+    <title>{{ $seoTitle }}</title>
+    <meta name="description" content="{{ $seoDescription }}">
+    <meta name="robots" content="{{ $seoRobots }}">
+    <link rel="canonical" href="{{ $seoCanonical }}">
+
+    <meta property="og:type" content="{{ $seoOgType }}">
+    <meta property="og:site_name" content="PolyTraderX">
+    <meta property="og:title" content="{{ $seoTitle }}">
+    <meta property="og:description" content="{{ $seoDescription }}">
+    <meta property="og:url" content="{{ $seoCanonical }}">
+    <meta property="og:image" content="{{ $seoImage }}">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $seoTitle }}">
+    <meta name="twitter:description" content="{{ $seoDescription }}">
+    <meta name="twitter:image" content="{{ $seoImage }}">
+
+    <script type="application/ld+json">
+    {!! json_encode([
+        '@context' => 'https://schema.org',
+        '@type' => 'WebSite',
+        'name' => 'PolyTraderX',
+        'url' => rtrim(url('/'), '/'),
+        'description' => $seoDescription,
+        'inLanguage' => 'en-US',
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+    </script>
 
     {{-- Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,6 +54,20 @@
     <style>{!! file_get_contents(resource_path('css/public.css')) !!}</style>
 
     @yield('extra-styles')
+
+    {{-- Google Analytics --}}
+    @php
+        $gaId = app(\App\Services\Settings\PlatformSettingsService::class)->getString('GOOGLE_ANALYTICS_ID', '');
+    @endphp
+    @if($gaId)
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $gaId }}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{{ $gaId }}');
+    </script>
+    @endif
 </head>
 <body class="ptx-public">
 
@@ -98,6 +147,7 @@
                     <ul>
                         <li><a href="/terms">Terms of Service</a></li>
                         <li><a href="/privacy">Privacy Policy</a></li>
+                        <li><a href="/refund-policy">Refund Policy</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-2 col-md-6">
@@ -164,5 +214,6 @@
     </script>
 
     @yield('scripts')
+    @stack('scripts')
 </body>
 </html>

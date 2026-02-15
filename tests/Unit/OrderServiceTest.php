@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use App\Models\UserCredential;
+use App\Services\Polymarket\Eip712SignerService;
 use App\Services\Polymarket\OrderService;
 use App\Services\Polymarket\PolymarketClient;
 use App\Services\Settings\SettingsService;
@@ -34,9 +35,10 @@ class OrderServiceTest extends TestCase
         $settings->method('getBool')
             ->with('DRY_RUN', true, $user->id)
             ->willReturn(true);
+        $signer = $this->createMock(Eip712SignerService::class);
 
         $client = new PolymarketClient($user);
-        $orderService = new OrderService($client, $settings, $user->id);
+        $orderService = new OrderService($client, $settings, $user->id, $signer);
 
         $result = $orderService->placeOrder('0xtoken123', 'BUY', 0.96, 5.0);
 
@@ -67,9 +69,10 @@ class OrderServiceTest extends TestCase
         $settings->method('getBool')
             ->with('DRY_RUN', true, $user->id)
             ->willReturn(true);
+        $signer = $this->createMock(Eip712SignerService::class);
 
         $client = new PolymarketClient($user);
-        $orderService = new OrderService($client, $settings, $user->id);
+        $orderService = new OrderService($client, $settings, $user->id, $signer);
 
         $result = $orderService->cancelOrder('order-123');
 

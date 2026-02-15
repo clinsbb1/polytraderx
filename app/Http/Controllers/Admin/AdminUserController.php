@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Email\LifecycleEmailService;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,12 +67,12 @@ class AdminUserController extends Controller
     public function changePlan(Request $request, User $user): RedirectResponse
     {
         $request->validate([
-            'subscription_plan' => ['required', 'string', 'in:free_trial,basic,pro'],
+            'subscription_plan' => ['required', 'string', 'in:free,pro,advanced,lifetime'],
         ]);
 
         $user->update([
             'subscription_plan' => $request->subscription_plan,
-            'subscription_ends_at' => $request->subscription_plan !== 'free_trial'
+            'subscription_ends_at' => $request->subscription_plan !== 'free'
                 ? now()->addDays(30)
                 : null,
         ]);
@@ -82,7 +83,7 @@ class AdminUserController extends Controller
     public function grantFreeSubscription(Request $request, User $user): RedirectResponse
     {
         $request->validate([
-            'plan_slug' => ['required', 'string', 'in:free_trial,basic,pro'],
+            'plan_slug' => ['required', 'string', 'in:free,pro,advanced,lifetime'],
             'duration_days' => ['required', 'integer', 'min:1', 'max:3650'],
         ]);
 
@@ -95,13 +96,35 @@ class AdminUserController extends Controller
             auth()->id(),
         );
 
-        return back()->with('success', "Free {$request->plan_slug} subscription granted to {$user->name} for {$request->duration_days} days.");
+        $plan = $subscriptionService->getPlanBySlug($request->plan_slug);
+        if ($plan) {
+            $durationDays = $plan->slug === 'lifetime' ? null : $request->integer('duration_days');
+
+            app(LifecycleEmailService::class)->sendFreeSubscriptionGranted(
+                $user->fresh(),
+                $plan,
+                $durationDays
+            );
+        }
+
+        $durationLabel = $request->plan_slug === 'lifetime'
+            ? 'lifetime access'
+            : "{$request->duration_days} days";
+
+        return back()->with('success', "Free {$request->plan_slug} subscription granted to {$user->name} ({$durationLabel}).");
     }
 
     public function impersonate(User $user): RedirectResponse
     {
-        session()->put('impersonator_id', auth()->id());
+        $admin = auth()->user();
+
+        if (!$admin || !$admin->isSuperAdmin()) {
+            abort(403, 'Unauthorized. Super admin access required.');
+        }
+
+        session()->put('impersonator_id', $admin->id);
         Auth::login($user);
+        request()->session()->regenerate();
 
         return redirect('/dashboard');
     }
@@ -110,9 +133,21 @@ class AdminUserController extends Controller
     {
         $adminId = session()->pull('impersonator_id');
 
-        if ($adminId) {
-            Auth::loginUsingId($adminId);
+        if (!$adminId) {
+            return redirect('/dashboard')->with('error', 'Impersonation session not found.');
         }
+
+        $admin = User::query()->find($adminId);
+        if (!$admin || !$admin->isSuperAdmin()) {
+            Auth::logout();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
+
+            return redirect('/login')->with('error', 'Original admin session is no longer valid.');
+        }
+
+        Auth::loginUsingId($adminId);
+        request()->session()->regenerate();
 
         return redirect('/admin');
     }

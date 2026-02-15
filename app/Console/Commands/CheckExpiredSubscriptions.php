@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Services\Email\LifecycleEmailService;
 use App\Services\Settings\SettingsService;
 use App\Services\Telegram\NotificationService;
 use Illuminate\Console\Command;
@@ -19,6 +20,7 @@ class CheckExpiredSubscriptions extends Command
     public function handle(
         NotificationService $notifications,
         SettingsService $settings,
+        LifecycleEmailService $emails,
     ): int {
         $warned3Day = 0;
         $warned1Day = 0;
@@ -32,7 +34,7 @@ class CheckExpiredSubscriptions extends Command
                         ->where('subscription_ends_at', '>', now())
                         ->where('subscription_ends_at', '<=', now()->addDays(3));
                 })->orWhere(function ($q2) {
-                    $q2->where('subscription_plan', 'free_trial')
+                    $q2->where('subscription_plan', 'free')
                         ->whereNotNull('trial_ends_at')
                         ->where('trial_ends_at', '>', now())
                         ->where('trial_ends_at', '<=', now()->addDays(3));
@@ -51,6 +53,7 @@ class CheckExpiredSubscriptions extends Command
             $daysLeft = max($daysLeft, 1);
 
             $notifications->notifySubscriptionExpiring($user, $daysLeft);
+            $emails->sendSubscriptionExpiring($user, $daysLeft, $expiresAt);
             Cache::put($cacheKey, true, now()->addDays(3));
             $warned3Day++;
         }
@@ -63,7 +66,7 @@ class CheckExpiredSubscriptions extends Command
                         ->where('subscription_ends_at', '>', now())
                         ->where('subscription_ends_at', '<=', now()->addDay());
                 })->orWhere(function ($q2) {
-                    $q2->where('subscription_plan', 'free_trial')
+                    $q2->where('subscription_plan', 'free')
                         ->whereNotNull('trial_ends_at')
                         ->where('trial_ends_at', '>', now())
                         ->where('trial_ends_at', '<=', now()->addDay());
@@ -78,40 +81,45 @@ class CheckExpiredSubscriptions extends Command
             }
 
             $notifications->notifySubscriptionExpiring($user, 1);
+            $emails->sendSubscriptionExpiring($user, 1, $user->subscription_ends_at ?? $user->trial_ends_at);
             Cache::put($urgentKey, true, now()->addDay());
             $warned1Day++;
         }
 
         // 3. Deactivate expired trials
-        $expiredTrials = User::where('subscription_plan', 'free_trial')
+        $expiredTrials = User::where('subscription_plan', 'free')
             ->where('is_active', true)
             ->where('trial_ends_at', '<', now())
             ->get();
 
         foreach ($expiredTrials as $user) {
+            $previousPlan = $user->subscription_plan;
             $user->update(['is_active' => false]);
-            $settings->set('BOT_ENABLED', 'false', 'system', $user->id);
+            $settings->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
             $notifications->notifySubscriptionExpired($user);
+            $emails->sendSubscriptionExpired($user, $previousPlan);
 
             Log::channel('bot')->info("Trial expired for user {$user->id} ({$user->email})");
             $deactivated++;
         }
 
         // 4. Deactivate expired subscriptions
-        $expiredSubscriptions = User::where('subscription_plan', '!=', 'free_trial')
+        $expiredSubscriptions = User::where('subscription_plan', '!=', 'free')
             ->where('is_active', true)
             ->whereNotNull('subscription_ends_at')
             ->where('subscription_ends_at', '<', now())
             ->get();
 
         foreach ($expiredSubscriptions as $user) {
+            $previousPlan = $user->subscription_plan;
             $user->update([
                 'is_active' => false,
-                'subscription_plan' => 'free_trial',
+                'subscription_plan' => 'free',
                 'subscription_ends_at' => null,
             ]);
-            $settings->set('BOT_ENABLED', 'false', 'system', $user->id);
+            $settings->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
             $notifications->notifySubscriptionExpired($user);
+            $emails->sendSubscriptionExpired($user, $previousPlan);
 
             Log::channel('bot')->info("Subscription expired for user {$user->id} ({$user->email})");
             $deactivated++;

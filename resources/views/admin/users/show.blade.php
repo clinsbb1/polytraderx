@@ -89,9 +89,10 @@
                     <label class="form-label small fw-semibold">Change Plan</label>
                     <div class="input-group input-group-sm">
                         <select name="subscription_plan" class="form-select form-select-sm">
-                            <option value="free_trial" {{ $user->subscription_plan === 'free_trial' ? 'selected' : '' }}>Free Trial</option>
-                            <option value="basic" {{ $user->subscription_plan === 'basic' ? 'selected' : '' }}>Basic</option>
+                            <option value="free" {{ $user->subscription_plan === 'free' ? 'selected' : '' }}>Free</option>
                             <option value="pro" {{ $user->subscription_plan === 'pro' ? 'selected' : '' }}>Pro</option>
+                            <option value="advanced" {{ $user->subscription_plan === 'advanced' ? 'selected' : '' }}>Advanced</option>
+                            <option value="lifetime" {{ $user->subscription_plan === 'lifetime' ? 'selected' : '' }}>Lifetime</option>
                         </select>
                         <button type="submit" class="btn btn-sm btn-primary">Save</button>
                     </div>
@@ -100,7 +101,7 @@
                 <!-- Change Subscription End Date -->
                 <form method="POST" action="/admin/users/{{ $user->id }}/change-plan" class="mb-0">
                     @csrf
-                    <input type="hidden" name="subscription_plan" value="{{ $user->subscription_plan ?? 'free_trial' }}">
+                    <input type="hidden" name="subscription_plan" value="{{ $user->subscription_plan ?? 'free' }}">
                     <label class="form-label small fw-semibold">Subscription Ends At</label>
                     <div class="input-group input-group-sm">
                         <input type="date" name="subscription_ends_at" class="form-control form-control-sm" value="{{ $user->subscription_ends_at?->format('Y-m-d') }}">
@@ -147,8 +148,10 @@
                         <div class="mb-2">
                             <label class="form-label small">Plan</label>
                             <select name="plan_slug" class="form-select form-select-sm">
-                                <option value="basic">Basic</option>
+                                <option value="free">Free</option>
                                 <option value="pro">Pro</option>
+                                <option value="advanced">Advanced</option>
+                                <option value="lifetime">Early Bird Lifetime</option>
                             </select>
                         </div>
                         <div class="mb-2">

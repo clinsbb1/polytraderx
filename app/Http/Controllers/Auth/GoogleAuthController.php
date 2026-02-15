@@ -58,7 +58,7 @@ class GoogleAuthController extends Controller
             'google_id' => $googleUser->getId(),
             'avatar_url' => $googleUser->getAvatar(),
             'email_verified_at' => now(),
-            'subscription_plan' => 'free_trial',
+            'subscription_plan' => 'free',
             'trial_ends_at' => now()->addDays($trialDays),
         ]);
 

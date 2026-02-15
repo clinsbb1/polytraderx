@@ -38,10 +38,11 @@ class PromptBuilder
             ];
         })->toArray();
 
-        $system = 'You are a 15-minute crypto prediction market analyst for PolyTraderX. '
-            . 'You analyze real-time market data and Binance spot prices to predict whether a crypto asset will be higher or lower at market close. '
-            . 'Your role is to provide a confidence score (0.00-1.00) and a trading recommendation. '
-            . 'Only recommend a trade if you are highly confident (>=0.92). Otherwise, recommend SKIP. '
+        $system = 'You are a strategy simulation analyst for PolyTraderX evaluating potential trading signals on 15-minute crypto prediction markets. '
+            . 'You analyze real-time market data and Binance spot prices to assess signal quality. '
+            . 'Your role is to provide a confidence score (0.00-1.00) and flag any instability or regime sensitivity. '
+            . 'This is simulation mode - prioritize robust signals over maximum returns. '
+            . 'Only recommend a signal if highly confident (>=0.92) and conditions are stable. Otherwise, recommend SKIP. '
             . 'Respond in JSON only. No markdown, no explanation outside the JSON object.';
 
         $user = "MARKET ANALYSIS REQUEST\n\n"
@@ -62,7 +63,7 @@ class PromptBuilder
             . "{$asset} Specific Win Rate: {$similarWinRate}% ({$similarWon}/{$similarTotal})\n"
             . "Last 3 Loss Patterns: " . json_encode($lossPatterns) . "\n\n"
             . "Respond in JSON ONLY (no markdown, no explanation outside JSON):\n"
-            . '{"side": "YES"|"NO"|"SKIP", "confidence": 0.00-1.00, "reasoning": "one sentence", "reversal_risk": "low"|"medium"|"high", "suggested_bet_size_pct": 1.0-10.0}' . "\n"
+            . '{"side": "YES"|"NO"|"SKIP", "confidence": 0.00-1.00, "reasoning": "one sentence", "reversal_risk": "low"|"medium"|"high", "suggested_bet_size_pct": 1.0-10.0, "regime_note": "trending|ranging|volatile|unclear", "stability_flag": "stable|caution|unstable"}' . "\n"
             . 'SKIP if confidence < 0.92 or reversal_risk is "high".';
 
         return ['system' => $system, 'user' => $user];
@@ -101,8 +102,13 @@ class PromptBuilder
         $lossCount = Trade::forUser($userId)->lost()->count();
 
         $system = 'You are a senior trading strategist performing forensic analysis on a losing trade from PolyTraderX, '
-            . 'a bot that trades 15-minute crypto prediction markets on Polymarket. '
+            . 'a strategy simulation platform for 15-minute crypto prediction markets on Polymarket. '
             . 'Your job is to identify the root cause, categorize the failure mode, and suggest specific parameter adjustments. '
+            . "\n\nIMPORTANT: This is a SIMULATION platform. All trades are paper trades used to backtest and optimize strategies. When analyzing:\n"
+            . "- Consider overfitting risk: Is the strategy too optimized for recent market conditions?\n"
+            . "- Assess regime sensitivity: Would this strategy fail if volatility/volume patterns shift?\n"
+            . "- Note simulation limitations: Perfect fills, zero slippage assumptions.\n\n"
+            . 'Suggest robust parameters over maximum historical returns. '
             . 'Respond in JSON only. No markdown, no explanation outside the JSON object.';
 
         $user = "LOSS FORENSICS ANALYSIS\n\n"
@@ -123,6 +129,10 @@ class PromptBuilder
             . '"severity": "low|medium|high", '
             . '"suggested_fixes": [{"param_key": "PARAM_NAME", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "auto_apply|review_required"}], '
             . '"pattern_detected": "string or null - any recurring pattern from previous audits", '
+            . '"strategy_stability": "stable|degrading|overfitting|needs_data", '
+            . '"overfitting_risk": "low|medium|high", '
+            . '"regime_sensitivity": "string - describe if strategy is regime-dependent", '
+            . '"confidence_in_fix": 1-10, '
             . '"overall_assessment": "1 sentence summary"}';
 
         return ['system' => $system, 'user' => $user];

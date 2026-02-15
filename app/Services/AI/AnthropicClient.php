@@ -72,13 +72,13 @@ class AnthropicClient
                 $status = $response->status();
 
                 if ($status === 401) {
-                    Log::channel('bot')->error('Invalid Anthropic API key in platform settings');
+                    Log::channel('simulator')->error('Invalid Anthropic API key in platform settings');
                     throw new \RuntimeException('Invalid Anthropic API key');
                 }
 
                 if ($status === 429) {
                     $retryAfter = (int) ($response->header('retry-after') ?: 5);
-                    Log::channel('bot')->warning('Anthropic rate limited', [
+                    Log::channel('simulator')->warning('Anthropic rate limited', [
                         'retry_after' => $retryAfter,
                         'attempt' => $attempt + 1,
                     ]);
@@ -87,12 +87,12 @@ class AnthropicClient
                 }
 
                 if ($status === 529) {
-                    Log::channel('bot')->warning('Anthropic overloaded, retrying in 10s');
+                    Log::channel('simulator')->warning('Anthropic overloaded, retrying in 10s');
                     sleep(10);
                     continue;
                 }
 
-                Log::channel('bot')->error('Anthropic API error', [
+                Log::channel('simulator')->error('Anthropic API error', [
                     'status' => $status,
                     'body' => $response->body(),
                     'model' => $model,
@@ -102,7 +102,7 @@ class AnthropicClient
                 throw $e;
             } catch (\Exception $e) {
                 $lastException = $e;
-                Log::channel('bot')->warning('Anthropic request exception', [
+                Log::channel('simulator')->warning('Anthropic request exception', [
                     'attempt' => $attempt + 1,
                     'message' => $e->getMessage(),
                 ]);

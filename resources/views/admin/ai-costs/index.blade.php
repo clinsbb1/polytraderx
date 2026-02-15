@@ -88,7 +88,7 @@
                         <td><code class="small">{{ $row['user']?->account_id ?? '—' }}</code></td>
                         <td>
                             @php
-                                $planColors = ['free_trial' => 'secondary', 'basic' => 'primary', 'pro' => 'warning'];
+                                $planColors = ['free' => 'secondary', 'pro' => 'primary', 'advanced' => 'warning', 'lifetime' => 'success'];
                                 $planLabel = $row['user']?->subscription_plan ?? '—';
                             @endphp
                             @if($planLabel !== '—')
