@@ -23,7 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->validateCsrfTokens(except: [
-            'api/webhooks/*',
+            'api/webhooks/nowpayments',
+            'api/webhooks/telegram',
         ]);
 
         $middleware->throttleApi('60,1');

@@ -8,10 +8,13 @@ use App\Models\AiAudit;
 use App\Services\Trading\StrategyUpdater;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class AuditController extends Controller
 {
+    private const MANUAL_TRIGGER_COOLDOWN_SECONDS = 600;
+
     public function index(Request $request): View
     {
         $query = AiAudit::forUser(auth()->id());
@@ -91,10 +94,20 @@ class AuditController extends Controller
 
     public function manualTrigger(): RedirectResponse
     {
+        $userId = (int) auth()->id();
+        $cooldownKey = "audits:manual-trigger:{$userId}";
+
+        if (Cache::has($cooldownKey)) {
+            return redirect()->route('audits.index')
+                ->with('error', 'Audit already triggered recently. Please wait 10 minutes before trying again.');
+        }
+
+        Cache::put($cooldownKey, true, now()->addSeconds(self::MANUAL_TRIGGER_COOLDOWN_SECONDS));
+
         // Queue the audit for the current user's recent losses
         // This dispatches the same logic as bot:ai-audit-losses but for a single user
         \Illuminate\Support\Facades\Artisan::call('bot:ai-audit-losses', [
-            '--user' => auth()->id(),
+            '--user' => $userId,
         ]);
 
         return redirect()->route('audits.index')

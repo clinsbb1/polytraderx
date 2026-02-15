@@ -54,8 +54,10 @@ Route::get('/contact', [PublicController::class, 'contact']);
 Route::post('/contact', [PublicController::class, 'submitContact'])->middleware('auth')->name('contact.submit');
 
 // Webhooks (no auth, no CSRF)
-Route::post('/api/webhooks/nowpayments', [WebhookController::class, 'nowpayments']);
-Route::post('/api/webhooks/telegram', TelegramWebhookController::class);
+Route::post('/api/webhooks/nowpayments', [WebhookController::class, 'nowpayments'])
+    ->middleware('throttle:120,1');
+Route::post('/api/webhooks/telegram', TelegramWebhookController::class)
+    ->middleware('throttle:120,1');
 
 // Simulation acknowledgment (auth only, no subscription or acknowledgment required)
 Route::middleware(['auth'])->group(function () {
@@ -105,7 +107,9 @@ Route::middleware(['auth', 'simulation_acknowledged', 'subscribed'])->group(func
     Route::get('/audits/{audit}', [AuditController::class, 'show'])->name('audits.show');
     Route::post('/audits/{audit}/approve-fix', [AuditController::class, 'approveFix'])->name('audits.approve-fix');
     Route::post('/audits/{audit}/reject-fix', [AuditController::class, 'rejectFix'])->name('audits.reject-fix');
-    Route::post('/audits/manual-trigger', [AuditController::class, 'manualTrigger'])->name('audits.manual-trigger');
+    Route::post('/audits/manual-trigger', [AuditController::class, 'manualTrigger'])
+        ->middleware('throttle:2,10')
+        ->name('audits.manual-trigger');
 
     Route::get('/strategy', [StrategyController::class, 'index'])->name('strategy.index');
     Route::post('/strategy/{group}', [StrategyController::class, 'update'])->name('strategy.update');

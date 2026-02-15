@@ -20,6 +20,13 @@ class HealthCheckController extends Controller
         $cacheKey = $isSuperAdmin ? 'health_check:superadmin' : 'health_check:public';
 
         return Cache::remember($cacheKey, 30, function () use ($isSuperAdmin): JsonResponse {
+            if (!$isSuperAdmin) {
+                return new JsonResponse([
+                    'status' => 'ok',
+                    'timestamp' => now()->toIso8601String(),
+                ]);
+            }
+
             $services = [];
 
             // Database
@@ -56,12 +63,9 @@ class HealthCheckController extends Controller
             $payload = [
                 'status' => $overallStatus,
                 'timestamp' => now()->toIso8601String(),
+                'services' => $services,
+                'stats' => $stats,
             ];
-
-            if ($isSuperAdmin) {
-                $payload['services'] = $services;
-                $payload['stats'] = $stats;
-            }
 
             return new JsonResponse($payload);
         });
