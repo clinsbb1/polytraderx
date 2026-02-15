@@ -42,6 +42,7 @@ Route::middleware('throttle:60,1')->get('/run-migrations', function () {
 });
 
 // Temporary maintenance helper: run only pricing plans seeder from browser (superadmin only).
+/*
 Route::middleware(['auth', 'superadmin', 'throttle:5,1'])->get('/admin/run-pricing-seeder', function () {
     $output = [];
 
@@ -57,6 +58,7 @@ Route::middleware(['auth', 'superadmin', 'throttle:5,1'])->get('/admin/run-prici
 
     return nl2br(implode("\n", $output));
 });
+*/
 
 Route::get('/health', \App\Http\Controllers\HealthCheckController::class);
 
