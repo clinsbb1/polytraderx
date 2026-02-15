@@ -42,7 +42,7 @@ class AdminUserController extends Controller
 
     public function show(User $user): View
     {
-        $user->load('credential', 'payments');
+        $user->load('payments');
         $tradeStats = [
             'total' => $user->trades()->count(),
             'won' => $user->trades()->won()->count(),

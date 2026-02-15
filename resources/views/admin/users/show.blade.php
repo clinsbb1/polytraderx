@@ -115,14 +115,6 @@
         <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Credentials Status</h6></div>
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="small">Polymarket API</span>
-                    @if($user->credential && $user->credential->hasPolymarketKeys())
-                        <span class="badge bg-success"><i class="bi bi-check me-1"></i>Configured</span>
-                    @else
-                        <span class="badge bg-secondary">Not configured</span>
-                    @endif
-                </div>
                 <div class="d-flex justify-content-between align-items-center">
                     <span class="small">Telegram</span>
                     @if($user->hasTelegramLinked())
