@@ -23,6 +23,16 @@
     </div>
     <div class="accordion-item">
         <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
+                How realistic are the simulations?
+            </button>
+        </h2>
+        <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">Very realistic. We use real-time Polymarket market data and Binance spot prices. The simulator runs the exact same logic a live bot would use: market scanning, AI confidence scoring, risk management, and position tracking. The only difference is that orders aren't sent to Polymarket. Think of it as a flight simulator — full realism, zero risk.</div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq0b">
                 What are signals?
             </button>
@@ -55,6 +65,53 @@
     </div>
     <div class="accordion-item">
         <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq10">
+                Does PolyTraderX offer live trading bots?
+            </button>
+        </h2>
+        <div id="faq10" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">No. PolyTraderX is a simulation-only strategy lab. It does not execute live trades or connect to your wallet. The platform is designed to help you test, analyze, and understand strategies using real market data—without risking real money.</div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq11">
+                Why doesn’t PolyTraderX support live bots right now?
+            </button>
+        </h2>
+        <div id="faq11" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">
+                <p class="mb-3">Live trading introduces real financial risk, legal complexity, and responsibility. Most strategies fail not because of execution, but because they haven’t been properly tested.</p>
+                <p class="mb-3">PolyTraderX focuses on simulation first so you can:</p>
+                <ul class="mb-3">
+                    <li>identify overfitting</li>
+                    <li>understand drawdowns and stability</li>
+                    <li>refine strategies with data, not emotion</li>
+                </ul>
+                <p class="mb-0">This approach leads to better decisions and avoids the pitfalls of rushing into live execution.</p>
+            </div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq12">
+                What if I want a custom live trading bot anyway?
+            </button>
+        </h2>
+        <div id="faq12" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">
+                <p class="mb-3">If you already have a well-tested strategy and want a private, custom live bot, you can reach out to us directly. Custom bots are built outside the PolyTraderX platform and handled on a case-by-case basis.</p>
+                <p class="mb-2">You can contact us via:</p>
+                <ul class="mb-3">
+                    <li>the <a href="/contact">Contact Us</a> page</li>
+                    <li>X (Twitter): <strong>@polytraderx</strong></li>
+                </ul>
+                <p class="mb-0">We’ll let you know if it’s a good fit and what the next steps would look like.</p>
+            </div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
                 Will live trading be supported in the future?
             </button>
@@ -71,16 +128,6 @@
         </h2>
         <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
             <div class="accordion-body">Just sign up and start designing your strategy. No API keys required for simulation mode. You can configure all strategy parameters (confidence thresholds, position sizes, monitored assets, etc.) from the dashboard. AI analysis is provided by the platform. Optional: Connect Telegram for real-time notifications.</div>
-        </div>
-    </div>
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
-                How realistic are the simulations?
-            </button>
-        </h2>
-        <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">Very realistic. We use real-time Polymarket market data and Binance spot prices. The simulator runs the exact same logic a live bot would use: market scanning, AI confidence scoring, risk management, and position tracking. The only difference is that orders aren't sent to Polymarket. Think of it as a flight simulator — full realism, zero risk.</div>
         </div>
     </div>
     <div class="accordion-item">

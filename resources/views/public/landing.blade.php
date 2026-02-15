@@ -5,7 +5,7 @@
 
 @section('content')
     {{-- Hero --}}
-    <section class="ptx-hero">
+    <section class="ptx-hero mt-5">
         <div class="ptx-glow-blob ptx-glow-blob--hero"></div>
         <div class="container position-relative" style="z-index:1;">
             <h1 class="ptx-fade-in">
