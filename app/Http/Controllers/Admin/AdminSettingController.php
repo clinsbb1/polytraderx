@@ -17,6 +17,16 @@ class AdminSettingController extends Controller
 
     public function index(): View
     {
+        PlatformSetting::firstOrCreate(
+            ['key' => 'TELEGRAM_WEBHOOK_SECRET'],
+            [
+                'value' => '',
+                'type' => 'string',
+                'group' => 'telegram',
+                'description' => 'Secret token used to verify Telegram webhook requests',
+            ]
+        );
+
         $settings = PlatformSetting::orderBy('group')->orderBy('key')->get();
         $groups = $settings->groupBy('group');
 
