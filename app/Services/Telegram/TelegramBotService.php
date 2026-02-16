@@ -78,8 +78,9 @@ class TelegramBotService
         $chatId = (string) $message['chat']['id'];
         $text = trim($message['text']);
         $username = $message['from']['username'] ?? null;
+        $normalized = ltrim(mb_strtolower($text), '/');
 
-        if (str_starts_with($text, '/start')) {
+        if (str_starts_with($normalized, 'start')) {
             $this->handleStart($chatId, $text, $username);
         } elseif ($text === '/unlink') {
             $this->handleUnlink($chatId);
@@ -124,11 +125,11 @@ class TelegramBotService
 
     private function handleStart(string $chatId, string $text, ?string $username = null): void
     {
-        $parts = explode(' ', $text, 2);
+        $parts = preg_split('/\s+/', ltrim($text, '/'), 2) ?: [];
         $accountId = $parts[1] ?? null;
 
         if (!$accountId) {
-            $this->sendMessage($chatId, "Welcome to PolyTraderX!\n\nTo link your account, send:\n<code>/start YOUR-ACCOUNT-ID</code>\n\nYou can find your Account ID on your Settings > Telegram page in the PolyTraderX dashboard.");
+            $this->sendMessage($chatId, $this->getStartOnboardingMessage());
             return;
         }
 
@@ -271,6 +272,20 @@ class TelegramBotService
             . "/balance - Current balance\n"
             . "/unlink - Unlink account\n"
             . "/help - This message");
+    }
+
+    private function getStartOnboardingMessage(): string
+    {
+        return "<b>Welcome to PolyTraderX</b>\n\n"
+            . "PolyTraderX is a simulation-first strategy lab for crypto prediction markets. "
+            . "It helps you test and improve strategies using real market data without placing live trades or risking real funds.\n\n"
+            . "<b>To start notifications, send:</b>\n"
+            . "<code>start YOUR-ACCOUNT-ID</code>\n"
+            . "or\n"
+            . "<code>/start YOUR-ACCOUNT-ID</code>\n\n"
+            . "You can get your Account ID on the website at:\n"
+            . "<b>Dashboard -> Settings -> Telegram</b>\n"
+            . "(copy the value shown as <b>Account ID</b>).";
     }
 
     private function findUserByAccountId(string $accountId): ?User
