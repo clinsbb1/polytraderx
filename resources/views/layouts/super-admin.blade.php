@@ -24,7 +24,7 @@
     </style>
     @yield('extra-styles')
 
-    {{-- Google Analytics --}}
+    {{-- Google Analytics, set please --}}
     @php
         $gaId = app(\App\Services\Settings\PlatformSettingsService::class)->getString('GOOGLE_ANALYTICS_ID', '');
     @endphp
