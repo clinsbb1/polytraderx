@@ -122,7 +122,12 @@
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0">System Health</h6>
-        <span class="badge bg-{{ $health['status'] === 'ok' ? 'success' : 'warning' }}">{{ strtoupper($health['status']) }}</span>
+        <div class="d-flex align-items-center gap-2">
+            <a href="/admin/settings/diagnostics" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-activity me-1"></i>Run Diagnostics
+            </a>
+            <span class="badge bg-{{ $health['status'] === 'ok' ? 'success' : 'warning' }}">{{ strtoupper($health['status']) }}</span>
+        </div>
     </div>
     <div class="card-body">
         <div class="row g-2">

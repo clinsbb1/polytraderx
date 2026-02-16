@@ -68,6 +68,27 @@ class AdminSettingController extends Controller
 
     public function telegramDiagnostics(): View
     {
+        $report = $this->runTelegramDiagnostics();
+
+        return view('admin.settings.telegram-diagnostics', compact('report'));
+    }
+
+    public function serviceDiagnostics(): View
+    {
+        $telegram = $this->runTelegramDiagnostics();
+        $polymarket = $this->runPolymarketPublicDiagnostics();
+        $anthropic = $this->runAnthropicDiagnostics();
+
+        return view('admin.settings.diagnostics', [
+            'telegram' => $telegram,
+            'polymarket' => $polymarket,
+            'anthropic' => $anthropic,
+            'checkedAt' => now(),
+        ]);
+    }
+
+    private function runTelegramDiagnostics(): array
+    {
         $botToken = trim((string) $this->platformSettings->get('TELEGRAM_BOT_TOKEN', ''));
         $botUsername = trim((string) $this->platformSettings->get('TELEGRAM_BOT_USERNAME', ''));
         $secret = trim((string) $this->platformSettings->get('TELEGRAM_WEBHOOK_SECRET', ''));
@@ -92,7 +113,7 @@ class AdminSettingController extends Controller
         ];
 
         if ($botToken === '') {
-            return view('admin.settings.telegram-diagnostics', compact('report'));
+            return $report;
         }
 
         try {
@@ -121,6 +142,77 @@ class AdminSettingController extends Controller
             $report['http_error'] = $e->getMessage();
         }
 
-        return view('admin.settings.telegram-diagnostics', compact('report'));
+        return $report;
+    }
+
+    private function runPolymarketPublicDiagnostics(): array
+    {
+        $report = [
+            'base_url' => config('services.polymarket.base_url', 'https://clob.polymarket.com'),
+            'time_ok' => null,
+            'time_payload' => null,
+            'markets_ok' => null,
+            'markets_count' => null,
+            'http_error' => null,
+        ];
+
+        try {
+            $base = rtrim((string) $report['base_url'], '/');
+            $timeResponse = Http::timeout(10)->get($base . '/time');
+            $report['time_ok'] = $timeResponse->successful();
+            $report['time_payload'] = $timeResponse->successful() ? $timeResponse->json() : $timeResponse->body();
+
+            $marketsResponse = Http::timeout(10)->get($base . '/markets', ['active' => 'true']);
+            $report['markets_ok'] = $marketsResponse->successful();
+            if ($marketsResponse->successful()) {
+                $payload = $marketsResponse->json();
+                $markets = $payload['data'] ?? $payload;
+                $report['markets_count'] = is_array($markets) ? count($markets) : 0;
+            }
+        } catch (\Throwable $e) {
+            $report['http_error'] = $e->getMessage();
+        }
+
+        return $report;
+    }
+
+    private function runAnthropicDiagnostics(): array
+    {
+        $apiKey = trim((string) $this->platformSettings->get('ANTHROPIC_API_KEY', ''));
+        $baseUrl = rtrim((string) config('services.anthropic.base_url', 'https://api.anthropic.com/v1'), '/');
+
+        $report = [
+            'api_key_configured' => $apiKey !== '',
+            'base_url' => $baseUrl,
+            'models_ok' => null,
+            'models_count' => null,
+            'error' => null,
+        ];
+
+        if ($apiKey === '') {
+            return $report;
+        }
+
+        try {
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'x-api-key' => $apiKey,
+                    'anthropic-version' => '2023-06-01',
+                ])
+                ->get($baseUrl . '/models');
+
+            $report['models_ok'] = $response->successful();
+            if ($response->successful()) {
+                $payload = $response->json();
+                $models = $payload['data'] ?? [];
+                $report['models_count'] = is_array($models) ? count($models) : 0;
+            } else {
+                $report['error'] = 'HTTP ' . $response->status() . ': ' . $response->body();
+            }
+        } catch (\Throwable $e) {
+            $report['error'] = $e->getMessage();
+        }
+
+        return $report;
     }
 }

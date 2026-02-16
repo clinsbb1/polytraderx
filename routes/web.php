@@ -275,6 +275,7 @@ Route::middleware(['auth', 'superadmin', 'simulation_acknowledged'])->prefix('ad
     Route::get('/settings', [AdminSettingController::class, 'index']);
     Route::post('/settings', [AdminSettingController::class, 'update']);
     Route::get('/settings/telegram-diagnostics', [AdminSettingController::class, 'telegramDiagnostics']);
+    Route::get('/settings/diagnostics', [AdminSettingController::class, 'serviceDiagnostics']);
 
     Route::get('/logs', [AdminLogController::class, 'index']);
 

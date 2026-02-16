@@ -5,8 +5,8 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h5 class="mb-0">Platform Settings</h5>
-    <a href="/admin/settings/telegram-diagnostics" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-telegram me-1"></i>Telegram Diagnostics
+    <a href="/admin/settings/diagnostics" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-activity me-1"></i>Service Diagnostics
     </a>
 </div>
 

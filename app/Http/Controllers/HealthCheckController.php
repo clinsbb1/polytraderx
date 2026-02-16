@@ -45,12 +45,45 @@ class HealthCheckController extends Controller
                 $services['binance'] = 'error';
             }
 
+            try {
+                $response = Http::timeout(5)->get('https://clob.polymarket.com/time');
+                $services['polymarket_public'] = $response->successful() ? 'ok' : 'degraded';
+            } catch (\Throwable) {
+                $services['polymarket_public'] = 'error';
+            }
+
             // Telegram bot
             $platformSettings = app(PlatformSettingsService::class);
-            $services['telegram_bot'] = $platformSettings->get('TELEGRAM_BOT_TOKEN') ? 'configured' : 'not_configured';
+            $telegramToken = trim((string) $platformSettings->get('TELEGRAM_BOT_TOKEN', ''));
+            if ($telegramToken === '') {
+                $services['telegram_bot'] = 'not_configured';
+            } else {
+                try {
+                    $telegram = Http::timeout(5)->get('https://api.telegram.org/bot' . $telegramToken . '/getMe');
+                    $services['telegram_bot'] = $telegram->successful() ? 'ok' : 'degraded';
+                } catch (\Throwable) {
+                    $services['telegram_bot'] = 'error';
+                }
+            }
 
             // Anthropic
-            $services['anthropic'] = $platformSettings->get('ANTHROPIC_API_KEY') ? 'configured' : 'not_configured';
+            $anthropicKey = trim((string) $platformSettings->get('ANTHROPIC_API_KEY', ''));
+            if ($anthropicKey === '') {
+                $services['anthropic'] = 'not_configured';
+            } else {
+                try {
+                    $anthropic = Http::timeout(5)
+                        ->withHeaders([
+                            'x-api-key' => $anthropicKey,
+                            'anthropic-version' => '2023-06-01',
+                        ])
+                        ->get('https://api.anthropic.com/v1/models');
+
+                    $services['anthropic'] = $anthropic->successful() ? 'ok' : 'degraded';
+                } catch (\Throwable) {
+                    $services['anthropic'] = 'error';
+                }
+            }
 
             $overallStatus = collect($services)->contains('error') ? 'degraded' : 'ok';
 
