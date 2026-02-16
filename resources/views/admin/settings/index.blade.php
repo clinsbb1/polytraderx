@@ -42,7 +42,7 @@
                                 {{ $setting->value === 'true' || $setting->value === '1' ? 'Enabled' : 'Disabled' }}
                             </label>
                         </div>
-                    @elseif((str_contains(strtolower($setting->key), 'secret') || str_contains(strtolower($setting->key), 'key') || str_contains(strtolower($setting->key), 'password') || str_contains(strtolower($setting->key), 'token')) && !str_contains(strtolower($setting->key), 'nowpayments') && strtolower($setting->key) !== 'telegram_bot_token')
+                    @elseif((str_contains(strtolower($setting->key), 'secret') || str_contains(strtolower($setting->key), 'key') || str_contains(strtolower($setting->key), 'password') || str_contains(strtolower($setting->key), 'token')) && !str_contains(strtolower($setting->key), 'nowpayments') && strtolower($setting->key) !== 'telegram_bot_token' && strtolower($setting->key) !== 'anthropic_api_key')
                         <input type="password" name="settings[{{ $setting->key }}]"
                             class="form-control form-control-sm"
                             id="setting-{{ $setting->key }}"
