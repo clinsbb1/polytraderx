@@ -109,6 +109,9 @@ class AuditController extends Controller
         \Illuminate\Support\Facades\Artisan::call('bot:ai-audit-losses', [
             '--user' => $userId,
         ]);
+        session()->flash('analytics_events', [
+            ['name' => 'ai_audit_triggered'],
+        ]);
 
         return redirect()->route('audits.index')
             ->with('success', 'Audit triggered. Results will appear shortly.');

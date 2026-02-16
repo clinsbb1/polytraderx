@@ -177,6 +177,27 @@
 
     {{-- Bootstrap JS --}}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    @if(session('analytics_events'))
+    <script>
+        (function () {
+            var events = @json(session('analytics_events'));
+            if (!Array.isArray(events)) return;
+
+            window.dataLayer = window.dataLayer || [];
+
+            events.forEach(function (item) {
+                if (!item || !item.name) return;
+
+                var params = (item.params && typeof item.params === 'object') ? item.params : {};
+                window.dataLayer.push(Object.assign({ event: item.name }, params));
+
+                if (typeof window.gtag === 'function') {
+                    window.gtag('event', item.name, params);
+                }
+            });
+        })();
+    </script>
+    @endif
 
     {{-- Navbar scroll + Scroll reveal + Smooth scroll --}}
     <script>

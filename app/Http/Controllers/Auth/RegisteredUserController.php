@@ -58,6 +58,9 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
         $this->emails->sendWelcome($user);
+        session()->flash('analytics_events', [
+            ['name' => 'sign_up'],
+        ]);
 
         return redirect('/dashboard');
     }

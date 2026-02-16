@@ -27,9 +27,20 @@ class StrategyController extends Controller
     public function update(Request $request, string $group, SettingsService $settings): RedirectResponse
     {
         $params = $request->input('params', []);
+        $simulatorEnabled = false;
 
         foreach ($params as $key => $value) {
             $settings->set($key, $value, 'admin', auth()->id());
+
+            if ($key === 'SIMULATOR_ENABLED') {
+                $simulatorEnabled = in_array(strtolower((string) $value), ['1', 'true', 'yes', 'on'], true);
+            }
+        }
+
+        if ($simulatorEnabled) {
+            session()->flash('analytics_events', [
+                ['name' => 'simulation_run'],
+            ]);
         }
 
         return redirect()->route('strategy.index')

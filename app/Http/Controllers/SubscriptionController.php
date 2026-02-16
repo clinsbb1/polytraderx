@@ -42,6 +42,7 @@ class SubscriptionController extends Controller
 
         $plan = SubscriptionPlan::active()->findOrFail($request->integer('plan_id'));
         $user = Auth::user();
+        session()->put('analytics_subscription_previous_plan', (string) $user->subscription_plan);
 
         try {
             $invoice = $this->paymentService->createInvoice($user, $plan);
@@ -65,11 +66,50 @@ class SubscriptionController extends Controller
 
     public function success(): View
     {
+        $user = Auth::user();
+        $previousPlan = (string) session()->pull('analytics_subscription_previous_plan', '');
+        $currentPlan = (string) ($user?->subscription_plan ?? '');
+        $eventName = $this->resolveSubscriptionEventName($previousPlan, $currentPlan);
+
+        if ($eventName !== null) {
+            session()->flash('analytics_events', [
+                [
+                    'name' => $eventName,
+                    'params' => ['plan' => $currentPlan],
+                ],
+            ]);
+        }
+
         return view('subscription.success');
     }
 
     public function cancel(): View
     {
         return view('subscription.cancel');
+    }
+
+    private function resolveSubscriptionEventName(string $previousPlan, string $currentPlan): ?string
+    {
+        if ($currentPlan === 'lifetime') {
+            return 'lifetime_purchased';
+        }
+
+        if (!in_array($currentPlan, ['pro', 'advanced'], true)) {
+            return null;
+        }
+
+        if ($previousPlan === '') {
+            return 'subscription_started';
+        }
+
+        if (in_array($previousPlan, ['free', 'free_trial'], true)) {
+            return 'subscription_started';
+        }
+
+        if (in_array($previousPlan, ['pro', 'advanced'], true) && $previousPlan !== $currentPlan) {
+            return 'subscription_upgraded';
+        }
+
+        return null;
     }
 }
