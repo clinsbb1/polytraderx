@@ -78,7 +78,8 @@ class TelegramBotService
         $chatId = (string) $message['chat']['id'];
         $text = trim($message['text']);
         $username = $message['from']['username'] ?? null;
-        $normalized = ltrim(mb_strtolower($text), '/');
+        $lower = function_exists('mb_strtolower') ? mb_strtolower($text) : strtolower($text);
+        $normalized = ltrim($lower, '/');
 
         if (str_starts_with($normalized, 'start')) {
             $this->handleStart($chatId, $text, $username);
