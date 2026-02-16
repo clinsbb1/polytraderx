@@ -28,6 +28,7 @@ use App\Http\Controllers\SimulationAcknowledgmentController;
 use Database\Seeders\PlatformSettingsSeeder;
 use Database\Seeders\SubscriptionPlansSeeder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 
@@ -66,6 +67,76 @@ Route::middleware(['throttle:3,1'])->get('/admin/run-deploy-tasks', function (Re
 
     return response('<pre>' . e(implode("\n\n", $output)) . '</pre>');
 }); // delete after one-time deployment
+
+// Temporary Telegram diagnostics helper (token only).
+Route::middleware(['throttle:5,1'])->get('/admin/telegram-diagnostics', function (Request $request) {
+    $expectedToken = (string) env('MAINTENANCE_ROUTE_TOKEN', '');
+    $providedToken = (string) $request->query('token', '');
+
+    if ($expectedToken === '' || ! hash_equals($expectedToken, $providedToken)) {
+        abort(404);
+    }
+
+    $settings = app(\App\Services\Settings\PlatformSettingsService::class);
+    $botToken = trim((string) $settings->get('TELEGRAM_BOT_TOKEN', ''));
+    $botUsername = trim((string) $settings->get('TELEGRAM_BOT_USERNAME', ''));
+    $secret = trim((string) $settings->get('TELEGRAM_WEBHOOK_SECRET', ''));
+    $webhookUrl = url('/api/webhooks/telegram');
+
+    $out = [];
+    $out[] = 'Telegram Diagnostics';
+    $out[] = '--------------------';
+    $out[] = 'bot_token_configured: ' . ($botToken !== '' ? 'yes' : 'no');
+    $out[] = 'bot_username: ' . ($botUsername !== '' ? '@' . $botUsername : '(empty)');
+    $out[] = 'webhook_secret_configured: ' . ($secret !== '' ? 'yes' : 'no');
+    $out[] = 'expected_webhook_url: ' . $webhookUrl;
+
+    if ($botToken === '') {
+        $out[] = '';
+        $out[] = 'ERROR: TELEGRAM_BOT_TOKEN is empty in Admin Settings.';
+        return response('<pre>' . e(implode("\n", $out)) . '</pre>');
+    }
+
+    try {
+        $base = 'https://api.telegram.org/bot' . $botToken;
+
+        $me = Http::timeout(10)->get($base . '/getMe')->json();
+        $out[] = '';
+        $out[] = 'getMe.ok: ' . (($me['ok'] ?? false) ? 'true' : 'false');
+        if (($me['ok'] ?? false) && isset($me['result']['username'])) {
+            $out[] = 'getMe.username: @' . $me['result']['username'];
+        } elseif (isset($me['description'])) {
+            $out[] = 'getMe.error: ' . $me['description'];
+        }
+
+        $info = Http::timeout(10)->get($base . '/getWebhookInfo')->json();
+        $out[] = '';
+        $out[] = 'getWebhookInfo.ok: ' . (($info['ok'] ?? false) ? 'true' : 'false');
+
+        if (($info['ok'] ?? false) && isset($info['result'])) {
+            $result = $info['result'];
+            $out[] = 'webhook.url: ' . ($result['url'] ?? '(none)');
+            $out[] = 'webhook.pending_update_count: ' . (string) ($result['pending_update_count'] ?? 0);
+            $out[] = 'webhook.last_error_date: ' . (string) ($result['last_error_date'] ?? '(none)');
+            $out[] = 'webhook.last_error_message: ' . (string) ($result['last_error_message'] ?? '(none)');
+            $out[] = 'webhook.ip_address: ' . (string) ($result['ip_address'] ?? '(none)');
+            $out[] = 'webhook.max_connections: ' . (string) ($result['max_connections'] ?? '(none)');
+        } elseif (isset($info['description'])) {
+            $out[] = 'getWebhookInfo.error: ' . $info['description'];
+        }
+    } catch (\Throwable $e) {
+        $out[] = '';
+        $out[] = 'HTTP ERROR: ' . $e->getMessage();
+    }
+
+    $out[] = '';
+    $out[] = 'If /start still gives no reply, check:';
+    $out[] = '1) TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET are set in Admin Settings (DB).';
+    $out[] = '2) Telegram webhook URL exactly matches expected_webhook_url.';
+    $out[] = '3) Telegram webhook was registered with the same secret.';
+
+    return response('<pre>' . e(implode("\n", $out)) . '</pre>');
+}); // delete after debugging
 
 // Temporary maintenance helper: run only pricing plans seeder from browser (superadmin only).
 /*
