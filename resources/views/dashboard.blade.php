@@ -75,7 +75,7 @@
                         In <a href="{{ route('strategy.index') }}">Strategy Parameters</a>, set <code>Simulator Enabled</code> to <span class="ptx-badge ptx-badge-success">true</span>
                     </p>
                     <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0;">
-                        The bot runs automatically every minute, scanning for markets in the final 60 seconds before close (configurable).
+                        The bot runs automatically every minute and scans markets based on your configured entry timing and strategy thresholds.
                     </p>
                 </div>
             </div>
