@@ -93,11 +93,16 @@ class CheckExpiredSubscriptions extends Command
             ->get();
 
         foreach ($expiredTrials as $user) {
+            $expiredKey = "subscription_expired_notified:{$user->id}:trial";
+            if (!Cache::has($expiredKey)) {
+                $emails->sendSubscriptionExpired($user, $user->subscription_plan);
+                Cache::put($expiredKey, true, now()->addDays(30));
+            }
+
             $previousPlan = $user->subscription_plan;
             $user->update(['is_active' => false]);
             $settings->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
             $notifications->notifySubscriptionExpired($user);
-            $emails->sendSubscriptionExpired($user, $previousPlan);
 
             Log::channel('bot')->info("Trial expired for user {$user->id} ({$user->email})");
             $deactivated++;
@@ -111,6 +116,12 @@ class CheckExpiredSubscriptions extends Command
             ->get();
 
         foreach ($expiredSubscriptions as $user) {
+            $expiredKey = "subscription_expired_notified:{$user->id}:paid";
+            if (!Cache::has($expiredKey)) {
+                $emails->sendSubscriptionExpired($user, $user->subscription_plan);
+                Cache::put($expiredKey, true, now()->addDays(30));
+            }
+
             $previousPlan = $user->subscription_plan;
             $user->update([
                 'is_active' => false,
@@ -119,7 +130,6 @@ class CheckExpiredSubscriptions extends Command
             ]);
             $settings->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
             $notifications->notifySubscriptionExpired($user);
-            $emails->sendSubscriptionExpired($user, $previousPlan);
 
             Log::channel('bot')->info("Subscription expired for user {$user->id} ({$user->email})");
             $deactivated++;
