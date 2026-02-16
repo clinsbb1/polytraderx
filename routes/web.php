@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\Artisan;
 
 
 // Temporary maintenance helper for cPanel deployments (token only).
-Route::middleware(['throttle:3,1'])->get('/admin/run-deploy-tasks', function (Request $request) {
+Route::middleware(['throttle:3,1'])->get('/admin/run-migration', function (Request $request) {
     $expectedToken = (string) env('MAINTENANCE_ROUTE_TOKEN', '');
     $providedToken = (string) $request->query('token', '');
 
@@ -45,25 +45,15 @@ Route::middleware(['throttle:3,1'])->get('/admin/run-deploy-tasks', function (Re
 
     $output = [];
 
-    $tasks = [
-        ['label' => 'migrate', 'command' => 'migrate', 'params' => ['--force' => true]],
-        ['label' => 'seed:plans', 'command' => 'db:seed', 'params' => ['--class' => SubscriptionPlansSeeder::class, '--force' => true]],
-        ['label' => 'seed:platform-settings', 'command' => 'db:seed', 'params' => ['--class' => PlatformSettingsSeeder::class, '--force' => true]],
-        ['label' => 'optimize:clear', 'command' => 'optimize:clear', 'params' => []],
-    ];
-
-    foreach ($tasks as $task) {
-        try {
-            Artisan::call($task['command'], $task['params']);
-            $output[] = '[' . $task['label'] . '] OK';
-            $artisanOutput = trim(Artisan::output());
-            if ($artisanOutput !== '') {
-                $output[] = $artisanOutput;
-            }
-        } catch (\Throwable $e) {
-            $output[] = '[' . $task['label'] . '] ERROR: ' . $e->getMessage();
-            break;
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        $output[] = '[migrate] OK';
+        $artisanOutput = trim(Artisan::output());
+        if ($artisanOutput !== '') {
+            $output[] = $artisanOutput;
         }
+    } catch (\Throwable $e) {
+        $output[] = '[migrate] ERROR: ' . $e->getMessage();
     }
 
     return response('<pre>' . e(implode("\n\n", $output)) . '</pre>');
