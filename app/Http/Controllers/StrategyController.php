@@ -17,7 +17,6 @@ class StrategyController extends Controller
         $groups = [
             'risk' => $settings->getGroup('risk', $userId),
             'trading' => $settings->getGroup('trading', $userId)->reject(fn($param) => $param->key === 'DRY_RUN'),
-            'ai' => $settings->getGroup('ai', $userId)->reject(fn($param) => $param->key === 'AI_AUTO_APPLY_FIXES'),
             'notifications' => $settings->getGroup('notifications', $userId),
         ];
 

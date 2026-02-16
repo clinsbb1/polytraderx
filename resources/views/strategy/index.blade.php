@@ -65,18 +65,6 @@
             </div>
 
             <div class="col-lg-6">
-                <h6 style="color: #a855f7; border-bottom: 2px solid #a855f7; padding-bottom: 0.5rem; margin-bottom: 1rem;">
-                    <i class="bi bi-robot me-2"></i>AI Settings
-                </h6>
-                <ul style="color: var(--text-secondary); font-size: 0.9rem;">
-                    <li class="mb-2">
-                        <strong>AI Models:</strong> You can change which Claude models power the analysis (Haiku = fast/cheap, Sonnet = slow/smart).
-                    </li>
-                    <li>
-                        <strong>AI_AUTO_APPLY_FIXES:</strong> Let AI automatically apply low-risk parameter tweaks. Keep <code>false</code> for manual control.
-                    </li>
-                </ul>
-
                 <h6 style="color: #ffc107; border-bottom: 2px solid #ffc107; padding-bottom: 0.5rem; margin-bottom: 1rem; margin-top: 1.5rem;">
                     <i class="bi bi-bell me-2"></i>Notifications
                 </h6>
@@ -126,7 +114,6 @@
     $groupLabels = [
         'risk' => 'Risk Management',
         'trading' => 'Trading Rules',
-        'ai' => 'AI Settings',
         'notifications' => 'Notification Preferences',
     ];
 @endphp
