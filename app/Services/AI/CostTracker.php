@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\AI;
 
+use App\Models\AiUsage;
 use App\Models\AiDecision;
 use App\Services\Settings\PlatformSettingsService;
 use Carbon\Carbon;
@@ -41,8 +42,10 @@ class CostTracker
     ): AiDecision {
         $tier = str_contains($model, 'haiku') ? 'muscles' : 'brain';
         $cost = $this->calculateCost($model, $inputTokens, $outputTokens);
+        $totalTokens = $inputTokens + $outputTokens;
+        $month = now()->format('Y-m');
 
-        return AiDecision::create([
+        $decision = AiDecision::create([
             'user_id' => $userId,
             'tier' => $tier,
             'model_used' => $model,
@@ -52,6 +55,49 @@ class CostTracker
             'decision_type' => $decisionType,
             'created_at' => now(),
         ]);
+
+        $usage = AiUsage::firstOrCreate(
+            ['user_id' => $userId, 'month' => $month],
+            [
+                'tokens_input' => 0,
+                'tokens_output' => 0,
+                'total_tokens' => 0,
+                'total_cost_usd' => 0,
+            ]
+        );
+
+        $usage->increment('tokens_input', $inputTokens);
+        $usage->increment('tokens_output', $outputTokens);
+        $usage->increment('total_tokens', $totalTokens);
+        $usage->increment('total_cost_usd', $cost);
+
+        return $decision;
+    }
+
+    public function getMonthlyUsage(int $userId, ?string $month = null): array
+    {
+        $month = $month ?? now()->format('Y-m');
+
+        $usage = AiUsage::query()
+            ->where('user_id', $userId)
+            ->where('month', $month)
+            ->first();
+
+        if (!$usage) {
+            return [
+                'tokens_input' => 0,
+                'tokens_output' => 0,
+                'total_tokens' => 0,
+                'total_cost_usd' => 0.0,
+            ];
+        }
+
+        return [
+            'tokens_input' => (int) $usage->tokens_input,
+            'tokens_output' => (int) $usage->tokens_output,
+            'total_tokens' => (int) $usage->total_tokens,
+            'total_cost_usd' => (float) $usage->total_cost_usd,
+        ];
     }
 
     public function getMonthlySpend(?int $userId = null): float

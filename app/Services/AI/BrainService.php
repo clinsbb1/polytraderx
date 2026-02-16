@@ -7,9 +7,8 @@ namespace App\Services\AI;
 use App\Models\AiAudit;
 use App\Models\Trade;
 use App\Services\Audit\ForensicsBuilder;
-use App\Services\Audit\StrategyUpdater;
 use App\Services\Settings\PlatformSettingsService;
-use App\Services\Settings\SettingsService;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Log;
 
 class BrainService
@@ -19,8 +18,8 @@ class BrainService
         private PromptBuilder $promptBuilder,
         private CostTracker $costTracker,
         private ForensicsBuilder $forensicsBuilder,
-        private SettingsService $settings,
         private PlatformSettingsService $platformSettings,
+        private SubscriptionService $subscriptionService,
     ) {}
 
     public function auditLoss(Trade $trade, int $userId): ?AiAudit
@@ -31,16 +30,18 @@ class BrainService
                 return null;
             }
 
-            if ($this->costTracker->isOverBudget($userId)) {
-                Log::channel('simulator')->warning('Brain audit skipped: AI budget exceeded', ['user_id' => $userId]);
-                return null;
+            $forensics = $this->forensicsBuilder->buildForensics($trade);
+            $user = \App\Models\User::find($userId);
+            $maxPromptTokens = $user ? $this->subscriptionService->getAiMaxTokensPerRequest($user) : 0;
+            if ($maxPromptTokens <= 0) {
+                $maxPromptTokens = 9000;
             }
 
-            $forensics = $this->forensicsBuilder->buildForensics($trade);
-            $prompt = $this->promptBuilder->buildBrainAuditPrompt($trade, $forensics, $userId);
+            $prompt = $this->promptBuilder->buildBrainAuditPrompt($trade, $forensics, $userId, $maxPromptTokens);
             $model = $this->platformSettings->get('AI_BRAIN_MODEL', 'claude-sonnet-4-5-20250929');
+            $completionCap = max(512, min(4096, intdiv($maxPromptTokens, 2)));
 
-            $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], 4096);
+            $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], $completionCap);
 
             $decision = $this->costTracker->recordUsage(
                 $userId, $model,
@@ -65,11 +66,7 @@ class BrainService
                 return null;
             }
 
-            $suggestedFixes = $parsed['suggested_fixes'] ?? [];
-            $autoApply = $this->settings->getBool('AI_AUTO_APPLY_FIXES', false, $userId);
-            $hasAutoFixes = collect($suggestedFixes)->contains(fn($f) => ($f['action'] ?? '') === 'auto_apply');
-
-            $status = ($autoApply && $hasAutoFixes) ? 'auto_applied' : 'pending_review';
+            $suggestedFixes = $this->sanitizeSuggestedFixes($parsed['suggested_fixes'] ?? []);
 
             $audit = AiAudit::create([
                 'user_id' => $userId,
@@ -77,18 +74,9 @@ class BrainService
                 'losing_trade_ids' => [$trade->id],
                 'analysis' => $parsed['analysis'] ?? $parsed['overall_assessment'] ?? 'No analysis provided',
                 'suggested_fixes' => $suggestedFixes,
-                'status' => $status,
+                'status' => 'pending_review',
                 'created_at' => now(),
             ]);
-
-            if ($autoApply && !empty($suggestedFixes)) {
-                $updater = app(StrategyUpdater::class);
-                $applied = $updater->autoApplyFixes($audit, $userId);
-                Log::channel('simulator')->info("Auto-applied {$applied} fixes from audit", [
-                    'user_id' => $userId,
-                    'audit_id' => $audit->id,
-                ]);
-            }
 
             $trade->update(['audited' => true]);
 
@@ -116,14 +104,21 @@ class BrainService
     public function dailyReview(int $userId): ?AiAudit
     {
         try {
-            if (!$this->anthropic->isConfigured() || $this->costTracker->isOverBudget($userId)) {
+            if (!$this->anthropic->isConfigured()) {
                 return null;
             }
 
-            $prompt = $this->promptBuilder->buildDailyReviewPrompt($userId);
-            $model = $this->platformSettings->get('AI_BRAIN_MODEL', 'claude-sonnet-4-5-20250929');
+            $user = \App\Models\User::find($userId);
+            $maxPromptTokens = $user ? $this->subscriptionService->getAiMaxTokensPerRequest($user) : 0;
+            if ($maxPromptTokens <= 0) {
+                $maxPromptTokens = 9000;
+            }
 
-            $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], 2048);
+            $prompt = $this->promptBuilder->buildDailyReviewPrompt($userId, $maxPromptTokens);
+            $model = $this->platformSettings->get('AI_BRAIN_MODEL', 'claude-sonnet-4-5-20250929');
+            $completionCap = max(512, min(2048, intdiv($maxPromptTokens, 2)));
+
+            $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], $completionCap);
 
             $decision = $this->costTracker->recordUsage(
                 $userId, $model,
@@ -147,7 +142,7 @@ class BrainService
                 'trigger' => 'daily_review',
                 'losing_trade_ids' => [],
                 'analysis' => $parsed['analysis'] ?? '',
-                'suggested_fixes' => $parsed['suggested_param_changes'] ?? [],
+                'suggested_fixes' => $this->sanitizeSuggestedFixes($parsed['suggested_param_changes'] ?? []),
                 'status' => 'pending_review',
                 'created_at' => now(),
             ]);
@@ -163,14 +158,21 @@ class BrainService
     public function weeklyReport(int $userId): ?AiAudit
     {
         try {
-            if (!$this->anthropic->isConfigured() || $this->costTracker->isOverBudget($userId)) {
+            if (!$this->anthropic->isConfigured()) {
                 return null;
             }
 
-            $prompt = $this->promptBuilder->buildWeeklyReviewPrompt($userId);
-            $model = $this->platformSettings->get('AI_BRAIN_MODEL', 'claude-sonnet-4-5-20250929');
+            $user = \App\Models\User::find($userId);
+            $maxPromptTokens = $user ? $this->subscriptionService->getAiMaxTokensPerRequest($user) : 0;
+            if ($maxPromptTokens <= 0) {
+                $maxPromptTokens = 9000;
+            }
 
-            $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], 4096);
+            $prompt = $this->promptBuilder->buildWeeklyReviewPrompt($userId, $maxPromptTokens);
+            $model = $this->platformSettings->get('AI_BRAIN_MODEL', 'claude-sonnet-4-5-20250929');
+            $completionCap = max(512, min(4096, intdiv($maxPromptTokens, 2)));
+
+            $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], $completionCap);
 
             $decision = $this->costTracker->recordUsage(
                 $userId, $model,
@@ -194,7 +196,7 @@ class BrainService
                 'trigger' => 'weekly_review',
                 'losing_trade_ids' => [],
                 'analysis' => $parsed['analysis'] ?? '',
-                'suggested_fixes' => $parsed['suggested_param_changes'] ?? [],
+                'suggested_fixes' => $this->sanitizeSuggestedFixes($parsed['suggested_param_changes'] ?? []),
                 'status' => 'pending_review',
                 'created_at' => now(),
             ]);
@@ -231,5 +233,21 @@ class BrainService
         }
 
         return null;
+    }
+
+    private function sanitizeSuggestedFixes(array $fixes): array
+    {
+        return collect($fixes)
+            ->map(function ($fix) {
+                if (!is_array($fix)) {
+                    return null;
+                }
+
+                $fix['action'] = 'review_required';
+                return $fix;
+            })
+            ->filter()
+            ->values()
+            ->toArray();
     }
 }

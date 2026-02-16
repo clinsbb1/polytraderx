@@ -31,6 +31,7 @@ class PlatformSettingsSeeder extends Seeder
             ['key' => 'ANTHROPIC_API_KEY', 'value' => '', 'type' => 'string', 'group' => 'ai', 'description' => 'Anthropic API key for AI services'],
             ['key' => 'AI_BRAIN_MODEL', 'value' => 'claude-sonnet-4-5-20250929', 'type' => 'string', 'group' => 'ai', 'description' => 'Claude model for Brain tier (expensive, high quality)'],
             ['key' => 'AI_MUSCLES_MODEL', 'value' => 'claude-haiku-4-5-20251001', 'type' => 'string', 'group' => 'ai', 'description' => 'Claude model for Muscles tier (cheap, fast)'],
+            ['key' => 'AI_MONTHLY_BUDGET', 'value' => '100.00', 'type' => 'decimal', 'group' => 'ai', 'description' => 'Platform-wide monthly AI spend cap in USD'],
 
             // Payments
             ['key' => 'NOWPAYMENTS_API_KEY', 'value' => '', 'type' => 'string', 'group' => 'payments', 'description' => 'NOWPayments API key'],

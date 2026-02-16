@@ -18,6 +18,7 @@ class AIRouter
         private CostTracker $costTracker,
         private AnthropicClient $anthropic,
         private SubscriptionService $subscriptionService,
+        private AiUsageLimiter $aiUsageLimiter,
     ) {}
 
     public function getMusclesAnalysis(array $market, array $spotData, int $userId): ?array
@@ -40,13 +41,25 @@ class AIRouter
         // Check usage limits
         if (!$this->subscriptionService->canCallMuscles($user)) {
             Log::channel('simulator')->info("User {$user->account_id} hit Muscles AI daily limit");
-            return null; // Falls back to reflexes-only
+            return $this->aiUsageLimiter->fallback('AI analysis quota used for this cycle. Core simulation continues normally.');
+        }
+
+        $guard = $this->aiUsageLimiter->check($user, 'muscles');
+        if (!($guard['allowed'] ?? false)) {
+            Log::channel('simulator')->warning('Muscles skipped by limiter', [
+                'user_id' => $userId,
+                'status' => $guard['status'] ?? 'unknown',
+            ]);
+            return [
+                'status' => $guard['status'] ?? 'ai_limit_reached',
+                'message' => $guard['message'] ?? 'AI analysis quota used for this cycle. Core simulation continues normally.',
+            ];
         }
 
         return $this->muscles->analyze($market, $spotData, $userId);
     }
 
-    public function requestLossAudit(Trade $trade, int $userId): ?AiAudit
+    public function requestLossAudit(Trade $trade, int $userId): AiAudit|array|null
     {
         if (!$this->anthropic->isConfigured()) {
             return null;
@@ -60,13 +73,28 @@ class AIRouter
         // Check if Brain is available and within limits
         if (!$this->subscriptionService->canCallBrain($user)) {
             Log::channel('simulator')->info("User {$user->account_id} hit Brain AI limit — skipping audit");
-            return null;
+            return [
+                'status' => 'ai_limit_reached',
+                'message' => 'AI analysis quota used for this cycle. Deep audit limit reached today. Try again tomorrow.',
+            ];
+        }
+
+        $guard = $this->aiUsageLimiter->check($user, 'brain');
+        if (!($guard['allowed'] ?? false)) {
+            Log::channel('simulator')->warning('Brain audit skipped by limiter', [
+                'user_id' => $userId,
+                'status' => $guard['status'] ?? 'unknown',
+            ]);
+            return [
+                'status' => $guard['status'] ?? 'ai_limit_reached',
+                'message' => $guard['message'] ?? 'AI analysis quota used for this cycle. Core simulation continues normally.',
+            ];
         }
 
         return $this->brain->auditLoss($trade, $userId);
     }
 
-    public function requestDailyReview(int $userId): ?AiAudit
+    public function requestDailyReview(int $userId): AiAudit|array|null
     {
         if (!$this->anthropic->isConfigured()) {
             return null;
@@ -80,13 +108,24 @@ class AIRouter
         // Check if Brain is available and within limits
         if (!$this->subscriptionService->canCallBrain($user)) {
             Log::channel('simulator')->info("User {$user->account_id} hit Brain AI limit — skipping daily review");
-            return null;
+            return [
+                'status' => 'ai_limit_reached',
+                'message' => 'AI analysis quota used for this cycle. Deep audit limit reached today. Try again tomorrow.',
+            ];
+        }
+
+        $guard = $this->aiUsageLimiter->check($user, 'brain');
+        if (!($guard['allowed'] ?? false)) {
+            return [
+                'status' => $guard['status'] ?? 'ai_limit_reached',
+                'message' => $guard['message'] ?? 'AI analysis quota used for this cycle. Core simulation continues normally.',
+            ];
         }
 
         return $this->brain->dailyReview($userId);
     }
 
-    public function requestWeeklyReport(int $userId): ?AiAudit
+    public function requestWeeklyReport(int $userId): AiAudit|array|null
     {
         if (!$this->anthropic->isConfigured()) {
             return null;
@@ -100,7 +139,18 @@ class AIRouter
         // Check if Brain is available and within limits
         if (!$this->subscriptionService->canCallBrain($user)) {
             Log::channel('simulator')->info("User {$user->account_id} hit Brain AI limit — skipping weekly report");
-            return null;
+            return [
+                'status' => 'ai_limit_reached',
+                'message' => 'AI analysis quota used for this cycle. Deep audit limit reached today. Try again tomorrow.',
+            ];
+        }
+
+        $guard = $this->aiUsageLimiter->check($user, 'brain');
+        if (!($guard['allowed'] ?? false)) {
+            return [
+                'status' => $guard['status'] ?? 'ai_limit_reached',
+                'message' => $guard['message'] ?? 'AI analysis quota used for this cycle. Core simulation continues normally.',
+            ];
         }
 
         return $this->brain->weeklyReport($userId);

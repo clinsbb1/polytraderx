@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\AiAudit;
+use App\Models\Trade;
+use App\Services\AI\AIRouter;
+use App\Services\Subscription\SubscriptionService;
+use App\Services\Telegram\NotificationService;
 use App\Services\Trading\StrategyUpdater;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,25 +100,58 @@ class AuditController extends Controller
     {
         $userId = (int) auth()->id();
         $cooldownKey = "audits:manual-trigger:{$userId}";
+        $user = auth()->user();
 
         if (Cache::has($cooldownKey)) {
             return redirect()->route('audits.index')
                 ->with('error', 'Audit already triggered recently. Please wait 10 minutes before trying again.');
         }
 
+        if ($user) {
+            $subscriptionService = app(SubscriptionService::class);
+            $dailyCap = $subscriptionService->getMaxAiBrainPerDay($user);
+            $brainCallsToday = $subscriptionService->getAiBrainCallsToday($user);
+
+            if ($dailyCap > 0 && $brainCallsToday >= $dailyCap) {
+                return redirect()->route('audits.index')
+                    ->with('error', 'AI analysis quota used for this cycle. Deep audit limit reached today. Try again tomorrow.');
+            }
+        }
+
         Cache::put($cooldownKey, true, now()->addSeconds(self::MANUAL_TRIGGER_COOLDOWN_SECONDS));
 
-        // Queue the audit for the current user's recent losses
-        // This dispatches the same logic as bot:ai-audit-losses but for a single user
-        \Illuminate\Support\Facades\Artisan::call('bot:ai-audit-losses', [
-            '--user' => $userId,
-        ]);
+        $losses = Trade::forUser($userId)
+            ->where('status', 'lost')
+            ->where('audited', false)
+            ->orderBy('resolved_at', 'asc')
+            ->limit(5)
+            ->get();
+
+        $audited = 0;
+        $router = app(AIRouter::class);
+        $notifications = app(NotificationService::class);
+
+        foreach ($losses as $trade) {
+            $result = $router->requestLossAudit($trade, $userId);
+
+            if (is_array($result) && ($result['status'] ?? null) === 'ai_limit_reached') {
+                return redirect()->route('audits.index')
+                    ->with('warning', $result['message']);
+            }
+
+            if ($result instanceof AiAudit) {
+                $audited++;
+                $notifications->notifyLossAudit($result, $trade);
+            }
+        }
         session()->flash('analytics_events', [
             ['name' => 'ai_audit_triggered'],
         ]);
 
         return redirect()->route('audits.index')
-            ->with('success', 'Audit triggered. Results will appear shortly.');
+            ->with('success', $audited > 0
+                ? "AI analysis completed for {$audited} trade(s). Core simulation continues normally."
+                : 'AI analysis quota used for this cycle. Core simulation continues normally.');
     }
 
     public function rejectFix(Request $request, AiAudit $audit): RedirectResponse

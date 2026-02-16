@@ -45,7 +45,7 @@ class SimAnalyzeMarkets extends Command
 
                 $result = $aiRouter->getMusclesAnalysis($market, $spotData, $user->id);
 
-                if ($result !== null) {
+                if (is_array($result) && isset($result['confidence'])) {
                     $cacheKey = "muscles:{$user->id}:{$market['condition_id']}";
                     Cache::put($cacheKey, $result, 300);
                     $analyzed++;

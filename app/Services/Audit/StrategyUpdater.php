@@ -98,18 +98,12 @@ class StrategyUpdater
 
     public function autoApplyFixes(AiAudit $audit, int $userId): int
     {
-        $fixes = $audit->suggested_fixes ?? [];
-        $applied = 0;
+        Log::channel('simulator')->warning('autoApplyFixes is disabled by policy', [
+            'audit_id' => $audit->id,
+            'user_id' => $userId,
+        ]);
 
-        foreach ($fixes as $index => $fix) {
-            if (($fix['action'] ?? '') === 'auto_apply') {
-                if ($this->applyFix($audit, $index, $userId)) {
-                    $applied++;
-                }
-            }
-        }
-
-        return $applied;
+        return 0;
     }
 
     public function validateFixValue(string $paramKey, mixed $value): bool

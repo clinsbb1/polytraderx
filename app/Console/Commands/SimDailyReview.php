@@ -22,7 +22,11 @@ class SimDailyReview extends Command
         $results = $runner->runForEachUser(function ($user) use ($aiRouter, $telegram) {
             $audit = $aiRouter->requestDailyReview($user->id);
 
-            if ($audit === null) {
+            if (is_array($audit)) {
+                return ['status' => 'skipped', 'reason' => $audit['message'] ?? 'AI analysis quota used for this cycle.'];
+            }
+
+            if (!$audit instanceof \App\Models\AiAudit) {
                 return ['status' => 'skipped', 'reason' => 'Brain unavailable or budget exceeded'];
             }
 

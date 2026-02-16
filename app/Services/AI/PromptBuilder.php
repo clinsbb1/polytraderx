@@ -7,14 +7,18 @@ namespace App\Services\AI;
 use App\Models\AiAudit;
 use App\Models\Trade;
 use App\Services\Settings\SettingsService;
+use Illuminate\Support\Str;
 
 class PromptBuilder
 {
     public function __construct(private SettingsService $settings) {}
 
-    public function buildMusclesPrompt(array $market, array $spotData, int $userId): array
+    public function buildMusclesPrompt(array $market, array $spotData, int $userId, ?int $maxPromptTokens = null): array
     {
-        $recentTrades = Trade::forUser($userId)->latest()->take(50)->get();
+        $recentLimit = $maxPromptTokens !== null ? max(12, min(50, intdiv($maxPromptTokens, 120))) : 50;
+        $lossLimit = $maxPromptTokens !== null ? max(1, min(3, intdiv($maxPromptTokens, 1200))) : 3;
+
+        $recentTrades = Trade::forUser($userId)->latest()->take($recentLimit)->get();
         $totalRecent = $recentTrades->count();
         $wonRecent = $recentTrades->where('status', 'won')->count();
         $winRate = $totalRecent > 0 ? round(($wonRecent / $totalRecent) * 100, 1) : 0;
@@ -27,7 +31,7 @@ class PromptBuilder
         $similarTotal = $similarTrades->count();
         $similarWinRate = $similarTotal > 0 ? round(($similarWon / $similarTotal) * 100, 1) : 0;
 
-        $lastLosses = Trade::forUser($userId)->lost()->latest()->take(3)->get();
+        $lastLosses = Trade::forUser($userId)->lost()->latest()->take($lossLimit)->get();
         $lossPatterns = $lastLosses->map(function ($trade) {
             $reasoning = $trade->decision_reasoning ?? [];
             return [
@@ -66,10 +70,14 @@ class PromptBuilder
             . '{"side": "YES"|"NO"|"SKIP", "confidence": 0.00-1.00, "reasoning": "one sentence", "reversal_risk": "low"|"medium"|"high", "suggested_bet_size_pct": 1.0-10.0, "regime_note": "trending|ranging|volatile|unclear", "stability_flag": "stable|caution|unstable"}' . "\n"
             . 'SKIP if confidence < 0.92 or reversal_risk is "high".';
 
+        if ($maxPromptTokens !== null) {
+            $user = $this->trimToTokenBudget($user, $maxPromptTokens);
+        }
+
         return ['system' => $system, 'user' => $user];
     }
 
-    public function buildBrainAuditPrompt(Trade $trade, array $forensics, int $userId): array
+    public function buildBrainAuditPrompt(Trade $trade, array $forensics, int $userId, ?int $maxPromptTokens = null): array
     {
         $strategyParams = $this->settings->getGroup('risk', $userId)
             ->merge($this->settings->getGroup('trading', $userId));
@@ -88,10 +96,11 @@ class PromptBuilder
         $weekWins = Trade::forUser($userId)->won()->where('resolved_at', '>=', now()->subDays(7))->count();
         $weekWinRate = $weekTrades > 0 ? round(($weekWins / $weekTrades) * 100, 1) : 0;
 
+        $similarAuditLimit = $maxPromptTokens !== null ? max(1, min(3, intdiv($maxPromptTokens, 2500))) : 3;
         $similarAudits = AiAudit::forUser($userId)
             ->where('id', '!=', 0)
             ->latest()
-            ->take(3)
+            ->take($similarAuditLimit)
             ->get()
             ->map(fn($a) => [
                 'trigger' => $a->trigger,
@@ -111,23 +120,28 @@ class PromptBuilder
             . 'Suggest robust parameters over maximum historical returns. '
             . 'Respond in JSON only. No markdown, no explanation outside the JSON object.';
 
+        $tradeLogLimit = $maxPromptTokens !== null ? max(10, min(80, intdiv($maxPromptTokens, 90))) : count($forensics['trade_logs'] ?? []);
+        $concurrentLimit = $maxPromptTokens !== null ? max(3, min(20, intdiv($maxPromptTokens, 350))) : count($forensics['context']['concurrent_positions'] ?? []);
+        $similarLossLimit = $maxPromptTokens !== null ? max(1, min(5, intdiv($maxPromptTokens, 1800))) : count($forensics['similar_losses'] ?? []);
+
         $user = "LOSS FORENSICS ANALYSIS\n\n"
-            . "LOSING TRADE:\n" . json_encode($forensics['trade'] ?? [], JSON_PRETTY_PRINT) . "\n\n"
-            . "TRADE LOGS:\n" . json_encode($forensics['trade_logs'] ?? [], JSON_PRETTY_PRINT) . "\n\n"
-            . "EXTERNAL DATA:\n" . json_encode($forensics['external_data'] ?? [], JSON_PRETTY_PRINT) . "\n\n"
-            . "CURRENT STRATEGY PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_PRETTY_PRINT) . "\n\n"
+            . "LOSING TRADE:\n" . json_encode($forensics['trade'] ?? [], JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "TRADE LOGS:\n" . json_encode(array_slice($forensics['trade_logs'] ?? [], 0, $tradeLogLimit), JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "EXTERNAL DATA:\n" . json_encode($forensics['external_data'] ?? [], JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "CURRENT STRATEGY PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
             . "PERFORMANCE CONTEXT:\n"
             . "Today P&L: \${$todayPnl}\n"
             . "7-Day P&L: \${$weekPnl} | Win Rate: {$weekWinRate}%\n"
             . "30-Day P&L: \${$monthPnl}\n"
             . "Total Loss Count: {$lossCount} (this is loss #{$lossCount})\n\n"
-            . "PREVIOUS AUDITS:\n" . json_encode($similarAudits, JSON_PRETTY_PRINT) . "\n\n"
-            . "CONCURRENT POSITIONS:\n" . json_encode($forensics['context']['concurrent_positions'] ?? [], JSON_PRETTY_PRINT) . "\n\n"
+            . "PREVIOUS AUDITS:\n" . json_encode($similarAudits, JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "CONCURRENT POSITIONS:\n" . json_encode(array_slice($forensics['context']['concurrent_positions'] ?? [], 0, $concurrentLimit), JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "SIMILAR LOSSES:\n" . json_encode(array_slice($forensics['similar_losses'] ?? [], 0, $similarLossLimit), JSON_UNESCAPED_SLASHES) . "\n\n"
             . "Respond in JSON ONLY:\n"
             . '{"root_cause_category": "string (e.g. volatility_spike, api_desync, insufficient_confidence, market_timing, bad_signal)", '
             . '"analysis": "2-3 sentence explanation of what went wrong", '
             . '"severity": "low|medium|high", '
-            . '"suggested_fixes": [{"param_key": "PARAM_NAME", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "auto_apply|review_required"}], '
+            . '"suggested_fixes": [{"param_key": "PARAM_NAME", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "review_required"}], '
             . '"pattern_detected": "string or null - any recurring pattern from previous audits", '
             . '"strategy_stability": "stable|degrading|overfitting|needs_data", '
             . '"overfitting_risk": "low|medium|high", '
@@ -135,12 +149,17 @@ class PromptBuilder
             . '"confidence_in_fix": 1-10, '
             . '"overall_assessment": "1 sentence summary"}';
 
+        if ($maxPromptTokens !== null) {
+            $user = $this->trimToTokenBudget($user, $maxPromptTokens);
+        }
+
         return ['system' => $system, 'user' => $user];
     }
 
-    public function buildDailyReviewPrompt(int $userId): array
+    public function buildDailyReviewPrompt(int $userId, ?int $maxPromptTokens = null): array
     {
-        $todayTrades = Trade::forUser($userId)->today()->get();
+        $tradeLimit = $maxPromptTokens !== null ? max(20, min(200, intdiv($maxPromptTokens, 90))) : 500;
+        $todayTrades = Trade::forUser($userId)->today()->take($tradeLimit)->get();
         $todayWon = $todayTrades->where('status', 'won')->count();
         $todayLost = $todayTrades->where('status', 'lost')->count();
         $todayPnl = (float) $todayTrades->whereNotNull('pnl')->sum('pnl');
@@ -161,18 +180,24 @@ class PromptBuilder
                 'asset' => $t->asset, 'side' => $t->side, 'status' => $t->status,
                 'confidence' => $t->confidence_score, 'pnl' => $t->pnl,
                 'decision_tier' => $t->decision_tier,
-            ])->toArray(), JSON_PRETTY_PRINT) . "\n\n"
-            . "CURRENT PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_PRETTY_PRINT) . "\n\n"
+            ])->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "CURRENT PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
             . "Respond in JSON ONLY:\n"
-            . '{"analysis": "2-3 sentences", "suggested_param_changes": [{"param_key": "KEY", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "auto_apply|review_required"}], "overall_assessment": "good|acceptable|concerning|poor"}';
+            . '{"analysis": "2-3 sentences", "suggested_param_changes": [{"param_key": "KEY", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "review_required"}], "overall_assessment": "good|acceptable|concerning|poor"}';
+
+        if ($maxPromptTokens !== null) {
+            $user = $this->trimToTokenBudget($user, $maxPromptTokens);
+        }
 
         return ['system' => $system, 'user' => $user];
     }
 
-    public function buildWeeklyReviewPrompt(int $userId): array
+    public function buildWeeklyReviewPrompt(int $userId, ?int $maxPromptTokens = null): array
     {
+        $tradeLimit = $maxPromptTokens !== null ? max(30, min(300, intdiv($maxPromptTokens, 80))) : 500;
         $weekTrades = Trade::forUser($userId)
             ->where('created_at', '>=', now()->subDays(7))
+            ->take($tradeLimit)
             ->get();
 
         $weekWon = $weekTrades->where('status', 'won')->count();
@@ -191,6 +216,7 @@ class PromptBuilder
 
         $recentAudits = AiAudit::forUser($userId)
             ->where('created_at', '>=', now()->subDays(7))
+            ->take(10)
             ->get()
             ->map(fn($a) => [
                 'trigger' => $a->trigger,
@@ -207,12 +233,36 @@ class PromptBuilder
             . "Won: {$weekWon} | Lost: {$weekLost}\n"
             . "P&L: \${$weekPnl}\n"
             . "Win Rate: " . ($weekTrades->count() > 0 ? round(($weekWon / $weekTrades->count()) * 100, 1) : 0) . "%\n\n"
-            . "BY ASSET:\n" . json_encode($byAsset->toArray(), JSON_PRETTY_PRINT) . "\n\n"
-            . "AUDITS THIS WEEK:\n" . json_encode($recentAudits->toArray(), JSON_PRETTY_PRINT) . "\n\n"
-            . "CURRENT PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_PRETTY_PRINT) . "\n\n"
+            . "BY ASSET:\n" . json_encode($byAsset->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "AUDITS THIS WEEK:\n" . json_encode($recentAudits->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "CURRENT PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
             . "Respond in JSON ONLY:\n"
-            . '{"analysis": "3-5 sentences covering trends and patterns", "suggested_param_changes": [{"param_key": "KEY", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "auto_apply|review_required"}], "risk_assessment": "string", "forward_recommendations": "2-3 sentences", "overall_assessment": "excellent|good|acceptable|concerning|poor"}';
+            . '{"analysis": "3-5 sentences covering trends and patterns", "suggested_param_changes": [{"param_key": "KEY", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "review_required"}], "risk_assessment": "string", "forward_recommendations": "2-3 sentences", "overall_assessment": "excellent|good|acceptable|concerning|poor"}';
+
+        if ($maxPromptTokens !== null) {
+            $user = $this->trimToTokenBudget($user, $maxPromptTokens);
+        }
 
         return ['system' => $system, 'user' => $user];
+    }
+
+    private function estimateTokens(string $content): int
+    {
+        // Rough heuristic: ~4 chars/token for English mixed JSON text.
+        return (int) ceil(strlen($content) / 4);
+    }
+
+    private function trimToTokenBudget(string $content, int $maxPromptTokens): string
+    {
+        if ($maxPromptTokens <= 0) {
+            return $content;
+        }
+
+        if ($this->estimateTokens($content) <= $maxPromptTokens) {
+            return $content;
+        }
+
+        $maxChars = max(1000, $maxPromptTokens * 4);
+        return Str::limit($content, $maxChars, '');
     }
 }

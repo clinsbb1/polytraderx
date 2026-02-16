@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiUsage;
 use App\Models\Payment;
 use App\Models\Trade;
 use App\Models\User;
+use App\Services\AI\CostTracker;
 use App\Services\Settings\PlatformSettingsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -15,6 +17,8 @@ use Illuminate\View\View;
 
 class AdminDashboardController extends Controller
 {
+    public function __construct(private CostTracker $costTracker) {}
+
     public function index(): View
     {
         $stats = [
@@ -63,6 +67,20 @@ class AdminDashboardController extends Controller
             ->orderBy('date')
             ->get();
 
+        $currentMonth = now()->format('Y-m');
+        $monthlyAiSpend = $this->costTracker->getMonthlySpend();
+        $aiMonthlyBudget = app(PlatformSettingsService::class)->getFloat('AI_MONTHLY_BUDGET', 100.0);
+        $aiBudgetRemaining = max(0, $aiMonthlyBudget - $monthlyAiSpend);
+        $aiBudgetUsedPct = $aiMonthlyBudget > 0 ? min(100, ($monthlyAiSpend / $aiMonthlyBudget) * 100) : 0;
+        $aiBudgetPaused = $aiMonthlyBudget > 0 && $monthlyAiSpend >= $aiMonthlyBudget;
+
+        $aiTopUsers = AiUsage::query()
+            ->with('user')
+            ->where('month', $currentMonth)
+            ->orderByDesc('total_tokens')
+            ->limit(5)
+            ->get();
+
         $health = $this->buildHealthSnapshot();
 
         return view('admin.dashboard', compact(
@@ -73,6 +91,12 @@ class AdminDashboardController extends Controller
             'signupsPerDay',
             'revenuePerDay',
             'tradesPerDay',
+            'monthlyAiSpend',
+            'aiMonthlyBudget',
+            'aiBudgetRemaining',
+            'aiBudgetUsedPct',
+            'aiBudgetPaused',
+            'aiTopUsers',
             'health',
         ));
     }

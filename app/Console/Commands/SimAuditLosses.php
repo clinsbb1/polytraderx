@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\AiAudit;
 use App\Models\Trade;
 use App\Services\AI\AIRouter;
 use App\Services\Telegram\NotificationService;
@@ -32,9 +33,14 @@ class SimAuditLosses extends Command
             foreach ($losses as $trade) {
                 $audit = $aiRouter->requestLossAudit($trade, $user->id);
 
-                if ($audit !== null) {
+                if ($audit instanceof AiAudit) {
                     $audited++;
                     $notifications->notifyLossAudit($audit, $trade);
+                    continue;
+                }
+
+                if (is_array($audit)) {
+                    break;
                 }
             }
 

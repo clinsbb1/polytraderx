@@ -27,20 +27,45 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\SimulationAcknowledgmentController;
 use Database\Seeders\PlatformSettingsSeeder;
 use Database\Seeders\SubscriptionPlansSeeder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 
 
-Route::middleware('throttle:60,1')->get('/run-migrations', function () {
-    $output = [];
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        $output[] = Artisan::output();
-    } catch (\Exception $e) {
-        $output[] = "Error: " . $e->getMessage();
+// Temporary maintenance helper for cPanel deployments (token only).
+Route::middleware(['throttle:3,1'])->get('/admin/run-deploy-tasks', function (Request $request) {
+    $expectedToken = (string) env('MAINTENANCE_ROUTE_TOKEN', '');
+    $providedToken = (string) $request->query('token', '');
+
+    if ($expectedToken === '' || ! hash_equals($expectedToken, $providedToken)) {
+        abort(404);
     }
-    return nl2br(implode("\n", $output));
-}); //hide later
+
+    $output = [];
+
+    $tasks = [
+        ['label' => 'migrate', 'command' => 'migrate', 'params' => ['--force' => true]],
+        ['label' => 'seed:plans', 'command' => 'db:seed', 'params' => ['--class' => SubscriptionPlansSeeder::class, '--force' => true]],
+        ['label' => 'seed:platform-settings', 'command' => 'db:seed', 'params' => ['--class' => PlatformSettingsSeeder::class, '--force' => true]],
+        ['label' => 'optimize:clear', 'command' => 'optimize:clear', 'params' => []],
+    ];
+
+    foreach ($tasks as $task) {
+        try {
+            Artisan::call($task['command'], $task['params']);
+            $output[] = '[' . $task['label'] . '] OK';
+            $artisanOutput = trim(Artisan::output());
+            if ($artisanOutput !== '') {
+                $output[] = $artisanOutput;
+            }
+        } catch (\Throwable $e) {
+            $output[] = '[' . $task['label'] . '] ERROR: ' . $e->getMessage();
+            break;
+        }
+    }
+
+    return response('<pre>' . e(implode("\n\n", $output)) . '</pre>');
+}); // delete after one-time deployment
 
 // Temporary maintenance helper: run only pricing plans seeder from browser (superadmin only).
 /*

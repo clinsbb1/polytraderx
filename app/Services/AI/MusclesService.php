@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\AI;
 
 use App\Services\Settings\PlatformSettingsService;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Log;
 
 class MusclesService
@@ -14,6 +15,7 @@ class MusclesService
         private PromptBuilder $promptBuilder,
         private CostTracker $costTracker,
         private PlatformSettingsService $platformSettings,
+        private SubscriptionService $subscriptionService,
     ) {}
 
     public function analyze(array $market, array $spotData, int $userId): ?array
@@ -24,15 +26,17 @@ class MusclesService
                 return null;
             }
 
-            if ($this->costTracker->isOverBudget($userId)) {
-                Log::channel('simulator')->warning('Muscles skipped: AI budget exceeded', ['user_id' => $userId]);
-                return null;
+            $user = \App\Models\User::find($userId);
+            $maxPromptTokens = $user ? $this->subscriptionService->getAiMaxTokensPerRequest($user) : 0;
+            if ($maxPromptTokens <= 0) {
+                $maxPromptTokens = 6000;
             }
 
-            $prompt = $this->promptBuilder->buildMusclesPrompt($market, $spotData, $userId);
+            $prompt = $this->promptBuilder->buildMusclesPrompt($market, $spotData, $userId, $maxPromptTokens);
             $model = $this->platformSettings->get('AI_MUSCLES_MODEL', 'claude-haiku-4-5-20251001');
+            $completionCap = max(256, min(1024, intdiv($maxPromptTokens, 2)));
 
-            $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], 1024);
+            $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], $completionCap);
 
             $decision = $this->costTracker->recordUsage(
                 $userId,

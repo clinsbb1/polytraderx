@@ -110,6 +110,28 @@
                 </div>
             </div>
 
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Monthly Token Cap</label>
+                    <input type="number" name="ai_monthly_token_cap" class="form-control" min="0" value="{{ old('ai_monthly_token_cap', $plan->ai_monthly_token_cap ?? '') }}" placeholder="e.g. 150000">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Max Tokens / Request</label>
+                    <input type="number" name="ai_max_tokens_per_request" class="form-control" min="1000" value="{{ old('ai_max_tokens_per_request', $plan->ai_max_tokens_per_request ?? '') }}" placeholder="e.g. 6000">
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Brain Calls/Day (Hard Cap)</label>
+                    <input type="number" name="ai_brain_calls_per_day" class="form-control" min="0" value="{{ old('ai_brain_calls_per_day', $plan->ai_brain_calls_per_day ?? '') }}" placeholder="e.g. 10">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Muscles Calls/Day (Hard Cap)</label>
+                    <input type="number" name="ai_muscles_calls_per_day" class="form-control" min="0" value="{{ old('ai_muscles_calls_per_day', $plan->ai_muscles_calls_per_day ?? '') }}" placeholder="e.g. 100">
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label class="form-label fw-semibold d-block">AI Features Enabled</label>
                 <div class="form-check form-check-inline">

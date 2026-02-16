@@ -45,6 +45,73 @@
     <div class="col-md-3"><div class="card stat-card"><div class="card-body text-center"><div class="text-muted small">Pending Payments</div><div class="fw-bold fs-3">{{ $stats['pending_payments'] }}</div></div></div></div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">AI Budget Guardrail</h6>
+        <span class="badge bg-{{ $aiBudgetPaused ? 'danger' : 'success' }}">{{ $aiBudgetPaused ? 'PAUSED' : 'ACTIVE' }}</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Monthly Spend</div>
+                    <div class="fw-bold fs-5">${{ number_format((float) $monthlyAiSpend, 4) }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Monthly Budget</div>
+                    <div class="fw-bold fs-5">${{ number_format((float) $aiMonthlyBudget, 2) }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Budget Remaining</div>
+                    <div class="fw-bold fs-5">${{ number_format((float) $aiBudgetRemaining, 4) }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Used</div>
+                    <div class="fw-bold fs-5">{{ number_format((float) $aiBudgetUsedPct, 1) }}%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="progress mb-3" role="progressbar" aria-valuenow="{{ number_format((float) $aiBudgetUsedPct, 1) }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
+            <div class="progress-bar {{ $aiBudgetUsedPct >= 100 ? 'bg-danger' : ($aiBudgetUsedPct >= 80 ? 'bg-warning' : 'bg-success') }}" style="width: {{ number_format((float) $aiBudgetUsedPct, 2) }}%"></div>
+        </div>
+
+        <div class="small text-muted mb-2">Top users by monthly AI token usage</div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Account ID</th>
+                        <th class="text-end">Tokens</th>
+                        <th class="text-end">Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($aiTopUsers as $usage)
+                        <tr>
+                            <td>{{ $usage->user?->name ?? 'Deleted User' }}</td>
+                            <td><code>{{ $usage->user?->account_id ?? '—' }}</code></td>
+                            <td class="text-end">{{ number_format((int) $usage->total_tokens) }}</td>
+                            <td class="text-end">${{ number_format((float) $usage->total_cost_usd, 4) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No AI usage this month yet.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 {{-- Charts --}}
 <div class="row g-4 mb-4">
     <div class="col-md-4"><div class="card"><div class="card-header"><h6 class="mb-0">Signups (30d)</h6></div><div class="card-body"><canvas id="signupsChart" height="200"></canvas></div></div></div>

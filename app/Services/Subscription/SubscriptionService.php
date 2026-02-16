@@ -87,19 +87,39 @@ class SubscriptionService
     public function getMaxAiMusclesPerDay(User $user): int
     {
         $plan = $this->getUserPlan($user);
-        return $plan ? $plan->max_ai_muscles_calls_per_day : 0;
+        if (!$plan) {
+            return 0;
+        }
+
+        return (int) ($plan->ai_muscles_calls_per_day ?? $plan->max_ai_muscles_calls_per_day ?? 0);
     }
 
     public function getMaxAiBrainPerDay(User $user): int
     {
         $plan = $this->getUserPlan($user);
-        return $plan ? $plan->max_ai_brain_calls_per_day : 0;
+        if (!$plan) {
+            return 0;
+        }
+
+        return (int) ($plan->ai_brain_calls_per_day ?? $plan->max_ai_brain_calls_per_day ?? 0);
     }
 
     public function getMaxAiBrainPerMonth(User $user): int
     {
         $plan = $this->getUserPlan($user);
         return $plan ? $plan->max_ai_brain_calls_per_month : 0;
+    }
+
+    public function getAiMonthlyTokenCap(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? (int) ($plan->ai_monthly_token_cap ?? 0) : 0;
+    }
+
+    public function getAiMaxTokensPerRequest(User $user): int
+    {
+        $plan = $this->getUserPlan($user);
+        return $plan ? (int) ($plan->ai_max_tokens_per_request ?? 0) : 0;
     }
 
     public function canExportCsv(User $user): bool
