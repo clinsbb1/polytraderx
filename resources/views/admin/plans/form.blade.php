@@ -96,21 +96,6 @@
             <h6 class="mb-3">AI Limits</h6>
 
             <div class="row mb-3">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Muscles Calls/Day</label>
-                    <input type="number" name="max_ai_muscles_calls_per_day" class="form-control" min="0" value="{{ old('max_ai_muscles_calls_per_day', $plan->max_ai_muscles_calls_per_day ?? '') }}" placeholder="0 = unlimited">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Brain Calls/Day</label>
-                    <input type="number" name="max_ai_brain_calls_per_day" class="form-control" min="0" value="{{ old('max_ai_brain_calls_per_day', $plan->max_ai_brain_calls_per_day ?? '') }}" placeholder="0 = unlimited">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Brain Calls/Month</label>
-                    <input type="number" name="max_ai_brain_calls_per_month" class="form-control" min="0" value="{{ old('max_ai_brain_calls_per_month', $plan->max_ai_brain_calls_per_month ?? '') }}" placeholder="0 = unlimited">
-                </div>
-            </div>
-
-            <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Monthly Token Cap</label>
                     <input type="number" name="ai_monthly_token_cap" class="form-control" min="0" value="{{ old('ai_monthly_token_cap', $plan->ai_monthly_token_cap ?? '') }}" placeholder="e.g. 150000">
