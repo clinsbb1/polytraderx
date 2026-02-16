@@ -12,7 +12,7 @@
     <div class="ptx-card-header" style="cursor: pointer;" onclick="document.getElementById('strategyGuideContent').classList.toggle('d-none')">
         <div class="d-flex justify-content-between align-items-center">
             <h5><i class="bi bi-book me-2" style="color: var(--accent);"></i> Strategy Configuration Guide</h5>
-            <i class="bi bi-chevron-down"></i>
+            <i class="bi bi-chevron-down ms-3"></i>
         </div>
     </div>
     <div class="ptx-card-body d-none" id="strategyGuideContent">
