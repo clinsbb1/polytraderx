@@ -40,6 +40,9 @@ class User extends Authenticatable
         'telegram_username',
         'telegram_linked_at',
         'google_id',
+        'two_factor_enabled',
+        'two_factor_secret',
+        'two_factor_confirmed_at',
         'referred_by',
         'simulation_acknowledged_at',
     ];
@@ -47,6 +50,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
     ];
 
     protected function casts(): array
@@ -63,6 +67,9 @@ class User extends Authenticatable
             'last_bot_heartbeat' => 'datetime',
             'last_login_at' => 'datetime',
             'telegram_linked_at' => 'datetime',
+            'two_factor_enabled' => 'boolean',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_confirmed_at' => 'datetime',
             'simulation_acknowledged_at' => 'datetime',
         ];
     }
@@ -170,6 +177,11 @@ class User extends Authenticatable
     public function hasTelegramLinked(): bool
     {
         return !empty($this->telegram_chat_id);
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return (bool) $this->two_factor_enabled && !empty($this->two_factor_secret);
     }
 
     public function hasPolymarketConfigured(): bool

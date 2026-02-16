@@ -26,6 +26,18 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        if (Auth::user()?->hasTwoFactorEnabled()) {
+            $request->session()->put([
+                'two_factor.login.user_id' => Auth::id(),
+                'two_factor.login.remember' => $request->boolean('remember'),
+            ]);
+
+            Auth::logout();
+            $request->session()->regenerate();
+
+            return redirect()->route('2fa.challenge');
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false))
@@ -38,6 +50,10 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
+        $request->session()->forget([
+            'two_factor.login.user_id',
+            'two_factor.login.remember',
+        ]);
 
         $request->session()->invalidate();
 

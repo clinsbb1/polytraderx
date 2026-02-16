@@ -13,6 +13,7 @@ use App\Http\Controllers\PublicController;
 use App\Http\Controllers\StrategyController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TelegramSettingsController;
+use App\Http\Controllers\TwoFactorSettingsController;
 use App\Http\Controllers\TradeController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\TelegramWebhookController;
@@ -213,6 +214,10 @@ Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
     Route::post('/settings/notifications', [NotificationSettingsController::class, 'update']);
     Route::get('/settings/telegram', [TelegramSettingsController::class, 'edit']);
     Route::post('/settings/telegram/unlink', [TelegramSettingsController::class, 'unlink']);
+    Route::get('/settings/security', [TwoFactorSettingsController::class, 'edit'])->name('settings.security');
+    Route::post('/settings/security/2fa/generate', [TwoFactorSettingsController::class, 'generate'])->name('settings.security.2fa.generate');
+    Route::post('/settings/security/2fa/enable', [TwoFactorSettingsController::class, 'enable'])->name('settings.security.2fa.enable');
+    Route::post('/settings/security/2fa/disable', [TwoFactorSettingsController::class, 'disable'])->name('settings.security.2fa.disable');
 
     // Breeze profile routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

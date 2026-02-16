@@ -30,9 +30,7 @@ class GoogleAuthController extends Controller
 
         if ($user) {
             $user->update(['avatar_url' => $googleUser->getAvatar()]);
-            Auth::login($user);
-
-            return redirect('/dashboard')->with('toast', 'Welcome back, ' . $user->name . '!');
+            return $this->completeLogin($user, true);
         }
 
         // Link by email if existing account
@@ -43,9 +41,7 @@ class GoogleAuthController extends Controller
                 'google_id' => $googleUser->getId(),
                 'avatar_url' => $googleUser->getAvatar(),
             ]);
-            Auth::login($user);
-
-            return redirect('/dashboard')->with('toast', 'Welcome back, ' . $user->name . '!');
+            return $this->completeLogin($user, true);
         }
 
         // Create new user
@@ -66,11 +62,34 @@ class GoogleAuthController extends Controller
 
         app(SettingsService::class)->seedUserParams($user->id);
 
-        Auth::login($user);
-        session()->flash('analytics_events', [
+        return $this->completeLogin($user, false, [
             ['name' => 'sign_up'],
         ]);
+    }
 
-        return redirect('/dashboard')->with('toast', 'Welcome to PolyTraderX, ' . $user->name . '!');
+    private function completeLogin(User $user, bool $isReturningUser, array $analyticsEvents = []): RedirectResponse
+    {
+        Auth::login($user);
+
+        if (!empty($analyticsEvents)) {
+            session()->flash('analytics_events', $analyticsEvents);
+        }
+
+        if ($user->hasTwoFactorEnabled()) {
+            session()->put([
+                'two_factor.login.user_id' => $user->id,
+                'two_factor.login.remember' => false,
+            ]);
+            Auth::logout();
+            session()->regenerate();
+
+            return redirect()->route('2fa.challenge');
+        }
+
+        $message = $isReturningUser
+            ? 'Welcome back, ' . $user->name . '!'
+            : 'Welcome to PolyTraderX, ' . $user->name . '!';
+
+        return redirect('/dashboard')->with('toast', $message);
     }
 }

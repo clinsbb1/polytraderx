@@ -71,6 +71,7 @@
             </a>
         </div>
         <div class="mt-auto p-3 border-top border-secondary">
+            <a class="nav-link text-white-50 small" href="{{ route('settings.security') }}"><i class="bi bi-shield-check me-2"></i>Account Security</a>
             <a class="nav-link text-white-50 small" href="/dashboard"><i class="bi bi-arrow-left me-2"></i>Back to Dashboard</a>
         </div>
     </nav>

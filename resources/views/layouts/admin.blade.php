@@ -96,6 +96,9 @@
             <a class="nav-link {{ request()->is('settings/notifications') ? 'active' : '' }}" href="/settings/notifications">
                 <i class="bi bi-bell"></i> Notifications
             </a>
+            <a class="nav-link {{ request()->is('settings/security') ? 'active' : '' }}" href="{{ route('settings.security') }}">
+                <i class="bi bi-shield-check"></i> Account Security
+            </a>
             <a class="nav-link {{ request()->is('subscription*') ? 'active' : '' }}" href="/subscription">
                 <i class="bi bi-credit-card"></i> Subscription
             </a>
@@ -142,6 +145,7 @@
                     <li><a class="dropdown-item" href="/settings/profile"><i class="bi bi-person-gear"></i> Profile</a></li>
                     {{-- Commented out - Users don't need API keys for simulation --}}
                     {{-- <li><a class="dropdown-item" href="/settings/credentials"><i class="bi bi-key"></i> API Keys</a></li> --}}
+                    <li><a class="dropdown-item" href="{{ route('settings.security') }}"><i class="bi bi-shield-check"></i> Account Security</a></li>
                     <li><a class="dropdown-item" href="/subscription"><i class="bi bi-credit-card"></i> Subscription</a></li>
                     @if(in_array(auth()->user()->subscription_plan, ['advanced', 'lifetime'], true))
                         <li><a class="dropdown-item" href="/contact"><i class="bi bi-life-preserver"></i> Support Center</a></li>
