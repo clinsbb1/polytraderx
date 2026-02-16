@@ -117,13 +117,27 @@
         </nav>
 
         <div class="ptx-sidebar-footer">
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                @if($simulatorEnabled)
-                    <span class="ptx-badge-bot ptx-badge-on"><i class="bi bi-circle-fill" style="font-size:0.5rem"></i> Simulator ON</span>
-                @else
-                    <span class="ptx-badge-bot ptx-badge-off"><i class="bi bi-circle-fill" style="font-size:0.5rem"></i> Simulator OFF</span>
-                @endif
-            </div>
+            <form method="POST" action="{{ route('settings.simulator-toggle') }}" class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                @csrf
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small text-uppercase fw-bold {{ $simulatorEnabled ? 'text-success' : 'text-danger' }}">
+                        Simulator {{ $simulatorEnabled ? 'ON' : 'OFF' }}
+                    </span>
+                </div>
+                <div class="form-check form-switch mb-0">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="simulatorToggleFooter"
+                        name="simulator_enabled"
+                        value="1"
+                        {{ $simulatorEnabled ? 'checked' : '' }}
+                        onchange="this.form.submit()"
+                    >
+                    <label class="visually-hidden" for="simulatorToggleFooter">Toggle simulator</label>
+                </div>
+            </form>
         </div>
     </aside>
 

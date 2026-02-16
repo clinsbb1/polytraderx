@@ -45,4 +45,19 @@ class StrategyController extends Controller
         return redirect()->route('strategy.index')
             ->with('success', 'Strategy parameters updated.');
     }
+
+    public function toggleSimulator(Request $request, SettingsService $settings): RedirectResponse
+    {
+        $enabled = $request->boolean('simulator_enabled');
+
+        $settings->set('SIMULATOR_ENABLED', $enabled ? 'true' : 'false', 'admin', auth()->id());
+
+        if ($enabled) {
+            session()->flash('analytics_events', [
+                ['name' => 'simulation_run'],
+            ]);
+        }
+
+        return back()->with('toast', $enabled ? 'Simulator turned on.' : 'Simulator turned off.');
+    }
 }

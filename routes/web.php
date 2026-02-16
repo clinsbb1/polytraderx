@@ -208,6 +208,7 @@ Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
     Route::post('/settings/security/2fa/generate', [TwoFactorSettingsController::class, 'generate'])->name('settings.security.2fa.generate');
     Route::post('/settings/security/2fa/enable', [TwoFactorSettingsController::class, 'enable'])->name('settings.security.2fa.enable');
     Route::post('/settings/security/2fa/disable', [TwoFactorSettingsController::class, 'disable'])->name('settings.security.2fa.disable');
+    Route::post('/settings/simulator-toggle', [StrategyController::class, 'toggleSimulator'])->name('settings.simulator-toggle');
 
     // Breeze profile routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
