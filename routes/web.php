@@ -40,7 +40,7 @@ Route::middleware('throttle:60,1')->get('/run-migrations', function () {
         $output[] = "Error: " . $e->getMessage();
     }
     return nl2br(implode("\n", $output));
-});
+}); //hide later
 
 // Temporary maintenance helper: run only pricing plans seeder from browser (superadmin only).
 /*
