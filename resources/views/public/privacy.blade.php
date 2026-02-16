@@ -7,7 +7,6 @@
     <section class="ptx-section" style="padding-top: 140px;">
         <div class="container" style="max-width: 1000px;">
             <div class="mb-4">
-                <span class="ptx-draft-badge">Draft</span>
                 <h1 style="font-size: 2.5rem;">Privacy Policy</h1>
                 <p style="color: var(--text-secondary); font-size: 0.9rem;">Last updated: {{ date('F j, Y') }}</p>
             </div>
