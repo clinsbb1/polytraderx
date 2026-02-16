@@ -35,8 +35,8 @@
 <div class="ptx-card mb-4">
     <div class="ptx-card-header" style="cursor: pointer;" onclick="document.getElementById('gettingStartedContent').classList.toggle('d-none')">
         <div class="d-flex justify-content-between align-items-center">
-            <h5><i class="bi bi-rocket-takeoff me-2" style="color: var(--accent);"></i> Getting Started with PolyTraderX</h5>
-            <i class="bi bi-chevron-down"></i>
+            <h5><i class="bi bi-rocket-takeoff me-2" style="color: var(--accent);"></i> New here? Start with this quick guide</h5>
+            <i class="bi bi-chevron-down ms-3"></i>
         </div>
     </div>
     <div class="ptx-card-body d-none" id="gettingStartedContent">
