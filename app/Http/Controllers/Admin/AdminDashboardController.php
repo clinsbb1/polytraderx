@@ -127,6 +127,8 @@ class AdminDashboardController extends Controller
         }
 
         $platformSettings = app(PlatformSettingsService::class);
+        $liveTradingEnabled = $platformSettings->getBool('FEATURE_LIVE_TRADING', false);
+        $services['public_data_mode'] = $liveTradingEnabled ? 'disabled' : 'active';
         $telegramToken = trim((string) $platformSettings->get('TELEGRAM_BOT_TOKEN', ''));
         if ($telegramToken === '') {
             $services['telegram_bot'] = 'not_configured';

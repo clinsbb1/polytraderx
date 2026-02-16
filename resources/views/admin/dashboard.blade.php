@@ -123,6 +123,10 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0">System Health</h6>
         <div class="d-flex align-items-center gap-2">
+            @php $publicDataActive = (($health['services']['public_data_mode'] ?? 'disabled') === 'active'); @endphp
+            <span class="badge bg-{{ $publicDataActive ? 'success' : 'warning' }}">
+                Public Data Mode: {{ $publicDataActive ? 'ACTIVE' : 'DISABLED' }}
+            </span>
             <a href="/admin/settings/diagnostics" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-activity me-1"></i>Run Diagnostics
             </a>
