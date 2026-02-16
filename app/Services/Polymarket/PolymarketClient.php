@@ -13,10 +13,11 @@ class PolymarketClient
 {
     private User $user;
     private string $baseUrl;
-    private string $apiKey;
-    private string $apiSecret;
-    private string $passphrase;
-    private string $walletAddress;
+    private string $apiKey = '';
+    private string $apiSecret = '';
+    private string $passphrase = '';
+    private string $walletAddress = '';
+    private bool $hasCredentials = false;
     private int $userId;
 
     private const MAX_RETRIES = 3;
@@ -28,14 +29,14 @@ class PolymarketClient
         $this->user = $user;
         $creds = $user->credential;
 
-        if (!$creds || !$creds->hasPolymarketKeys()) {
-            throw new \RuntimeException("User {$user->account_id} has no Polymarket credentials configured");
+        if ($creds && $creds->hasPolymarketKeys()) {
+            $this->apiKey = (string) $creds->polymarket_api_key;
+            $this->apiSecret = (string) $creds->polymarket_api_secret;
+            $this->passphrase = (string) $creds->polymarket_api_passphrase;
+            $this->walletAddress = (string) $creds->polymarket_wallet_address;
+            $this->hasCredentials = true;
         }
 
-        $this->apiKey = $creds->polymarket_api_key;
-        $this->apiSecret = $creds->polymarket_api_secret;
-        $this->passphrase = $creds->polymarket_api_passphrase;
-        $this->walletAddress = $creds->polymarket_wallet_address;
         $this->userId = $user->id;
         $this->baseUrl = config('services.polymarket.base_url', 'https://clob.polymarket.com');
     }
@@ -52,6 +53,10 @@ class PolymarketClient
 
     public function getWalletAddress(): string
     {
+        if (!$this->hasCredentials) {
+            throw new \RuntimeException("User {$this->user->account_id} has no Polymarket credentials configured");
+        }
+
         return $this->walletAddress;
     }
 
@@ -93,6 +98,10 @@ class PolymarketClient
 
     private function signRequest(string $method, string $path, ?string $body = null, ?int $timestamp = null): array
     {
+        if (!$this->hasCredentials) {
+            throw new \RuntimeException("Authenticated Polymarket request requires credentials for user {$this->user->account_id}");
+        }
+
         $timestamp = $timestamp ?? (int) (microtime(true) * 1000);
         $message = $timestamp . strtoupper($method) . $path . ($body ?? '');
 
@@ -111,16 +120,21 @@ class PolymarketClient
 
     private function request(string $method, string $path, ?string $body = null): array
     {
+        if (!$this->hasCredentials && strtoupper($method) !== 'GET') {
+            throw new \RuntimeException("Authenticated Polymarket action requires credentials for user {$this->user->account_id}");
+        }
+
         $lastException = null;
 
         for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
             try {
-                $headers = $this->signRequest($method, $path, $body);
                 $url = $this->baseUrl . $path;
 
-                $request = Http::timeout(15)
-                    ->withHeaders($headers)
-                    ->withHeaders(['Content-Type' => 'application/json']);
+                $request = Http::timeout(15)->withHeaders(['Content-Type' => 'application/json']);
+                if ($this->hasCredentials) {
+                    $headers = $this->signRequest($method, $path, $body);
+                    $request = $request->withHeaders($headers);
+                }
 
                 $response = match (strtoupper($method)) {
                     'GET' => $request->get($url),

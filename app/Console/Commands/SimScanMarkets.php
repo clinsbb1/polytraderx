@@ -49,7 +49,7 @@ class SimScanMarkets extends Command
         }
 
         if (empty($lastResults)) {
-            $this->info('No active users with Polymarket credentials.');
+            $this->info('No active users available for simulation run.');
             return Command::SUCCESS;
         }
 

@@ -57,7 +57,7 @@ class SimAuditLosses extends Command
         }
 
         if (empty($results)) {
-            $this->info('No active users with Polymarket credentials.');
+            $this->info('No active users available for simulation run.');
         }
 
         return Command::SUCCESS;

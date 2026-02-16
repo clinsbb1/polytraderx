@@ -260,7 +260,7 @@ class TelegramBotService
                 . "As of: " . $snapshot->snapshot_at->diffForHumans();
             $this->sendMessage($chatId, $message);
         } else {
-            $this->sendMessage($chatId, "No balance data yet. Make sure your Polymarket credentials are configured.");
+            $this->sendMessage($chatId, "No balance data yet. Snapshot history will appear after the simulator runs.");
         }
     }
 

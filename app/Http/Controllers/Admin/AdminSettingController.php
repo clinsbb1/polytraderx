@@ -14,6 +14,12 @@ use Illuminate\View\View;
 
 class AdminSettingController extends Controller
 {
+    private const HIDDEN_KEYS = [
+        'POLYMARKET_SIGNER_URL',
+        'POLYMARKET_SIGNER_API_KEY',
+        'POLYMARKET_SIGNER_TIMEOUT_SECONDS',
+    ];
+
     public function __construct(private PlatformSettingsService $platformSettings) {}
 
     public function index(): View
@@ -28,7 +34,10 @@ class AdminSettingController extends Controller
             ]
         );
 
-        $settings = PlatformSetting::orderBy('group')->orderBy('key')->get();
+        $settings = PlatformSetting::whereNotIn('key', self::HIDDEN_KEYS)
+            ->orderBy('group')
+            ->orderBy('key')
+            ->get();
         $groups = $settings->groupBy('group');
 
         return view('admin.settings.index', compact('groups'));
@@ -37,7 +46,10 @@ class AdminSettingController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $submitted = $request->input('settings', []);
-        $allSettings = PlatformSetting::query()->select('key', 'type')->get();
+        $allSettings = PlatformSetting::query()
+            ->whereNotIn('key', self::HIDDEN_KEYS)
+            ->select('key', 'type')
+            ->get();
 
         foreach ($allSettings as $setting) {
             if ($setting->type === 'boolean') {

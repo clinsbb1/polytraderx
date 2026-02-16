@@ -52,12 +52,7 @@ class StrategyEngine
             return $summary;
         }
 
-        try {
-            $client = new PolymarketClient($user);
-        } catch (\Exception $e) {
-            $summary['skipped'][] = 'No Polymarket credentials: ' . $e->getMessage();
-            return $summary;
-        }
+        $client = new PolymarketClient($user);
 
         // Fetch markets (filtered by user's selected durations)
         $markets = $this->marketService->getActiveCryptoMarkets($client, $user->id);

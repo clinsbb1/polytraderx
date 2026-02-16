@@ -19,13 +19,6 @@ class UserBotRunner
                     ->orWhere('subscription_ends_at', '>', now())
                     ->orWhere('is_superadmin', true);
             })
-            ->whereHas('credential', function ($query) {
-                $query->whereNotNull('polymarket_api_key')
-                    ->whereNotNull('polymarket_api_secret')
-                    ->whereNotNull('polymarket_api_passphrase')
-                    ->whereNotNull('polymarket_wallet_address');
-            })
-            ->with('credential')
             ->get();
     }
 

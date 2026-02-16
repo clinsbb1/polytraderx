@@ -51,7 +51,6 @@ class HealthCheckController extends Controller
 
             // Anthropic
             $services['anthropic'] = $platformSettings->get('ANTHROPIC_API_KEY') ? 'configured' : 'not_configured';
-            $services['polymarket_signer'] = $platformSettings->get('POLYMARKET_SIGNER_URL') ? 'configured' : 'not_configured';
 
             $overallStatus = collect($services)->contains('error') ? 'degraded' : 'ok';
 

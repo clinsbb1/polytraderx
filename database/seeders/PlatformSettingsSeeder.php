@@ -38,11 +38,6 @@ class PlatformSettingsSeeder extends Seeder
             ['key' => 'NOWPAYMENTS_IPN_SECRET', 'value' => '', 'type' => 'string', 'group' => 'payments', 'description' => 'NOWPayments IPN callback secret'],
             ['key' => 'NOWPAYMENTS_SANDBOX_MODE', 'value' => 'true', 'type' => 'boolean', 'group' => 'payments', 'description' => 'Use NOWPayments sandbox environment'],
 
-            // Infrastructure
-            ['key' => 'POLYMARKET_SIGNER_URL', 'value' => '', 'type' => 'string', 'group' => 'infrastructure', 'description' => 'Internal service URL for EIP-712 order signing'],
-            ['key' => 'POLYMARKET_SIGNER_API_KEY', 'value' => '', 'type' => 'string', 'group' => 'infrastructure', 'description' => 'Bearer token used when calling the signer service'],
-            ['key' => 'POLYMARKET_SIGNER_TIMEOUT_SECONDS', 'value' => '10', 'type' => 'number', 'group' => 'infrastructure', 'description' => 'Signer service request timeout (seconds)'],
-
             // Features
             ['key' => 'FEATURE_LIVE_TRADING', 'value' => 'false', 'type' => 'boolean', 'group' => 'features', 'description' => 'Enable live trading with real Polymarket API calls (simulation-only when false)'],
         ];

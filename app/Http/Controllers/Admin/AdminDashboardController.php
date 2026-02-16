@@ -123,7 +123,6 @@ class AdminDashboardController extends Controller
         $services['telegram_bot'] = $platformSettings->get('TELEGRAM_BOT_TOKEN') ? 'configured' : 'not_configured';
         $services['telegram_webhook_secret'] = $platformSettings->get('TELEGRAM_WEBHOOK_SECRET') ? 'configured' : 'not_configured';
         $services['anthropic'] = $platformSettings->get('ANTHROPIC_API_KEY') ? 'configured' : 'not_configured';
-        $services['polymarket_signer'] = $platformSettings->get('POLYMARKET_SIGNER_URL') ? 'configured' : 'not_configured';
 
         $overall = collect($services)->contains('error') ? 'degraded' : 'ok';
 

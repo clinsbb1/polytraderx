@@ -6,13 +6,10 @@ namespace App\Console\Commands;
 
 use App\Models\BalanceSnapshot;
 use App\Models\Trade;
-use App\Services\Polymarket\BalanceService;
-use App\Services\Polymarket\PolymarketClient;
 use App\Services\Settings\SettingsService;
 use App\Services\Telegram\NotificationService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
 class SimSnapshotBalance extends Command
 {
@@ -25,46 +22,22 @@ class SimSnapshotBalance extends Command
         NotificationService $notifications,
     ): int {
         $results = $runner->runForEachUser(function ($user) use ($settings, $notifications) {
-            $isDryRun = $settings->getBool('DRY_RUN', true, $user->id);
+            $isDryRun = true; // Simulation-only platform: balance snapshots are always simulated.
 
             $balance = 0.0;
             $positionsValue = 0.0;
 
-            if ($isDryRun) {
-                // In DRY_RUN: simulate from initial balance + trade PNLs
-                $initialBalance = 100.0; // Default starting balance
-                $totalPnl = (float) Trade::forUser($user->id)
-                    ->whereNotNull('pnl')
-                    ->sum('pnl');
-                $balance = $initialBalance + $totalPnl;
+            // Simulate from initial balance + resolved trade PNL + open exposure.
+            $initialBalance = 100.0; // Default starting balance
+            $totalPnl = (float) Trade::forUser($user->id)
+                ->whereNotNull('pnl')
+                ->sum('pnl');
+            $balance = $initialBalance + $totalPnl;
 
-                $openAmount = (float) Trade::forUser($user->id)
-                    ->open()
-                    ->sum('amount');
-                $positionsValue = $openAmount;
-            } else {
-                try {
-                    $client = new PolymarketClient($user);
-                    $balanceService = new BalanceService($client);
-                    $balance = $balanceService->getBalance();
-                    $positionsValue = $balanceService->getPositionValue();
-                } catch (\Exception $e) {
-                    // Use last known snapshot
-                    $lastSnapshot = BalanceSnapshot::forUser($user->id)
-                        ->latest('snapshot_at')
-                        ->first();
-
-                    if ($lastSnapshot) {
-                        $balance = (float) $lastSnapshot->balance_usdc;
-                        $positionsValue = (float) $lastSnapshot->open_positions_value;
-                    }
-
-                    Log::channel('simulator')->warning('Balance fetch failed, using last known', [
-                        'user_id' => $user->id,
-                        'message' => $e->getMessage(),
-                    ]);
-                }
-            }
+            $openAmount = (float) Trade::forUser($user->id)
+                ->open()
+                ->sum('amount');
+            $positionsValue = $openAmount;
 
             $totalEquity = $balance + $positionsValue;
 
@@ -120,7 +93,7 @@ class SimSnapshotBalance extends Command
         }
 
         if (empty($results)) {
-            $this->info('No active users with Polymarket credentials.');
+            $this->info('No active users available for simulation run.');
         }
 
         return Command::SUCCESS;
