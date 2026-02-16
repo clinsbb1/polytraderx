@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\SimulationAcknowledgmentController;
+use Database\Seeders\PlatformSettingsSeeder;
 use Database\Seeders\SubscriptionPlansSeeder;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
@@ -49,6 +50,23 @@ Route::middleware(['auth', 'superadmin', 'throttle:5,1'])->get('/admin/run-prici
     try {
         Artisan::call('db:seed', [
             '--class' => SubscriptionPlansSeeder::class,
+            '--force' => true,
+        ]);
+        $output[] = Artisan::output();
+    } catch (\Throwable $e) {
+        $output[] = 'Error: ' . $e->getMessage();
+    }
+
+    return nl2br(implode("\n", $output));
+});
+
+// Temporary maintenance helper: refresh platform settings keys from seeder (superadmin only).
+Route::middleware(['auth', 'superadmin', 'throttle:5,1'])->get('/admin/run-platform-settings-seeder', function () {
+    $output = [];
+
+    try {
+        Artisan::call('db:seed', [
+            '--class' => PlatformSettingsSeeder::class,
             '--force' => true,
         ]);
         $output[] = Artisan::output();
