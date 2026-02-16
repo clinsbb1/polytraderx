@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Services\Polymarket\MarketService;
 use App\Services\Polymarket\PolymarketClient;
+use App\Services\PriceFeed\BinanceService;
 use App\Services\Trading\MarketTimingService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
@@ -20,12 +21,60 @@ class SimScanMarkets extends Command
         UserBotRunner $runner,
         MarketService $marketService,
         MarketTimingService $timingService,
+        BinanceService $binanceService,
     ): int {
-        $results = $runner->runForEachUser(function ($user) use ($marketService, $timingService) {
+        $cycles = random_int(3, 5);
+        $deadline = now()->addSeconds(58);
+        $lastResults = [];
+
+        for ($cycle = 1; $cycle <= $cycles; $cycle++) {
+            $prices = $binanceService->getMultiAssetPrices();
+            Log::channel('simulator')->debug("Binance poll {$cycle}/{$cycles}", [
+                'prices' => $prices,
+            ]);
+
+            $this->info("Cycle {$cycle}/{$cycles}: Binance polled.");
+            $lastResults = $this->runScanCycle($runner, $marketService, $timingService);
+
+            if ($cycle < $cycles) {
+                $sleepSeconds = random_int(10, 15);
+
+                // Keep it near a 1-minute tick after the minimum 3 polls are completed.
+                if ($cycle >= 3 && now()->addSeconds($sleepSeconds)->greaterThan($deadline)) {
+                    break;
+                }
+
+                sleep($sleepSeconds);
+            }
+        }
+
+        if (empty($lastResults)) {
+            $this->info('No active users with Polymarket credentials.');
+            return Command::SUCCESS;
+        }
+
+        foreach ($lastResults as $userId => $result) {
+            if ($result['status'] === 'error') {
+                $this->error("User #{$userId}: {$result['error']}");
+                continue;
+            }
+
+            $r = $result['result'];
+            $this->info("User #{$userId}: {$r['total_markets']} markets found, {$r['in_entry_window']} in entry window [" . implode(',', $r['assets']) . "]");
+        }
+
+        return Command::SUCCESS;
+    }
+
+    private function runScanCycle(
+        UserBotRunner $runner,
+        MarketService $marketService,
+        MarketTimingService $timingService,
+    ): array {
+        return $runner->runForEachUser(function ($user) use ($marketService, $timingService) {
             $client = new PolymarketClient($user);
             $markets = $marketService->getActiveCryptoMarkets($client, $user->id);
             $entryWindows = $timingService->getActiveEntryWindows($markets, $user->id);
-
             $assets = $markets->pluck('asset')->unique()->values()->toArray();
 
             Log::channel('simulator')->info("Market scan for {$user->account_id}", [
@@ -40,20 +89,5 @@ class SimScanMarkets extends Command
                 'assets' => $assets,
             ];
         });
-
-        foreach ($results as $userId => $result) {
-            if ($result['status'] === 'error') {
-                $this->error("User #{$userId}: {$result['error']}");
-            } else {
-                $r = $result['result'];
-                $this->info("User #{$userId}: {$r['total_markets']} markets found, {$r['in_entry_window']} in entry window [" . implode(',', $r['assets']) . "]");
-            }
-        }
-
-        if (empty($results)) {
-            $this->info('No active users with Polymarket credentials.');
-        }
-
-        return Command::SUCCESS;
     }
 }

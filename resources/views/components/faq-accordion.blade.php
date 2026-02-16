@@ -33,6 +33,21 @@
     </div>
     <div class="accordion-item">
         <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5a">
+                How precise is PolyTraderX’s simulation timing?
+            </button>
+        </h2>
+        <div id="faq5a" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">
+                <p class="mb-3">PolyTraderX runs its scheduler once per minute. Within each cycle, the simulator performs multiple internal spot price polls (typically every 10–15 seconds) before evaluating signals. This provides practical sub-minute granularity without requiring high-frequency infrastructure.</p>
+                <p class="mb-3">PolyTraderX is designed for testing structural strategy logic — thresholds, volatility filters, regime sensitivity, probability mispricing, and drawdown stability — not millisecond-level execution timing.</p>
+                <p class="mb-3">Strategies that rely on ultra-low-latency “last-second” edges are often fragile in real markets. They tend to depend on ideal fills, minimal slippage, and perfect timing — conditions that rarely generalize outside tightly controlled environments.</p>
+                <p class="mb-0">PolyTraderX focuses on strategies that remain robust under realistic timing constraints. If a strategy only works within a few seconds of precision, it is typically overfitted rather than structurally sound.</p>
+            </div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq0b">
                 What are signals?
             </button>
