@@ -13,6 +13,8 @@
         $seoImage = trim($__env->yieldContent('og_image', url('/favicon.ico')));
     @endphp
 
+    <link rel="icon" href="/icon.png" type="image/x-icon">
+
     <title>{{ $seoTitle }}</title>
     <meta name="description" content="{{ $seoDescription }}">
     <meta name="robots" content="{{ $seoRobots }}">

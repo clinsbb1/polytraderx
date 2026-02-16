@@ -13,6 +13,8 @@
     <style>{!! file_get_contents(resource_path('css/admin.css')) !!}</style>
     @stack('styles')
 
+    <link rel="icon" href="/icon.png" type="image/x-icon">
+
     {{-- Google Analytics --}}
     @php
         $gaId = app(\App\Services\Settings\PlatformSettingsService::class)->getString('GOOGLE_ANALYTICS_ID', '');
