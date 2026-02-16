@@ -134,6 +134,11 @@ class SettingsService
         return (int) $this->get($key, $default, $userId);
     }
 
+    public function getString(string $key, string $default = '', ?int $userId = null): string
+    {
+        return (string) $this->get($key, $default, $userId);
+    }
+
     public function seedUserParams(int $userId): void
     {
         $defaults = $this->getDefaultParams();
