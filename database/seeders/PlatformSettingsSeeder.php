@@ -48,10 +48,18 @@ class PlatformSettingsSeeder extends Seeder
         ];
 
         foreach ($settings as $setting) {
-            PlatformSetting::updateOrCreate(
-                ['key' => $setting['key']],
-                $setting
-            );
+            $record = PlatformSetting::firstOrNew(['key' => $setting['key']]);
+
+            // Never overwrite existing configured values (API keys, secrets, toggles, etc.).
+            if (!$record->exists) {
+                $record->value = $setting['value'];
+            }
+
+            // Keep metadata in sync with code defaults.
+            $record->type = $setting['type'];
+            $record->group = $setting['group'];
+            $record->description = $setting['description'];
+            $record->save();
         }
     }
 }

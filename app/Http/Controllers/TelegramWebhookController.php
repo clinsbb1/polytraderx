@@ -49,12 +49,21 @@ class TelegramWebhookController extends Controller
     {
         $configuredSecret = trim((string) $this->platformSettings->get('TELEGRAM_WEBHOOK_SECRET', ''));
         $providedSecret = trim((string) $request->header('X-Telegram-Bot-Api-Secret-Token', ''));
+        $providedQuerySecret = trim((string) $request->query('secret', ''));
 
         if ($configuredSecret === '') {
             Log::channel('bot')->warning('Telegram webhook secret is not configured');
             return false;
         }
 
-        return $providedSecret !== '' && hash_equals($configuredSecret, $providedSecret);
+        if ($providedSecret !== '' && hash_equals($configuredSecret, $providedSecret)) {
+            return true;
+        }
+
+        if ($providedQuerySecret !== '' && hash_equals($configuredSecret, $providedQuerySecret)) {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -5,6 +5,9 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h5 class="mb-0">Platform Settings</h5>
+    <a href="/admin/settings/telegram-diagnostics" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-telegram me-1"></i>Telegram Diagnostics
+    </a>
 </div>
 
 <form method="POST" action="/admin/settings">
