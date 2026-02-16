@@ -131,8 +131,8 @@
                         AI-powered automated trading for Polymarket crypto prediction markets. Late-minute certainty strategy with a 3-tier AI architecture.
                     </p>
                     <div class="ptx-social-icons mt-3">
-                        <a href="#" aria-label="Twitter"><i class="bi bi-twitter-x"></i></a>
-                        <a href="#" aria-label="Telegram"><i class="bi bi-telegram"></i></a>
+                        <a href="https://x.com/polytraderx" target="_blank" rel="noopener noreferrer" aria-label="Twitter / X"><i class="bi bi-twitter-x"></i></a>
+                        <a href="https://t.me/+-DflYmPAmAowY2Q0" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><i class="bi bi-telegram"></i></a>
                         <a href="#" aria-label="Discord"><i class="bi bi-discord"></i></a>
                     </div>
                 </div>
@@ -163,8 +163,8 @@
                 <div class="col-lg-2 col-md-6">
                     <h6>Connect</h6>
                     <ul>
-                        <li><a href="#">Twitter / X</a></li>
-                        <li><a href="#">Telegram</a></li>
+                        <li><a href="https://x.com/polytraderx" target="_blank" rel="noopener noreferrer">Twitter / X</a></li>
+                        <li><a href="https://t.me/+-DflYmPAmAowY2Q0" target="_blank" rel="noopener noreferrer">Telegram</a></li>
                         <li><a href="#">Discord</a></li>
                     </ul>
                 </div>

@@ -24,7 +24,7 @@
                         <div class="ptx-contact-item-icon"><i class="bi bi-telegram"></i></div>
                         <div>
                             <h6>Telegram</h6>
-                            <p>Join our Telegram community for real-time support</p>
+                            <p><a href="https://t.me/+-DflYmPAmAowY2Q0" target="_blank" rel="noopener noreferrer">Join our Telegram community</a> for real-time support</p>
                         </div>
                     </div>
 
@@ -45,8 +45,8 @@
                     </div>
 
                     <div class="ptx-social-icons mt-4">
-                        <a href="#" aria-label="Twitter"><i class="bi bi-twitter-x"></i></a>
-                        <a href="#" aria-label="Telegram"><i class="bi bi-telegram"></i></a>
+                        <a href="https://x.com/polytraderx" target="_blank" rel="noopener noreferrer" aria-label="Twitter / X"><i class="bi bi-twitter-x"></i></a>
+                        <a href="https://t.me/+-DflYmPAmAowY2Q0" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><i class="bi bi-telegram"></i></a>
                         <a href="#" aria-label="Discord"><i class="bi bi-discord"></i></a>
                     </div>
                 </div>

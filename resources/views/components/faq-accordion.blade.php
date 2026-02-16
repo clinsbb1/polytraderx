@@ -104,7 +104,7 @@
                 <p class="mb-2">You can contact us via:</p>
                 <ul class="mb-3">
                     <li>the <a href="/contact">Contact Us</a> page</li>
-                    <li>X (Twitter): <strong>@polytraderx</strong></li>
+                    <li>X (Twitter): <a href="https://x.com/polytraderx" target="_blank" rel="noopener noreferrer"><strong>@polytraderx</strong></a></li>
                 </ul>
                 <p class="mb-0">We’ll let you know if it’s a good fit and what the next steps would look like.</p>
             </div>
