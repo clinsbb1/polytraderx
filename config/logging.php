@@ -54,8 +54,14 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'channels' => explode(',', (string) env('LOG_STACK', 'sentry')),
             'ignore_exceptions' => false,
+        ],
+
+        'sentry' => [
+            'driver' => 'sentry',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'bubble' => true,
         ],
 
         'single' => [
@@ -124,15 +130,19 @@ return [
         ],
 
         'emergency' => [
-            'path' => storage_path('logs/laravel.log'),
+            'path' => 'php://stderr',
         ],
 
         'simulator' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/simulator.log'),
-            'level' => 'debug',
-            'days' => 30,
-            'replace_placeholders' => true,
+            'driver' => 'stack',
+            'channels' => ['sentry'],
+            'ignore_exceptions' => false,
+        ],
+
+        'bot' => [
+            'driver' => 'stack',
+            'channels' => ['sentry'],
+            'ignore_exceptions' => false,
         ],
 
     ],
