@@ -48,6 +48,26 @@
     </div>
     <div class="accordion-item">
         <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq13">
+                Do I need to manually choose up or down for every trade?
+            </button>
+        </h2>
+        <div id="faq13" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">No. You set your strategy rules, and the simulator evaluates markets and determines trade direction (up/down) automatically based on your configuration. If this were running as a live bot, it would use the same logic (and AI scoring layer when enabled) to choose direction and place the trade automatically. In PolyTraderX, that exact process is simulated so you can test safely without real execution. If you want a live bot for your own validated strategy, we can also build a private custom one for you separately. Contact us on X (Twitter): <a href="https://x.com/polytraderx" target="_blank" rel="noopener noreferrer"><strong>@polytraderx</strong></a>.</div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq14">
+                What kind of strategies can I set on PolyTraderX?
+            </button>
+        </h2>
+        <div id="faq14" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">You can configure rule-based strategies around confidence thresholds, entry timing windows, max bet sizing, daily risk limits, monitored assets (BTC/ETH/SOL/XRP), and market durations (5-minute and 15-minute). This lets you test conservative, balanced, or aggressive approaches and compare stability, drawdowns, and consistency before risking real capital.</div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq0b">
                 What are signals?
             </button>
@@ -56,16 +76,6 @@
             <div class="accordion-body">
                 Signals are trade opportunities identified by the simulator based on your strategy parameters. Each signal represents a moment when market conditions meet your criteria—like reaching a specific confidence threshold in the final seconds of a prediction market. The simulator evaluates these signals using AI analysis and real-time price data, then simulates how the trade would perform. Your plan determines how many signals can be generated per day.
             </div>
-        </div>
-    </div>
-    <div class="accordion-item">
-        <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                What is PolyTraderX?
-            </button>
-        </h2>
-        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">PolyTraderX is a strategy simulation platform for Polymarket's crypto prediction markets. You design trading strategies with customizable parameters, and we test them against real market data in real-time. All activity is simulated — no live trades are placed. It's the perfect environment to learn, iterate, and refine strategies without risking real money.</div>
         </div>
     </div>
     <div class="accordion-item">
