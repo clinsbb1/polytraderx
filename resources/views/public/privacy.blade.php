@@ -36,17 +36,16 @@
                     <p>We collect information you provide directly:</p>
                     <ul>
                         <li><strong>Account Information:</strong> Name, email address, timezone, Account ID (auto-generated PTX-XXXXXXXXXXXX)</li>
-                        <li><strong>Polymarket API Credentials:</strong> API Key, API Secret, API Passphrase, and Wallet Address (stored encrypted). We do <strong>not</strong> collect or store private keys.</li>
                         <li><strong>Telegram Chat ID:</strong> Stored when you link your Telegram account via our platform bot (optional)</li>
-                        <li><strong>Trading Data:</strong> Trade history, P&amp;L records, balance snapshots</li>
+                        <li><strong>Simulation Data:</strong> Simulated trade history, simulated P&amp;L records, and simulation balance snapshots</li>
                         <li><strong>Usage Data:</strong> Bot activity logs, AI decision records, strategy parameter changes</li>
                     </ul>
 
                     <h4 id="pp-2">2. How We Use Your Information</h4>
                     <p>We use your information to:</p>
                     <ul>
-                        <li>Operate the trading bot on your behalf using your Polymarket API credentials</li>
-                        <li>Display your dashboard, trade history, and analytics</li>
+                        <li>Operate a simulation-only strategy environment (no live trade execution)</li>
+                        <li>Display your dashboard, simulation history, and analytics</li>
                         <li>Send notifications via our platform Telegram bot (if you link your account)</li>
                         <li>Run AI analysis (Claude Haiku/Sonnet) on market data to generate trade signals</li>
                         <li>Perform post-loss forensic audits to improve strategy</li>
@@ -54,12 +53,12 @@
                     </ul>
 
                     <h4 id="pp-3">3. Data Storage &amp; Security</h4>
-                    <p>All API credentials (Polymarket API Key, Secret, and Passphrase) are encrypted at rest using Laravel's encryption facilities. We use industry-standard security practices to protect your data. Your trading data is stored in a secure database. We never store your Polymarket private keys — your funds remain in your own Polymarket wallet at all times.</p>
+                    <p>We use industry-standard security practices to protect your data. Your account and simulation data are stored in a secure database. PolyTraderX is a simulation platform: we do not execute trades for you and we do not hold or move your funds.</p>
 
                     <h4 id="pp-4">4. Third-Party Services</h4>
                     <p>We integrate with the following third-party services:</p>
                     <ul>
-                        <li><strong>Polymarket:</strong> For executing trades (using your API credentials — API Key, Secret, Passphrase only)</li>
+                        <li><strong>Polymarket:</strong> For public market data and strategy simulation context only</li>
                         <li><strong>Binance:</strong> For real-time crypto price feeds (public API, no user credentials needed)</li>
                         <li><strong>Anthropic (Claude AI):</strong> For AI market analysis and forensics (platform-provided API key, not yours)</li>
                         <li><strong>Telegram:</strong> For sending notifications via our platform bot (your Telegram Chat ID is stored if you link your account)</li>
@@ -70,6 +69,7 @@
                     <h4 id="pp-5">5. What We Do NOT Collect</h4>
                     <p>We want to be clear about what we do <strong>not</strong> collect or store:</p>
                     <ul>
+                        <li>Polymarket API keys, API secrets, or API passphrases</li>
                         <li>Polymarket private keys or wallet seed phrases</li>
                         <li>Anthropic API keys (AI is provided by the platform)</li>
                         <li>Binance API keys (we use public price feeds only)</li>
@@ -78,7 +78,7 @@
                     </ul>
 
                     <h4 id="pp-6">6. Data Retention</h4>
-                    <p>We retain your trading data for as long as your account is active. Upon account deletion, your data will be permanently removed within 30 days. API credentials are deleted immediately upon account closure.</p>
+                    <p>We retain your simulation and account data for as long as your account is active. Upon account deletion, your data will be permanently removed within 30 days.</p>
 
                     <h4 id="pp-7">7. Your Rights</h4>
                     <p>You have the right to:</p>
