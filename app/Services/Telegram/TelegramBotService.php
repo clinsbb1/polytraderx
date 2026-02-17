@@ -149,22 +149,28 @@ class TelegramBotService
         $chatId = (string) $message['chat']['id'];
         $text = trim($message['text']);
         $username = $message['from']['username'] ?? null;
-        $lower = function_exists('mb_strtolower') ? mb_strtolower($text) : strtolower($text);
-        $normalized = ltrim($lower, '/');
+        $commandToken = explode(' ', $text, 2)[0] ?? '';
+        $commandLower = function_exists('mb_strtolower')
+            ? mb_strtolower((string) $commandToken)
+            : strtolower((string) $commandToken);
+        $normalizedCommand = ltrim($commandLower, '/');
+        if (str_contains($normalizedCommand, '@')) {
+            $normalizedCommand = explode('@', $normalizedCommand, 2)[0];
+        }
 
-        if (str_starts_with($normalized, 'start')) {
+        if ($normalizedCommand === 'start') {
             $this->handleStart($chatId, $text, $username);
-        } elseif ($text === '/unlink') {
+        } elseif ($normalizedCommand === 'unlink') {
             $this->handleUnlink($chatId);
-        } elseif ($text === '/status') {
+        } elseif ($normalizedCommand === 'status') {
             $this->handleStatus($chatId);
-        } elseif (str_starts_with($normalized, 'strategy')) {
+        } elseif ($normalizedCommand === 'strategy') {
             $this->handleStrategy($chatId);
-        } elseif ($text === '/today') {
+        } elseif ($normalizedCommand === 'today') {
             $this->handleToday($chatId);
-        } elseif ($text === '/balance') {
+        } elseif ($normalizedCommand === 'balance') {
             $this->handleBalance($chatId);
-        } elseif ($text === '/help') {
+        } elseif ($normalizedCommand === 'help') {
             $this->handleHelp($chatId);
         }
     }
