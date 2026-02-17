@@ -42,6 +42,7 @@ return [
         'wallet_address' => env('POLYMARKET_WALLET_ADDRESS'),
         'private_key' => env('POLYMARKET_PRIVATE_KEY'),
         'base_url' => env('POLYMARKET_BASE_URL', 'https://clob.polymarket.com'),
+        'gamma_url' => env('POLYMARKET_GAMMA_URL', 'https://gamma-api.polymarket.com'),
     ],
 
     'telegram' => [

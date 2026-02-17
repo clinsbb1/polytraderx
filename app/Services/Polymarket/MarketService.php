@@ -42,10 +42,19 @@ class MarketService
 
             // Filter by user's selected durations if userId provided
             if ($userId !== null) {
+                $beforeCount = $normalized->count();
                 $allowedDurations = $this->getAllowedDurations($userId);
                 $normalized = $normalized->filter(fn(array $market) =>
                     in_array($market['duration'], $allowedDurations)
                 );
+
+                if ($beforeCount > 0 && $normalized->isEmpty()) {
+                    Log::channel('simulator')->warning('All normalized markets filtered out by user duration selection', [
+                        'user_id' => $userId,
+                        'allowed_durations' => $allowedDurations,
+                        'normalized_before_filter' => $beforeCount,
+                    ]);
+                }
             }
 
             return $normalized->values();
@@ -198,14 +207,20 @@ class MarketService
 
     private function fetchSharedActiveCryptoMarkets(): Collection
     {
-        $baseUrl = rtrim((string) config('services.polymarket.base_url', 'https://clob.polymarket.com'), '/');
-        $url = $baseUrl . '/markets';
+        $gammaBaseUrl = rtrim((string) config('services.polymarket.gamma_url', 'https://gamma-api.polymarket.com'), '/');
+        $clobBaseUrl = rtrim((string) config('services.polymarket.base_url', 'https://clob.polymarket.com'), '/');
+        $gammaUrl = $gammaBaseUrl . '/markets';
+        $clobUrl = $clobBaseUrl . '/markets';
         $lastException = null;
 
+        // Prefer Gamma API because it carries richer market metadata (question/title/duration cues).
         for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
             try {
-                $response = Http::timeout(15)->get($url, [
+                $response = Http::timeout(15)->get($gammaUrl, [
                     'active' => 'true',
+                    'closed' => 'false',
+                    'archived' => 'false',
+                    'limit' => 1000,
                 ]);
 
                 if ($response->successful()) {
@@ -216,11 +231,28 @@ class MarketService
                         return collect();
                     }
 
-                    return collect($markets)
+                    $normalized = collect($markets)
                         ->filter(fn($market) => is_array($market))
                         ->map(fn(array $market) => $this->normalizeMarket($market))
                         ->filter(fn(?array $market) => $market !== null)
                         ->values();
+
+                    if (count($markets) > 0 && $normalized->isEmpty()) {
+                        $samples = collect($markets)->take(3)->map(function ($m) {
+                            if (!is_array($m)) {
+                                return '';
+                            }
+                            return (string) ($m['question'] ?? $m['title'] ?? $m['name'] ?? $m['slug'] ?? '');
+                        })->values()->toArray();
+
+                        Log::channel('simulator')->warning('Polymarket gamma fetch returned markets but none normalized', [
+                            'raw_count' => count($markets),
+                            'normalized_count' => 0,
+                            'sample_titles' => $samples,
+                        ]);
+                    }
+
+                    return $normalized;
                 }
 
                 $status = $response->status();
@@ -243,6 +275,64 @@ class MarketService
                     'status' => $status,
                     'body' => $response->body(),
                 ]);
+
+                return collect();
+            } catch (\Throwable $e) {
+                $lastException = $e;
+
+                if ($attempt < self::MAX_RETRIES - 1) {
+                    $sleepFor = self::RETRY_BACKOFF_SECONDS[$attempt] ?? 2;
+                    sleep(max(1, $sleepFor));
+                    continue;
+                }
+            }
+        }
+
+        // Fallback to CLOB API if Gamma is unavailable.
+        for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
+            try {
+                $response = Http::timeout(15)->get($clobUrl, [
+                    'active' => 'true',
+                ]);
+
+                if ($response->successful()) {
+                    $payload = $response->json();
+                    $markets = $payload['data'] ?? $payload;
+
+                    if (!is_array($markets)) {
+                        return collect();
+                    }
+
+                    $normalized = collect($markets)
+                        ->filter(fn($market) => is_array($market))
+                        ->map(fn(array $market) => $this->normalizeMarket($market))
+                        ->filter(fn(?array $market) => $market !== null)
+                        ->values();
+
+                    if (count($markets) > 0 && $normalized->isEmpty()) {
+                        $samples = collect($markets)->take(3)->map(function ($m) {
+                            if (!is_array($m)) {
+                                return '';
+                            }
+                            return (string) ($m['question'] ?? $m['title'] ?? $m['name'] ?? $m['slug'] ?? '');
+                        })->values()->toArray();
+
+                        Log::channel('simulator')->warning('Polymarket clob fetch returned markets but none normalized', [
+                            'raw_count' => count($markets),
+                            'normalized_count' => 0,
+                            'sample_titles' => $samples,
+                        ]);
+                    }
+
+                    return $normalized;
+                }
+
+                $status = $response->status();
+                if (($status === 429 || $status >= 500) && $attempt < self::MAX_RETRIES - 1) {
+                    $sleepFor = (int) ($response->header('Retry-After') ?: (self::RETRY_BACKOFF_SECONDS[$attempt] ?? 2));
+                    sleep(max(1, $sleepFor));
+                    continue;
+                }
 
                 return collect();
             } catch (\Throwable $e) {
