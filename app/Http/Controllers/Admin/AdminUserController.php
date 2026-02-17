@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminTelegramMessage;
 use App\Models\User;
 use App\Services\Email\LifecycleEmailService;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class AdminUserController extends Controller
@@ -103,12 +105,45 @@ class AdminUserController extends Controller
         $plan = $subscriptionService->getPlanBySlug($request->plan_slug);
         if ($plan) {
             $durationDays = $plan->slug === 'lifetime' ? null : $request->integer('duration_days');
+            $freshUser = $user->fresh();
 
             app(LifecycleEmailService::class)->sendFreeSubscriptionGranted(
-                $user->fresh(),
+                $freshUser,
                 $plan,
                 $durationDays
             );
+
+            if ($freshUser && $freshUser->hasTelegramLinked()) {
+                $durationLabel = $plan->slug === 'lifetime'
+                    ? 'Lifetime access'
+                    : "{$durationDays} days";
+
+                try {
+                    AdminTelegramMessage::create([
+                        'admin_id' => (int) auth()->id(),
+                        'recipient_user_id' => $freshUser->id,
+                        'recipient_chat_id' => $freshUser->telegram_chat_id,
+                        'batch_id' => null,
+                        'is_broadcast' => false,
+                        'message' => "<b>Subscription Update</b>\n\n"
+                            . "Your free <b>{$plan->name}</b> plan has been granted by admin.\n"
+                            . "Duration: <b>{$durationLabel}</b>\n\n"
+                            . "Open your dashboard to continue.",
+                        'image_path' => null,
+                        'status' => 'pending',
+                        'attempts' => 0,
+                        'success' => false,
+                        'error_message' => null,
+                        'sent_at' => null,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::channel('simulator')->warning('Failed to queue admin grant Telegram message', [
+                        'user_id' => $freshUser->id,
+                        'plan' => $plan->slug,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         }
 
         $durationLabel = $request->plan_slug === 'lifetime'
