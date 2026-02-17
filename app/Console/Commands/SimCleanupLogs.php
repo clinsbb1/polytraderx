@@ -31,8 +31,8 @@ class SimCleanupLogs extends Command
             })
             ->delete();
 
-        // 4. Delete bot activity logs older than 30 days
-        $botActivity = BotActivityLog::where('created_at', '<', now()->subDays(30))->delete();
+        // 4. Delete market scan logs older than 24 hours
+        $botActivity = BotActivityLog::where('created_at', '<', now()->subHours(24))->delete();
 
         // Also clean orphaned ai_decisions (no trade) older than 90 days
         $orphaned = AiDecision::where('created_at', '<', now()->subDays(90))

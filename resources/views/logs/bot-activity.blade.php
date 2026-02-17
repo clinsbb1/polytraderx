@@ -5,7 +5,7 @@
 @section('content')
 <div class="ptx-alert ptx-alert-info mb-4" role="alert">
     <i class="bi bi-info-circle-fill"></i>
-    <span>Market scan history is kept for <strong>30 days</strong>. Older entries are automatically removed.</span>
+    <span>Market scan history is kept for <strong>24 hours</strong>. Older entries are automatically removed.</span>
 </div>
 
 <div class="ptx-card mb-4">
