@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 
 
-// Temporary maintenance helper for cPanel deployments (token only).
+// Temporary migrations maintenance helper for cPanel deployments (token only).
 Route::middleware(['throttle:3,1'])->get('/admin/run-migration', function (Request $request) {
     $expectedToken = (string) env('MAINTENANCE_ROUTE_TOKEN', '');
     $providedToken = (string) $request->query('token', '');
