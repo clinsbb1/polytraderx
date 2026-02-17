@@ -158,8 +158,7 @@ class MarketService
             return '15min';
         }
 
-        // Default to 15min if not specified (legacy behavior)
-        return '15min';
+        return null;
     }
 
     private function getAllowedDurations(int $userId): array
@@ -417,7 +416,7 @@ class MarketService
             return null;
         }
 
-        $duration = $this->identifyDuration($textCorpus);
+        $duration = $this->resolveMarketDuration($market, $textCorpus);
 
         if ($duration === null) {
             return null;
@@ -497,6 +496,32 @@ class MarketService
             fn($v) => is_scalar($v) ? (string) $v : '',
             $parts
         ))));
+    }
+
+    private function resolveMarketDuration(array $market, string $textCorpus): ?string
+    {
+        // Structured fields first (safer than free-text when available).
+        $candidates = [
+            $market['duration'] ?? null,
+            $market['interval'] ?? null,
+            $market['timeframe'] ?? null,
+            $market['marketType'] ?? null,
+            $market['market_type'] ?? null,
+            $market['category'] ?? null,
+            $market['type'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_scalar($candidate)) {
+                continue;
+            }
+            $detected = $this->identifyDuration((string) $candidate);
+            if ($detected !== null) {
+                return $detected;
+            }
+        }
+
+        return $this->identifyDuration($textCorpus);
     }
 
     private function summarizeNormalizationDropReasons(array $markets): array

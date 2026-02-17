@@ -10,6 +10,44 @@
 
 <div class="ptx-card mb-4">
     <div class="ptx-card-body">
+        <h6 class="mb-3">How to read Market Scans</h6>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="small text-secondary">
+                    <strong>Event</strong>: What happened in the simulation cycle (scan, skip, no match, market check).
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="small text-secondary">
+                    <strong>Market</strong>: Asset and market ID that was evaluated (if applicable).
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="small text-secondary">
+                    <strong>Match</strong>: Whether that market matched your strategy conditions.
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="small text-secondary">
+                    <strong>Action</strong>: Engine decision for that check (skip, trade placed, etc.).
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="small text-secondary">
+                    <strong>Message</strong>: Human summary of what happened in that row.
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="small text-secondary">
+                    <strong>Context</strong>: Raw details including scanned totals, 5min/15min split, entry window, and nearest close.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="ptx-card mb-4">
+    <div class="ptx-card-body">
         <form method="GET" action="{{ route('logs.market-scans') }}" class="row g-3 align-items-end">
             <div class="col-md-3">
                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.8rem;">Search</label>

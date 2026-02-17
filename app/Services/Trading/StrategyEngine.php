@@ -61,6 +61,8 @@ class StrategyEngine
         // Fetch markets (filtered by user's selected durations)
         $markets = $this->marketService->getActiveCryptoMarkets($client, $user->id);
         $summary['markets_scanned'] = $markets->count();
+        $scanned5Min = $markets->filter(fn(array $market) => ($market['duration'] ?? null) === '5min')->count();
+        $scanned15Min = $markets->filter(fn(array $market) => ($market['duration'] ?? null) === '15min')->count();
         $nearestCloseSeconds = $markets->isNotEmpty()
             ? (int) $markets->min(fn(array $market) => (int) ($market['seconds_remaining'] ?? PHP_INT_MAX))
             : null;
@@ -78,9 +80,11 @@ class StrategyEngine
             $user->id,
             $cycleId,
             'cycle_scanned',
-            "Scanned {$summary['markets_scanned']} market(s), {$summary['in_entry_window']} in entry window (window={$entryWindowSeconds}s, nearest_close=" . ($nearestCloseSeconds ?? 'n/a') . "s).",
+            "Scanned {$summary['markets_scanned']} market(s) [5min: {$scanned5Min}, 15min: {$scanned15Min}], {$summary['in_entry_window']} in entry window (window={$entryWindowSeconds}s, nearest_close=" . ($nearestCloseSeconds ?? 'n/a') . "s).",
             context: [
                 'markets_scanned' => $summary['markets_scanned'],
+                'markets_scanned_5min' => $scanned5Min,
+                'markets_scanned_15min' => $scanned15Min,
                 'in_entry_window' => $summary['in_entry_window'],
                 'entry_window_seconds' => $entryWindowSeconds,
                 'nearest_close_seconds' => $nearestCloseSeconds,
