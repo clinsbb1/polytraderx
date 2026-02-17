@@ -10,6 +10,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command('subscriptions:check-expired')->hourly();
 Schedule::command('payments:expire-pending')->hourly();
+Schedule::command('telegram:process-admin-messages')->everyMinute()->withoutOverlapping()->runInBackground();
 
 // Tier 1: Reflexes — Every minute
 Schedule::command('sim:scan-markets')->everyMinute()->withoutOverlapping()->runInBackground();

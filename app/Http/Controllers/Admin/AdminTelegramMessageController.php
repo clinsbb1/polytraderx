@@ -7,10 +7,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AdminTelegramMessage;
 use App\Models\User;
-use App\Services\Telegram\TelegramBotService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -25,13 +23,13 @@ class AdminTelegramMessageController extends Controller
 
         $history = AdminTelegramMessage::query()
             ->with(['admin:id,name', 'recipient:id,name,account_id'])
-            ->latest('sent_at')
+            ->latest('created_at')
             ->paginate(50);
 
         return view('admin.telegram.messages', compact('connectedUsers', 'history'));
     }
 
-    public function send(Request $request, TelegramBotService $telegram): RedirectResponse
+    public function send(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'target' => ['required', 'in:all,single'],
@@ -49,10 +47,8 @@ class AdminTelegramMessageController extends Controller
         $batchId = $isBroadcast ? (string) Str::uuid() : null;
 
         $imagePath = null;
-        $absoluteImagePath = null;
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('telegram-admin', 'public');
-            $absoluteImagePath = Storage::disk('public')->path($imagePath);
         }
 
         $recipients = $isBroadcast
@@ -64,22 +60,9 @@ class AdminTelegramMessageController extends Controller
         }
 
         $message = (string) $validated['message'];
-        $successCount = 0;
-        $failedCount = 0;
+        $queuedCount = 0;
 
         foreach ($recipients as $recipient) {
-            $sent = false;
-            $error = null;
-
-            try {
-                $sent = $telegram->sendToUserWithMedia($recipient->id, $message, $absoluteImagePath);
-                if (!$sent) {
-                    $error = 'Telegram API send failed';
-                }
-            } catch (\Throwable $e) {
-                $error = $e->getMessage();
-            }
-
             AdminTelegramMessage::create([
                 'admin_id' => $admin->id,
                 'recipient_user_id' => $recipient->id,
@@ -88,23 +71,20 @@ class AdminTelegramMessageController extends Controller
                 'is_broadcast' => $isBroadcast,
                 'message' => $message,
                 'image_path' => $imagePath,
-                'success' => $sent,
-                'error_message' => $error,
-                'sent_at' => now(),
+                'status' => 'pending',
+                'attempts' => 0,
+                'success' => false,
+                'error_message' => null,
+                'sent_at' => null,
             ]);
 
-            if ($sent) {
-                $successCount++;
-            } else {
-                $failedCount++;
-            }
+            $queuedCount++;
         }
 
         $label = $isBroadcast ? 'broadcast' : 'single';
         return back()->with(
             'success',
-            "Telegram {$label} sent. Success: {$successCount}, Failed: {$failedCount}."
+            "Telegram {$label} queued. {$queuedCount} message(s) will be processed by scheduler each minute."
         );
     }
 }
-

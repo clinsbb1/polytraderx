@@ -66,7 +66,8 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Sent At</th>
+                        <th>Queued At</th>
+                        <th>Processed At</th>
                         <th>Admin</th>
                         <th>Target</th>
                         <th>Recipient</th>
@@ -79,7 +80,8 @@
                 <tbody>
                     @forelse($history as $item)
                         <tr>
-                            <td class="small text-muted">{{ optional($item->sent_at)->format('M j, Y H:i') }}</td>
+                            <td class="small text-muted">{{ optional($item->created_at)->format('M j, Y H:i') }}</td>
+                            <td class="small text-muted">{{ optional($item->sent_at)->format('M j, Y H:i') ?: '—' }}</td>
                             <td>{{ $item->admin?->name ?? 'N/A' }}</td>
                             <td>
                                 @if($item->is_broadcast)
@@ -105,7 +107,9 @@
                                 @endif
                             </td>
                             <td>
-                                @if($item->success)
+                                @if($item->status === 'pending')
+                                    <span class="badge bg-warning text-dark">Queued</span>
+                                @elseif($item->success)
                                     <span class="badge bg-success">Sent</span>
                                 @else
                                     <span class="badge bg-danger">Failed</span>
@@ -115,7 +119,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">No Telegram messages sent yet.</td>
+                            <td colspan="9" class="text-center text-muted py-4">No Telegram messages sent yet.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -145,4 +149,3 @@
     })();
 </script>
 @endsection
-

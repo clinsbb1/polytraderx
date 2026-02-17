@@ -20,6 +20,9 @@ class AdminTelegramMessage extends Model
         'is_broadcast',
         'message',
         'image_path',
+        'status',
+        'attempts',
+        'last_attempt_at',
         'success',
         'error_message',
         'sent_at',
@@ -29,6 +32,8 @@ class AdminTelegramMessage extends Model
     {
         return [
             'is_broadcast' => 'boolean',
+            'attempts' => 'integer',
+            'last_attempt_at' => 'datetime',
             'success' => 'boolean',
             'sent_at' => 'datetime',
         ];
@@ -44,4 +49,3 @@ class AdminTelegramMessage extends Model
         return $this->belongsTo(User::class, 'recipient_user_id');
     }
 }
-
