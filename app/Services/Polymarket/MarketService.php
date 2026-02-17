@@ -552,9 +552,22 @@ class MarketService
             return null;
         }
 
+        $intervalSeconds = $this->resolveMarketIntervalSeconds($market, $textCorpus, $duration);
+        if ($intervalSeconds !== null) {
+            $periodicEnd = $this->computeNextPeriodicClose($market, $endTime, $intervalSeconds);
+            if ($periodicEnd !== null) {
+                $endTime = $periodicEnd;
+            }
+        }
+
         $secondsRemaining = (int) now()->diffInSeconds($endTime, false);
 
         if ($secondsRemaining < 0) {
+            return null;
+        }
+
+        // Guardrail: if remaining time is still very large, this is likely not an intraday 5/15m round.
+        if ($secondsRemaining > 7200) {
             return null;
         }
 
@@ -666,6 +679,69 @@ class MarketService
         return '15min';
     }
 
+    private function resolveMarketIntervalSeconds(array $market, string $textCorpus, ?string $resolvedDuration = null): ?int
+    {
+        foreach ($this->collectDurationHints($market) as $candidate) {
+            $seconds = $this->detectIntervalSecondsFromHint($candidate);
+            if ($seconds !== null) {
+                return $seconds;
+            }
+        }
+
+        $fromText = $this->identifyDuration($textCorpus);
+        if ($fromText === '5min') {
+            return 300;
+        }
+        if ($fromText === '15min') {
+            return 900;
+        }
+
+        return match ($resolvedDuration) {
+            '5min' => 300,
+            '15min' => 900,
+            default => null,
+        };
+    }
+
+    private function computeNextPeriodicClose(array $market, Carbon $hardEnd, int $intervalSeconds): ?Carbon
+    {
+        if ($intervalSeconds <= 0) {
+            return null;
+        }
+
+        $now = now();
+
+        if ($hardEnd->lessThanOrEqualTo($now)) {
+            return null;
+        }
+
+        $anchor = $this->getMarketStartTime($market);
+
+        // Fallback anchor aligned to minute clock.
+        if (!$anchor instanceof Carbon) {
+            $anchor = $now->copy()->startOfMinute();
+        }
+
+        if ($anchor->greaterThan($now)) {
+            $candidate = $anchor->copy();
+        } else {
+            $elapsed = max(0, $now->getTimestamp() - $anchor->getTimestamp());
+            $steps = intdiv($elapsed, $intervalSeconds) + 1;
+            $candidate = $anchor->copy()->addSeconds($steps * $intervalSeconds);
+        }
+
+        if ($candidate->lessThanOrEqualTo($now)) {
+            $candidate = $candidate->copy()->addSeconds($intervalSeconds);
+        }
+
+        if ($candidate->greaterThan($hardEnd)) {
+            // If next periodic boundary is outside market hard-end, use hard-end.
+            return $hardEnd->greaterThan($now) ? $hardEnd : null;
+        }
+
+        return $candidate;
+    }
+
     private function collectDurationHints(array $market): array
     {
         $hints = [
@@ -724,6 +800,27 @@ class MarketService
 
     private function detectDurationFromHint(mixed $hint): ?string
     {
+        $seconds = $this->detectIntervalSecondsFromHint($hint);
+        if ($seconds === 300) {
+            return '5min';
+        }
+        if ($seconds === 900) {
+            return '15min';
+        }
+
+        if ($hint === null || (is_string($hint) && trim($hint) === '')) {
+            return null;
+        }
+
+        if (!is_scalar($hint)) {
+            return null;
+        }
+
+        return $this->identifyDuration((string) $hint);
+    }
+
+    private function detectIntervalSecondsFromHint(mixed $hint): ?int
+    {
         if ($hint === null || (is_string($hint) && trim($hint) === '')) {
             return null;
         }
@@ -733,18 +830,18 @@ class MarketService
 
             // Seconds-like values.
             if ($value >= 150 && $value <= 600) {
-                return '5min';
+                return 300;
             }
             if ($value >= 600 && $value <= 1500) {
-                return '15min';
+                return 900;
             }
 
             // Minutes-like values.
             if ($value >= 4 && $value <= 6) {
-                return '5min';
+                return 300;
             }
             if ($value >= 12 && $value <= 18) {
-                return '15min';
+                return 900;
             }
 
             return null;
@@ -756,14 +853,14 @@ class MarketService
 
         $text = strtoupper((string) $hint);
 
-        if (str_contains($text, '300') || str_contains($text, 'PT5M')) {
-            return '5min';
+        if (preg_match('/(?:\b300\b|PT5M|\b5\s*MIN(?:UTE)?S?\b|\bEVERY\s*5\b|\bM5\b)/i', $text) === 1) {
+            return 300;
         }
-        if (str_contains($text, '900') || str_contains($text, 'PT15M')) {
-            return '15min';
+        if (preg_match('/(?:\b900\b|PT15M|\b15\s*MIN(?:UTE)?S?\b|\bEVERY\s*15\b|\bM15\b)/i', $text) === 1) {
+            return 900;
         }
 
-        return $this->identifyDuration($text);
+        return null;
     }
 
     private function summarizeNormalizationDropReasons(array $markets): array
