@@ -106,8 +106,8 @@
                     @endforeach
                 </tbody>
             </table>
-            <div class="p-3">
-                {{ $activities->links() }}
+            <div class="p-3 d-flex justify-content-center">
+                {{ $activities->links('pagination::bootstrap-5') }}
             </div>
         @else
             <div class="ptx-empty-state">
