@@ -175,55 +175,126 @@ class MarketService
 
     public function getMarketEndTime(array $market): ?Carbon
     {
-        $endTime = $market['end_date_iso']
-            ?? $market['end_date']
-            ?? $market['end_time']
-            ?? $market['endTime']
-            ?? $market['resolution_time']
-            ?? $market['resolutionTime']
-            ?? $market['expiration']
-            ?? $market['expiresAt']
-            ?? $market['endDateIso']
-            ?? $market['endDate']
-            ?? $market['umaEndDate']
-            ?? $market['closedTime']
-            ?? null;
+        $candidates = [
+            $market['end_date_iso'] ?? null,
+            $market['endDateIso'] ?? null,
+            $market['end_date'] ?? null,
+            $market['endDate'] ?? null,
+            $market['end_time'] ?? null,
+            $market['endTime'] ?? null,
+            $market['resolution_time'] ?? null,
+            $market['resolutionTime'] ?? null,
+            $market['expiration'] ?? null,
+            $market['expiresAt'] ?? null,
+            $market['umaEndDate'] ?? null,
+            $market['closedTime'] ?? null,
+            $market['upperBoundDate'] ?? null,
+            $market['gameStartTime'] ?? null,
+        ];
 
-        if ($endTime === null) {
-            return null;
-        }
-
-        try {
-            if (is_numeric($endTime)) {
-                return Carbon::createFromTimestamp((int) $endTime);
+        $events = $market['events'] ?? [];
+        if (is_array($events)) {
+            foreach ($events as $event) {
+                if (!is_array($event)) {
+                    continue;
+                }
+                $candidates[] = $event['endDate'] ?? null;
+                $candidates[] = $event['endDateIso'] ?? null;
+                $candidates[] = $event['end_date_iso'] ?? null;
+                $candidates[] = $event['umaEndDate'] ?? null;
+                $candidates[] = $event['gameStartTime'] ?? null;
+                $candidates[] = $event['upperBoundDate'] ?? null;
             }
-            return Carbon::parse($endTime);
-        } catch (\Exception $e) {
+        }
+
+        $parsed = collect($candidates)
+            ->map(fn($value) => $this->parseTimeCandidate($value))
+            ->filter(fn($value) => $value instanceof Carbon)
+            ->values();
+
+        if ($parsed->isEmpty()) {
             return null;
         }
+
+        $future = $parsed
+            ->filter(fn(Carbon $dt) => $dt->greaterThanOrEqualTo(now()))
+            ->sortBy(fn(Carbon $dt) => $dt->getTimestamp())
+            ->values();
+
+        if ($future->isNotEmpty()) {
+            return $future->first();
+        }
+
+        // If all candidates are in the past, return the most recent one.
+        return $parsed
+            ->sortByDesc(fn(Carbon $dt) => $dt->getTimestamp())
+            ->first();
     }
 
     private function getMarketStartTime(array $market): ?Carbon
     {
-        $startTime = $market['start_date_iso']
-            ?? $market['start_date']
-            ?? $market['start_time']
-            ?? $market['startTime']
-            ?? $market['startDateIso']
-            ?? $market['startDate']
-            ?? $market['created_at']
-            ?? $market['createdAt']
-            ?? null;
+        $candidates = [
+            $market['start_date_iso'] ?? null,
+            $market['startDateIso'] ?? null,
+            $market['start_date'] ?? null,
+            $market['startDate'] ?? null,
+            $market['start_time'] ?? null,
+            $market['startTime'] ?? null,
+            $market['created_at'] ?? null,
+            $market['createdAt'] ?? null,
+            $market['lowerBoundDate'] ?? null,
+        ];
 
-        if ($startTime === null) {
+        $events = $market['events'] ?? [];
+        if (is_array($events)) {
+            foreach ($events as $event) {
+                if (!is_array($event)) {
+                    continue;
+                }
+                $candidates[] = $event['startDate'] ?? null;
+                $candidates[] = $event['startDateIso'] ?? null;
+                $candidates[] = $event['start_date_iso'] ?? null;
+                $candidates[] = $event['createdAt'] ?? null;
+                $candidates[] = $event['created_at'] ?? null;
+                $candidates[] = $event['lowerBoundDate'] ?? null;
+            }
+        }
+
+        $parsed = collect($candidates)
+            ->map(fn($value) => $this->parseTimeCandidate($value))
+            ->filter(fn($value) => $value instanceof Carbon)
+            ->sortBy(fn(Carbon $dt) => $dt->getTimestamp())
+            ->values();
+
+        return $parsed->first();
+    }
+
+    private function parseTimeCandidate(mixed $value): ?Carbon
+    {
+        if ($value instanceof Carbon) {
+            return $value;
+        }
+
+        if ($value === null || !is_scalar($value)) {
             return null;
         }
 
         try {
-            if (is_numeric($startTime)) {
-                return Carbon::createFromTimestamp((int) $startTime);
+            if (is_numeric($value)) {
+                $timestamp = (float) $value;
+                // Handle milliseconds when provided by upstream APIs.
+                if ($timestamp > 1000000000000) {
+                    $timestamp = (int) floor($timestamp / 1000);
+                }
+                return Carbon::createFromTimestamp((int) $timestamp);
             }
-            return Carbon::parse($startTime);
+
+            $trimmed = trim((string) $value);
+            if ($trimmed === '') {
+                return null;
+            }
+
+            return Carbon::parse($trimmed);
         } catch (\Exception) {
             return null;
         }
@@ -526,22 +597,8 @@ class MarketService
 
     private function resolveMarketDuration(array $market, string $textCorpus): ?string
     {
-        // Structured fields first (safer than free-text when available).
-        $candidates = [
-            $market['duration'] ?? null,
-            $market['interval'] ?? null,
-            $market['timeframe'] ?? null,
-            $market['marketType'] ?? null,
-            $market['market_type'] ?? null,
-            $market['category'] ?? null,
-            $market['type'] ?? null,
-        ];
-
-        foreach ($candidates as $candidate) {
-            if (!is_scalar($candidate)) {
-                continue;
-            }
-            $detected = $this->identifyDuration((string) $candidate);
+        foreach ($this->collectDurationHints($market) as $candidate) {
+            $detected = $this->detectDurationFromHint($candidate);
             if ($detected !== null) {
                 return $detected;
             }
@@ -559,27 +616,126 @@ class MarketService
             $spanSeconds = abs($end->diffInSeconds($start, false));
 
             // Wide tolerances to absorb API clock/rounding drift.
-            if ($spanSeconds >= 180 && $spanSeconds <= 540) {
+            if ($spanSeconds >= 150 && $spanSeconds <= 540) {
                 return '5min';
             }
-            if ($spanSeconds >= 660 && $spanSeconds <= 1200) {
+            if ($spanSeconds >= 600 && $spanSeconds <= 1500) {
                 return '15min';
             }
         }
 
-        // Fallback: classify near-term unknowns first.
+        // Last fallback: near-term windows only.
         if ($end !== null) {
             $remaining = (int) now()->diffInSeconds($end, false);
-            if ($remaining > 0 && $remaining <= 420) {
+            if ($remaining > 0 && $remaining <= 600) {
                 return '5min';
             }
-            if ($remaining > 420 && $remaining <= 1200) {
+            if ($remaining > 600 && $remaining <= 1800) {
                 return '15min';
             }
         }
 
-        // Final fallback to keep scanning resilient to upstream naming changes.
-        return '15min';
+        return null;
+    }
+
+    private function collectDurationHints(array $market): array
+    {
+        $hints = [
+            $market['secondsDelay'] ?? null,
+            $market['seconds_delay'] ?? null,
+            $market['duration'] ?? null,
+            $market['interval'] ?? null,
+            $market['timeframe'] ?? null,
+            $market['frequency'] ?? null,
+            $market['resolution'] ?? null,
+            $market['marketType'] ?? null,
+            $market['market_type'] ?? null,
+            $market['category'] ?? null,
+            $market['type'] ?? null,
+            $market['groupItemTitle'] ?? null,
+            $market['ticker'] ?? null,
+            $market['slug'] ?? null,
+            $market['market_slug'] ?? null,
+        ];
+
+        $events = $market['events'] ?? [];
+        if (is_array($events)) {
+            foreach ($events as $event) {
+                if (!is_array($event)) {
+                    continue;
+                }
+
+                $hints[] = $event['title'] ?? null;
+                $hints[] = $event['slug'] ?? null;
+                $hints[] = $event['ticker'] ?? null;
+                $hints[] = $event['category'] ?? null;
+                $hints[] = $event['secondsDelay'] ?? null;
+                $hints[] = $event['seconds_delay'] ?? null;
+
+                $series = $event['series'] ?? [];
+                if (is_array($series)) {
+                    foreach ($series as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+                        $hints[] = $item['recurrence'] ?? null;
+                        $hints[] = $item['seriesType'] ?? null;
+                        $hints[] = $item['interval'] ?? null;
+                        $hints[] = $item['duration'] ?? null;
+                        $hints[] = $item['secondsDelay'] ?? null;
+                        $hints[] = $item['seconds_delay'] ?? null;
+                        $hints[] = $item['title'] ?? null;
+                        $hints[] = $item['slug'] ?? null;
+                    }
+                }
+            }
+        }
+
+        return $hints;
+    }
+
+    private function detectDurationFromHint(mixed $hint): ?string
+    {
+        if ($hint === null || (is_string($hint) && trim($hint) === '')) {
+            return null;
+        }
+
+        if (is_numeric($hint)) {
+            $value = (float) $hint;
+
+            // Seconds-like values.
+            if ($value >= 150 && $value <= 600) {
+                return '5min';
+            }
+            if ($value >= 600 && $value <= 1500) {
+                return '15min';
+            }
+
+            // Minutes-like values.
+            if ($value >= 4 && $value <= 6) {
+                return '5min';
+            }
+            if ($value >= 12 && $value <= 18) {
+                return '15min';
+            }
+
+            return null;
+        }
+
+        if (!is_scalar($hint)) {
+            return null;
+        }
+
+        $text = strtoupper((string) $hint);
+
+        if (str_contains($text, '300') || str_contains($text, 'PT5M')) {
+            return '5min';
+        }
+        if (str_contains($text, '900') || str_contains($text, 'PT15M')) {
+            return '15min';
+        }
+
+        return $this->identifyDuration($text);
     }
 
     private function summarizeNormalizationDropReasons(array $markets): array

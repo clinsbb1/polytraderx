@@ -93,6 +93,28 @@ class StrategyEngine
         );
 
         if ($entryMarkets->isEmpty()) {
+            $sampledMarkets = $markets
+                ->sortBy(fn(array $market) => (int) ($market['seconds_remaining'] ?? PHP_INT_MAX))
+                ->take(15)
+                ->values();
+
+            foreach ($sampledMarkets as $market) {
+                $secondsRemaining = (int) ($market['seconds_remaining'] ?? 0);
+                $this->logMarketActivity(
+                    userId: $user->id,
+                    cycleId: $cycleId,
+                    market: $market,
+                    matched: false,
+                    action: 'SKIP_NOT_IN_ENTRY_WINDOW',
+                    message: "Scanned market outside entry window ({$secondsRemaining}s remaining).",
+                    context: [
+                        'entry_window_seconds' => $entryWindowSeconds,
+                        'seconds_remaining' => $secondsRemaining,
+                        'duration' => $market['duration'] ?? null,
+                    ]
+                );
+            }
+
             $this->logBotActivity($user->id, $cycleId, 'no_match', 'No market in entry window matched current strategy.');
             return $summary;
         }
