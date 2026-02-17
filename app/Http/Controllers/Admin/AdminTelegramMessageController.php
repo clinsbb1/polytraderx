@@ -1,0 +1,110 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\AdminTelegramMessage;
+use App\Models\User;
+use App\Services\Telegram\TelegramBotService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+
+class AdminTelegramMessageController extends Controller
+{
+    public function index(): View
+    {
+        $connectedUsers = User::query()
+            ->whereNotNull('telegram_chat_id')
+            ->orderBy('name')
+            ->get(['id', 'name', 'account_id', 'telegram_username', 'telegram_chat_id']);
+
+        $history = AdminTelegramMessage::query()
+            ->with(['admin:id,name', 'recipient:id,name,account_id'])
+            ->latest('sent_at')
+            ->paginate(50);
+
+        return view('admin.telegram.messages', compact('connectedUsers', 'history'));
+    }
+
+    public function send(Request $request, TelegramBotService $telegram): RedirectResponse
+    {
+        $validated = $request->validate([
+            'target' => ['required', 'in:all,single'],
+            'recipient_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'message' => ['required', 'string', 'max:4000'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+        ]);
+
+        if ($validated['target'] === 'single' && empty($validated['recipient_user_id'])) {
+            return back()->with('error', 'Select a recipient user for single send.');
+        }
+
+        $admin = $request->user();
+        $isBroadcast = $validated['target'] === 'all';
+        $batchId = $isBroadcast ? (string) Str::uuid() : null;
+
+        $imagePath = null;
+        $absoluteImagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('telegram-admin', 'public');
+            $absoluteImagePath = Storage::disk('public')->path($imagePath);
+        }
+
+        $recipients = $isBroadcast
+            ? User::query()->whereNotNull('telegram_chat_id')->get()
+            : User::query()->whereKey((int) $validated['recipient_user_id'])->whereNotNull('telegram_chat_id')->get();
+
+        if ($recipients->isEmpty()) {
+            return back()->with('error', 'No connected Telegram recipients found for this send.');
+        }
+
+        $message = (string) $validated['message'];
+        $successCount = 0;
+        $failedCount = 0;
+
+        foreach ($recipients as $recipient) {
+            $sent = false;
+            $error = null;
+
+            try {
+                $sent = $telegram->sendToUserWithMedia($recipient->id, $message, $absoluteImagePath);
+                if (!$sent) {
+                    $error = 'Telegram API send failed';
+                }
+            } catch (\Throwable $e) {
+                $error = $e->getMessage();
+            }
+
+            AdminTelegramMessage::create([
+                'admin_id' => $admin->id,
+                'recipient_user_id' => $recipient->id,
+                'recipient_chat_id' => $recipient->telegram_chat_id,
+                'batch_id' => $batchId,
+                'is_broadcast' => $isBroadcast,
+                'message' => $message,
+                'image_path' => $imagePath,
+                'success' => $sent,
+                'error_message' => $error,
+                'sent_at' => now(),
+            ]);
+
+            if ($sent) {
+                $successCount++;
+            } else {
+                $failedCount++;
+            }
+        }
+
+        $label = $isBroadcast ? 'broadcast' : 'single';
+        return back()->with(
+            'success',
+            "Telegram {$label} sent. Success: {$successCount}, Failed: {$failedCount}."
+        );
+    }
+}
+

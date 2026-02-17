@@ -34,7 +34,32 @@ class TelegramBotService
         return $this->sendMessage($user->telegram_chat_id, $message);
     }
 
+    public function sendToUserWithMedia(int $userId, string $message, ?string $photoPath = null): bool
+    {
+        $user = User::find($userId);
+
+        if (!$user || !$user->hasTelegramLinked()) {
+            return false;
+        }
+
+        return $this->sendMessageWithMedia($user->telegram_chat_id, $message, $photoPath);
+    }
+
     public function sendMessage(string $chatId, string $message): bool
+    {
+        return $this->sendTextMessage($chatId, $message);
+    }
+
+    public function sendMessageWithMedia(string $chatId, string $message, ?string $photoPath = null): bool
+    {
+        if (empty($photoPath)) {
+            return $this->sendTextMessage($chatId, $message);
+        }
+
+        return $this->sendPhotoMessage($chatId, $message, $photoPath);
+    }
+
+    private function sendTextMessage(string $chatId, string $message): bool
     {
         if (empty($this->botToken)) {
             Log::channel('simulator')->warning('Telegram bot token not configured');
@@ -60,6 +85,52 @@ class TelegramBotService
             return true;
         } catch (\Exception $e) {
             Log::channel('simulator')->error('Telegram sendMessage exception', [
+                'chat_id' => $chatId,
+                'message' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    private function sendPhotoMessage(string $chatId, string $message, string $photoPath): bool
+    {
+        if (empty($this->botToken)) {
+            Log::channel('simulator')->warning('Telegram bot token not configured');
+            return false;
+        }
+
+        if (!is_file($photoPath) || !is_readable($photoPath)) {
+            Log::channel('simulator')->warning('Telegram photo not readable, falling back to text message', [
+                'chat_id' => $chatId,
+                'photo_path' => $photoPath,
+            ]);
+
+            return $this->sendTextMessage($chatId, $message);
+        }
+
+        try {
+            $caption = function_exists('mb_substr')
+                ? mb_substr($message, 0, 1024)
+                : substr($message, 0, 1024);
+            $response = Http::attach('photo', fopen($photoPath, 'r'), basename($photoPath))
+                ->post("{$this->baseUrl}/sendPhoto", [
+                    'chat_id' => $chatId,
+                    'caption' => $caption,
+                    'parse_mode' => 'HTML',
+                ]);
+
+            if (!$response->successful()) {
+                Log::channel('simulator')->error('Telegram sendPhoto failed', [
+                    'chat_id' => $chatId,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return false;
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('simulator')->error('Telegram sendPhoto exception', [
                 'chat_id' => $chatId,
                 'message' => $e->getMessage(),
             ]);

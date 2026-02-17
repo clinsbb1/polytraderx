@@ -60,6 +60,9 @@
             <a class="nav-link {{ request()->is('admin/settings*') ? 'active' : '' }}" href="/admin/settings">
                 <i class="bi bi-gear me-2"></i>Platform Settings
             </a>
+            <a class="nav-link {{ request()->is('admin/telegram/messages*') ? 'active' : '' }}" href="/admin/telegram/messages">
+                <i class="bi bi-telegram me-2"></i>Telegram Messages
+            </a>
             <a class="nav-link {{ request()->is('admin/logs*') ? 'active' : '' }}" href="/admin/logs">
                 <i class="bi bi-journal-text me-2"></i>Trade Logs
             </a>

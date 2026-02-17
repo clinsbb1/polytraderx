@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\AdminLogController;
 use App\Http\Controllers\Admin\AdminPaymentController;
 use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminSettingController;
+use App\Http\Controllers\Admin\AdminTelegramMessageController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\SimulationAcknowledgmentController;
 use Database\Seeders\PlatformSettingsSeeder;
@@ -276,6 +277,8 @@ Route::middleware(['auth', 'superadmin', 'simulation_acknowledged'])->prefix('ad
     Route::post('/settings', [AdminSettingController::class, 'update']);
     Route::get('/settings/telegram-diagnostics', [AdminSettingController::class, 'telegramDiagnostics']);
     Route::get('/settings/diagnostics', [AdminSettingController::class, 'serviceDiagnostics']);
+    Route::get('/telegram/messages', [AdminTelegramMessageController::class, 'index']);
+    Route::post('/telegram/messages/send', [AdminTelegramMessageController::class, 'send'])->name('admin.telegram.messages.send');
 
     Route::get('/logs', [AdminLogController::class, 'index']);
 
