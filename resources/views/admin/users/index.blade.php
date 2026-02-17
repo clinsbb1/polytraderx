@@ -83,13 +83,16 @@
                         <td class="small text-muted">{{ $user->created_at->format('M j, Y') }}</td>
                         <td class="small text-muted">
                             @php
+                                $simulatorEnabled = in_array(strtolower((string) ($user->simulator_enabled ?? 'false')), ['1', 'true', 'yes', 'on'], true);
                                 $lastActiveAt = null;
-                                if ($user->last_bot_heartbeat && $user->last_login_at) {
-                                    $lastActiveAt = $user->last_bot_heartbeat->gt($user->last_login_at)
-                                        ? $user->last_bot_heartbeat
+                                $heartbeatAt = $simulatorEnabled ? $user->last_bot_heartbeat : null;
+
+                                if ($heartbeatAt && $user->last_login_at) {
+                                    $lastActiveAt = $heartbeatAt->gt($user->last_login_at)
+                                        ? $heartbeatAt
                                         : $user->last_login_at;
                                 } else {
-                                    $lastActiveAt = $user->last_bot_heartbeat ?: $user->last_login_at;
+                                    $lastActiveAt = $heartbeatAt ?: $user->last_login_at;
                                 }
                             @endphp
                             @if($lastActiveAt)

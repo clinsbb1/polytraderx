@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\User;
+use App\Services\Settings\SettingsService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
 class UserBotRunner
 {
+    public function __construct(private SettingsService $settings)
+    {
+    }
+
     public function getActiveUsers(): Collection
     {
         return User::query()
@@ -35,7 +40,10 @@ class UserBotRunner
                     'result' => $callback($user),
                 ];
 
-                $user->update(['last_bot_heartbeat' => now()]);
+                $simulatorEnabled = $this->settings->getBool('SIMULATOR_ENABLED', false, $user->id);
+                if ($simulatorEnabled) {
+                    $user->update(['last_bot_heartbeat' => now()]);
+                }
             } catch (\Throwable $e) {
                 Log::channel('simulator')->error("Bot run failed for user {$user->account_id}", [
                     'user_id' => $user->id,
