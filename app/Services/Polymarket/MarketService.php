@@ -460,11 +460,6 @@ class MarketService
             return null;
         }
 
-        // Guardrail: simulation scans short rounds only.
-        if ($secondsRemaining > 1200) {
-            return null;
-        }
-
         $prices = $this->parseMarketPrices($market);
 
         return [
@@ -557,8 +552,22 @@ class MarketService
             return $fromText;
         }
 
-        // If text is ambiguous, infer using near-term close timing only.
+        // If text is ambiguous, infer using market times when available.
+        $start = $this->getMarketStartTime($market);
         $end = $this->getMarketEndTime($market);
+        if ($start !== null && $end !== null) {
+            $spanSeconds = abs($end->diffInSeconds($start, false));
+
+            // Wide tolerances to absorb API clock/rounding drift.
+            if ($spanSeconds >= 180 && $spanSeconds <= 540) {
+                return '5min';
+            }
+            if ($spanSeconds >= 660 && $spanSeconds <= 1200) {
+                return '15min';
+            }
+        }
+
+        // Fallback: classify near-term unknowns first.
         if ($end !== null) {
             $remaining = (int) now()->diffInSeconds($end, false);
             if ($remaining > 0 && $remaining <= 420) {
@@ -569,7 +578,8 @@ class MarketService
             }
         }
 
-        return null;
+        // Final fallback to keep scanning resilient to upstream naming changes.
+        return '15min';
     }
 
     private function summarizeNormalizationDropReasons(array $markets): array
