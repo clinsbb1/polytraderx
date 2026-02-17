@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\StrategyParam;
 use App\Models\User;
 use App\Services\Email\LifecycleEmailService;
 use App\Services\Subscription\SubscriptionService;
@@ -37,13 +36,6 @@ class AdminUserController extends Controller
         }
 
         $users = $query
-            ->addSelect([
-                'simulator_enabled' => StrategyParam::query()
-                    ->select('value')
-                    ->whereColumn('strategy_params.user_id', 'users.id')
-                    ->where('key', 'SIMULATOR_ENABLED')
-                    ->limit(1),
-            ])
             ->withCount('trades')
             ->latest()
             ->paginate(25)
