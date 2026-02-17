@@ -42,6 +42,7 @@ class UserBotRunner
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
+                report($e);
 
                 try {
                     app(\App\Services\Telegram\NotificationService::class)

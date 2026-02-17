@@ -148,13 +148,10 @@ class NotificationFormatter
 
     public function formatErrorAlert(string $error, ?string $context, User $user): string
     {
-        $errorTruncated = substr($error, 0, 500);
-        $contextLine = $context ? "\nContext: " . substr($context, 0, 200) : '';
-
         return "⛔ Simulator Error\n\n"
-            . "{$errorTruncated}"
-            . $contextLine . "\n\n"
-            . "The simulator will retry automatically. Check logs if this persists.";
+            . "An internal simulator error occurred.\n"
+            . "Admin has been notified and a fix is being worked on.\n\n"
+            . "The simulator will retry automatically.";
     }
 
     public function formatSubscriptionActivated(User $user, string $planName, ?Carbon $expiresAt): string
