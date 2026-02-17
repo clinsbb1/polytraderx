@@ -112,6 +112,13 @@ class MarketService
             }
         }
 
+        // Fallback for compact tickers/slugs where separators are missing (e.g. "BTC5M", "ETHUSD").
+        foreach (self::CRYPTO_ASSETS as $asset) {
+            if (str_contains($question, $asset)) {
+                return $asset;
+            }
+        }
+
         // Also check full names
         $assetMap = [
             'BITCOIN' => 'BTC',
@@ -143,6 +150,14 @@ class MarketService
             return '15min';
         }
 
+        // Fallback for compact strings (e.g. "BTC5M", "15MINUTE", "M15")
+        if (str_contains($question, '5M') || str_contains($question, '5MIN')) {
+            return '5min';
+        }
+        if (str_contains($question, '15M') || str_contains($question, '15MIN')) {
+            return '15min';
+        }
+
         // Default to 15min if not specified (legacy behavior)
         return '15min';
     }
@@ -162,9 +177,17 @@ class MarketService
     public function getMarketEndTime(array $market): ?Carbon
     {
         $endTime = $market['end_date_iso']
+            ?? $market['end_date']
             ?? $market['end_time']
+            ?? $market['endTime']
             ?? $market['resolution_time']
+            ?? $market['resolutionTime']
             ?? $market['expiration']
+            ?? $market['expiresAt']
+            ?? $market['endDateIso']
+            ?? $market['endDate']
+            ?? $market['umaEndDate']
+            ?? $market['closedTime']
             ?? null;
 
         if ($endTime === null) {
@@ -184,6 +207,9 @@ class MarketService
     public function parseMarketPrices(array $market): array
     {
         $tokens = $market['tokens'] ?? [];
+        if (!is_array($tokens)) {
+            $tokens = [];
+        }
 
         $yesToken = null;
         $noToken = null;
@@ -197,11 +223,29 @@ class MarketService
             }
         }
 
+        $outcomePrices = $market['outcomePrices'] ?? null;
+        if (is_string($outcomePrices)) {
+            $decoded = json_decode($outcomePrices, true);
+            $outcomePrices = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($outcomePrices)) {
+            $outcomePrices = [];
+        }
+
+        $clobTokenIds = $market['clobTokenIds'] ?? [];
+        if (is_string($clobTokenIds)) {
+            $decoded = json_decode($clobTokenIds, true);
+            $clobTokenIds = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($clobTokenIds)) {
+            $clobTokenIds = [];
+        }
+
         return [
-            'yes_price' => (float) ($yesToken['price'] ?? $market['yes_price'] ?? $market['outcomePrices'][0] ?? 0),
-            'no_price' => (float) ($noToken['price'] ?? $market['no_price'] ?? $market['outcomePrices'][1] ?? 0),
-            'yes_token_id' => $yesToken['token_id'] ?? $market['yes_token_id'] ?? $market['clobTokenIds'][0] ?? '',
-            'no_token_id' => $noToken['token_id'] ?? $market['no_token_id'] ?? $market['clobTokenIds'][1] ?? '',
+            'yes_price' => (float) ($yesToken['price'] ?? $market['yes_price'] ?? $market['yesPrice'] ?? $outcomePrices[0] ?? 0),
+            'no_price' => (float) ($noToken['price'] ?? $market['no_price'] ?? $market['noPrice'] ?? $outcomePrices[1] ?? 0),
+            'yes_token_id' => $yesToken['token_id'] ?? $yesToken['tokenId'] ?? $market['yes_token_id'] ?? $market['yesTokenId'] ?? $clobTokenIds[0] ?? '',
+            'no_token_id' => $noToken['token_id'] ?? $noToken['tokenId'] ?? $market['no_token_id'] ?? $market['noTokenId'] ?? $clobTokenIds[1] ?? '',
         ];
     }
 
@@ -217,9 +261,9 @@ class MarketService
         for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
             try {
                 $response = Http::timeout(15)->get($gammaUrl, [
-                    'active' => 'true',
-                    'closed' => 'false',
-                    'archived' => 'false',
+                    'active' => true,
+                    'closed' => false,
+                    'archived' => false,
                     'limit' => 1000,
                 ]);
 
@@ -244,11 +288,13 @@ class MarketService
                             }
                             return (string) ($m['question'] ?? $m['title'] ?? $m['name'] ?? $m['slug'] ?? '');
                         })->values()->toArray();
+                        $dropReasons = $this->summarizeNormalizationDropReasons($markets);
 
                         Log::channel('simulator')->warning('Polymarket gamma fetch returned markets but none normalized', [
                             'raw_count' => count($markets),
                             'normalized_count' => 0,
                             'sample_titles' => $samples,
+                            'drop_reasons' => $dropReasons,
                         ]);
                     }
 
@@ -316,11 +362,13 @@ class MarketService
                             }
                             return (string) ($m['question'] ?? $m['title'] ?? $m['name'] ?? $m['slug'] ?? '');
                         })->values()->toArray();
+                        $dropReasons = $this->summarizeNormalizationDropReasons($markets);
 
                         Log::channel('simulator')->warning('Polymarket clob fetch returned markets but none normalized', [
                             'raw_count' => count($markets),
                             'normalized_count' => 0,
                             'sample_titles' => $samples,
+                            'drop_reasons' => $dropReasons,
                         ]);
                     }
 
@@ -390,7 +438,7 @@ class MarketService
         $prices = $this->parseMarketPrices($market);
 
         return [
-            'condition_id' => $market['condition_id'] ?? $market['id'] ?? '',
+            'condition_id' => $market['condition_id'] ?? $market['conditionId'] ?? $market['id'] ?? '',
             'question' => $question,
             'slug' => $market['slug'] ?? $market['market_slug'] ?? '',
             'asset' => $asset,
@@ -417,11 +465,83 @@ class MarketService
             $market['description'] ?? null,
             $market['subtitle'] ?? null,
             $market['ticker'] ?? null,
+            $market['marketType'] ?? null,
+            $market['market_type'] ?? null,
         ];
+
+        // Include nested event metadata because Gamma often stores useful descriptors there.
+        $events = $market['events'] ?? [];
+        if (is_array($events)) {
+            foreach ($events as $event) {
+                if (!is_array($event)) {
+                    continue;
+                }
+                $parts[] = $event['title'] ?? null;
+                $parts[] = $event['slug'] ?? null;
+                $parts[] = $event['ticker'] ?? null;
+                $parts[] = $event['description'] ?? null;
+            }
+        }
+
+        $outcomes = $market['outcomes'] ?? null;
+        if (is_string($outcomes)) {
+            $decoded = json_decode($outcomes, true);
+            if (is_array($decoded)) {
+                $parts = array_merge($parts, $decoded);
+            }
+        } elseif (is_array($outcomes)) {
+            $parts = array_merge($parts, $outcomes);
+        }
 
         return strtoupper(implode(' ', array_filter(array_map(
             fn($v) => is_scalar($v) ? (string) $v : '',
             $parts
         ))));
+    }
+
+    private function summarizeNormalizationDropReasons(array $markets): array
+    {
+        $stats = [
+            'non_array' => 0,
+            'asset_not_detected' => 0,
+            'duration_not_detected' => 0,
+            'end_time_missing' => 0,
+            'already_expired' => 0,
+            'ok' => 0,
+        ];
+
+        foreach (array_slice($markets, 0, 200) as $market) {
+            if (!is_array($market)) {
+                $stats['non_array']++;
+                continue;
+            }
+
+            $text = $this->buildDetectionText($market);
+
+            if ($this->identifyAsset($text) === null) {
+                $stats['asset_not_detected']++;
+                continue;
+            }
+
+            if ($this->identifyDuration($text) === null) {
+                $stats['duration_not_detected']++;
+                continue;
+            }
+
+            $endTime = $this->getMarketEndTime($market);
+            if ($endTime === null) {
+                $stats['end_time_missing']++;
+                continue;
+            }
+
+            if ((int) now()->diffInSeconds($endTime, false) < 0) {
+                $stats['already_expired']++;
+                continue;
+            }
+
+            $stats['ok']++;
+        }
+
+        return $stats;
     }
 }
