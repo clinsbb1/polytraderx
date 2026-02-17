@@ -82,10 +82,18 @@
                         <td class="text-center">{{ $user->trades_count ?? 0 }}</td>
                         <td class="small text-muted">{{ $user->created_at->format('M j, Y') }}</td>
                         <td class="small text-muted">
-                            @if($user->last_bot_heartbeat)
-                                {{ $user->last_bot_heartbeat->diffForHumans() }}
-                            @elseif($user->last_login_at)
-                                {{ $user->last_login_at->diffForHumans() }}
+                            @php
+                                $lastActiveAt = null;
+                                if ($user->last_bot_heartbeat && $user->last_login_at) {
+                                    $lastActiveAt = $user->last_bot_heartbeat->gt($user->last_login_at)
+                                        ? $user->last_bot_heartbeat
+                                        : $user->last_login_at;
+                                } else {
+                                    $lastActiveAt = $user->last_bot_heartbeat ?: $user->last_login_at;
+                                }
+                            @endphp
+                            @if($lastActiveAt)
+                                {{ $lastActiveAt->diffForHumans() }}
                             @else
                                 <span class="text-muted">Never</span>
                             @endif
