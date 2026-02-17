@@ -78,8 +78,8 @@
             <a class="nav-link {{ request()->routeIs('logs.index') ? 'active' : '' }}" href="{{ route('logs.index') }}">
                 <i class="bi bi-journal-text"></i> Logs
             </a>
-            <a class="nav-link {{ request()->routeIs('logs.bot-activity') ? 'active' : '' }}" href="{{ route('logs.bot-activity') }}">
-                <i class="bi bi-cpu"></i> Bot Activity
+            <a class="nav-link {{ request()->routeIs('logs.market-scans') ? 'active' : '' }}" href="{{ route('logs.market-scans') }}">
+                <i class="bi bi-cpu"></i> Market Scans
             </a>
             {{-- Commented out - AI costs included in subscription, only admin sees them --}}
             {{-- <a class="nav-link {{ request()->routeIs('ai-costs.*') ? 'active' : '' }}" href="{{ route('ai-costs.index') }}">

@@ -61,6 +61,14 @@ class StrategyEngine
         // Fetch markets (filtered by user's selected durations)
         $markets = $this->marketService->getActiveCryptoMarkets($client, $user->id);
         $summary['markets_scanned'] = $markets->count();
+        $nearestCloseSeconds = $markets->isNotEmpty()
+            ? (int) $markets->min(fn(array $market) => (int) ($market['seconds_remaining'] ?? PHP_INT_MAX))
+            : null;
+        $withinFiveMinutes = $markets
+            ->filter(fn(array $market) => ((int) ($market['seconds_remaining'] ?? 0)) > 0)
+            ->filter(fn(array $market) => ((int) ($market['seconds_remaining'] ?? 0)) <= 300)
+            ->count();
+        $entryWindowSeconds = $this->settings->getInt('ENTRY_WINDOW_SECONDS', 60, $user->id);
 
         // Filter to entry window
         $entryMarkets = $this->timingService->getActiveEntryWindows($markets, $user->id);
@@ -70,10 +78,13 @@ class StrategyEngine
             $user->id,
             $cycleId,
             'cycle_scanned',
-            "Scanned {$summary['markets_scanned']} market(s), {$summary['in_entry_window']} in entry window.",
+            "Scanned {$summary['markets_scanned']} market(s), {$summary['in_entry_window']} in entry window (window={$entryWindowSeconds}s, nearest_close=" . ($nearestCloseSeconds ?? 'n/a') . "s).",
             context: [
                 'markets_scanned' => $summary['markets_scanned'],
                 'in_entry_window' => $summary['in_entry_window'],
+                'entry_window_seconds' => $entryWindowSeconds,
+                'nearest_close_seconds' => $nearestCloseSeconds,
+                'markets_within_5m' => $withinFiveMinutes,
             ]
         );
 

@@ -1,16 +1,16 @@
 @extends('layouts.admin')
 
-@section('title', 'Bot Activity')
+@section('title', 'Market Scans')
 
 @section('content')
 <div class="ptx-alert ptx-alert-info mb-4" role="alert">
     <i class="bi bi-info-circle-fill"></i>
-    <span>Bot activity history is kept for <strong>30 days</strong>. Older entries are automatically removed.</span>
+    <span>Market scan history is kept for <strong>30 days</strong>. Older entries are automatically removed.</span>
 </div>
 
 <div class="ptx-card mb-4">
     <div class="ptx-card-body">
-        <form method="GET" action="{{ route('logs.bot-activity') }}" class="row g-3 align-items-end">
+        <form method="GET" action="{{ route('logs.market-scans') }}" class="row g-3 align-items-end">
             <div class="col-md-3">
                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.8rem;">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="Asset, market ID, action..." class="ptx-input ptx-input-sm">
@@ -50,7 +50,7 @@
 
 <div class="ptx-card">
     <div class="ptx-card-header">
-        <h5>Bot Activity Timeline</h5>
+        <h5>Market Scan Timeline</h5>
         <span style="color: var(--text-secondary); font-size: 0.85rem;">{{ $activities->total() }} entries</span>
     </div>
     <div class="ptx-card-body p-0">
@@ -112,7 +112,7 @@
         @else
             <div class="ptx-empty-state">
                 <i class="bi bi-cpu d-block"></i>
-                <p>No bot activity yet. Activity appears once simulator cycles run.</p>
+                <p>No market scans yet. Activity appears once simulator cycles run.</p>
             </div>
         @endif
     </div>
