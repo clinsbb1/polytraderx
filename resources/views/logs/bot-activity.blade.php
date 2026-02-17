@@ -3,6 +3,11 @@
 @section('title', 'Bot Activity')
 
 @section('content')
+<div class="ptx-alert ptx-alert-info mb-4" role="alert">
+    <i class="bi bi-info-circle-fill"></i>
+    <span>Bot activity history is kept for <strong>30 days</strong>. Older entries are automatically removed.</span>
+</div>
+
 <div class="ptx-card mb-4">
     <div class="ptx-card-body">
         <form method="GET" action="{{ route('logs.bot-activity') }}" class="row g-3 align-items-end">
@@ -113,4 +118,3 @@
     </div>
 </div>
 @endsection
-
