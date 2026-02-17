@@ -275,6 +275,29 @@ body.ptx-admin hr {
     margin: 4px 0;
 }
 
+/* ---------- Pagination ---------- */
+body.ptx-admin .pagination {
+    --bs-pagination-bg: var(--bg-card-solid);
+    --bs-pagination-border-color: var(--border-subtle);
+    --bs-pagination-color: var(--text-secondary);
+    --bs-pagination-hover-bg: rgba(0,240,255,0.08);
+    --bs-pagination-hover-border-color: rgba(0,240,255,0.25);
+    --bs-pagination-hover-color: var(--text-primary);
+    --bs-pagination-focus-bg: rgba(0,240,255,0.08);
+    --bs-pagination-focus-border-color: rgba(0,240,255,0.3);
+    --bs-pagination-focus-color: var(--text-primary);
+    --bs-pagination-active-bg: var(--accent);
+    --bs-pagination-active-border-color: var(--accent);
+    --bs-pagination-active-color: #00171a;
+    --bs-pagination-disabled-bg: rgba(255,255,255,0.02);
+    --bs-pagination-disabled-border-color: var(--border-subtle);
+    --bs-pagination-disabled-color: rgba(136,136,160,0.55);
+}
+
+body.ptx-admin .page-link {
+    box-shadow: none !important;
+}
+
 /* Mobile toggle */
 .ptx-sidebar-toggle {
     display: none;
