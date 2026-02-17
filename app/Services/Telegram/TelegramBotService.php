@@ -323,38 +323,52 @@ class TelegramBotService
             return;
         }
 
-        $settings = app(SettingsService::class);
+        try {
+            $settings = app(SettingsService::class);
 
-        $simulatorEnabled = $settings->getBool('SIMULATOR_ENABLED', false, $user->id) ? 'ON' : 'OFF';
-        $marketDurations = $settings->getString('MARKET_DURATIONS', '5min,15min', $user->id);
-        $maxBetAmount = $settings->getFloat('MAX_BET_AMOUNT', 10.0, $user->id);
-        $maxBetPercentage = $settings->getFloat('MAX_BET_PERCENTAGE', 10.0, $user->id);
-        $maxDailyLoss = $settings->getFloat('MAX_DAILY_LOSS', 50.0, $user->id);
-        $maxDailyTrades = $settings->getInt('MAX_DAILY_TRADES', 48, $user->id);
-        $maxConcurrent = $settings->getInt('MAX_CONCURRENT_POSITIONS', 3, $user->id);
-        $minConfidence = $settings->getFloat('MIN_CONFIDENCE_SCORE', 0.92, $user->id);
-        $entryWindow = $settings->getInt('ENTRY_WINDOW_SECONDS', 60, $user->id);
-        $minEntryPrice = $settings->getFloat('MIN_ENTRY_PRICE_THRESHOLD', 0.92, $user->id);
-        $maxEntryPrice = $settings->getFloat('MAX_ENTRY_PRICE_THRESHOLD', 0.08, $user->id);
-        $monitoredAssets = $settings->getString('MONITORED_ASSETS', 'BTC,ETH,SOL,XRP', $user->id);
+            $simulatorEnabled = $settings->getBool('SIMULATOR_ENABLED', false, $user->id) ? 'ON' : 'OFF';
+            $marketDurations = method_exists($settings, 'getString')
+                ? $settings->getString('MARKET_DURATIONS', '5min,15min', $user->id)
+                : (string) $settings->get('MARKET_DURATIONS', '5min,15min', $user->id);
+            $maxBetAmount = $settings->getFloat('MAX_BET_AMOUNT', 10.0, $user->id);
+            $maxBetPercentage = $settings->getFloat('MAX_BET_PERCENTAGE', 10.0, $user->id);
+            $maxDailyLoss = $settings->getFloat('MAX_DAILY_LOSS', 50.0, $user->id);
+            $maxDailyTrades = $settings->getInt('MAX_DAILY_TRADES', 48, $user->id);
+            $maxConcurrent = $settings->getInt('MAX_CONCURRENT_POSITIONS', 3, $user->id);
+            $minConfidence = $settings->getFloat('MIN_CONFIDENCE_SCORE', 0.92, $user->id);
+            $entryWindow = $settings->getInt('ENTRY_WINDOW_SECONDS', 60, $user->id);
+            $minEntryPrice = $settings->getFloat('MIN_ENTRY_PRICE_THRESHOLD', 0.92, $user->id);
+            $maxEntryPrice = $settings->getFloat('MAX_ENTRY_PRICE_THRESHOLD', 0.08, $user->id);
+            $monitoredAssets = method_exists($settings, 'getString')
+                ? $settings->getString('MONITORED_ASSETS', 'BTC,ETH,SOL,XRP', $user->id)
+                : (string) $settings->get('MONITORED_ASSETS', 'BTC,ETH,SOL,XRP', $user->id);
 
-        $message = "<b>Your Strategy Settings</b>\n\n"
-            . "Simulator: <b>{$simulatorEnabled}</b>\n"
-            . "Durations: <code>{$marketDurations}</code>\n"
-            . "Assets: <code>{$monitoredAssets}</code>\n\n"
-            . "<b>Risk</b>\n"
-            . "Max bet: \$" . number_format($maxBetAmount, 2) . "\n"
-            . "Max bet %: " . number_format($maxBetPercentage, 2) . "%\n"
-            . "Max daily loss: \$" . number_format($maxDailyLoss, 2) . "\n"
-            . "Max daily trades: {$maxDailyTrades}\n"
-            . "Max concurrent positions: {$maxConcurrent}\n\n"
-            . "<b>Entry Rules</b>\n"
-            . "Min confidence: " . number_format($minConfidence, 2) . "\n"
-            . "Entry window: {$entryWindow}s\n"
-            . "YES threshold: ≥ " . number_format($minEntryPrice, 2) . "\n"
-            . "NO threshold: ≤ " . number_format($maxEntryPrice, 2);
+            $message = "<b>Your Strategy Settings</b>\n\n"
+                . "Simulator: <b>{$simulatorEnabled}</b>\n"
+                . "Durations: <code>{$marketDurations}</code>\n"
+                . "Assets: <code>{$monitoredAssets}</code>\n\n"
+                . "<b>Risk</b>\n"
+                . "Max bet: \$" . number_format($maxBetAmount, 2) . "\n"
+                . "Max bet %: " . number_format($maxBetPercentage, 2) . "%\n"
+                . "Max daily loss: \$" . number_format($maxDailyLoss, 2) . "\n"
+                . "Max daily trades: {$maxDailyTrades}\n"
+                . "Max concurrent positions: {$maxConcurrent}\n\n"
+                . "<b>Entry Rules</b>\n"
+                . "Min confidence: " . number_format($minConfidence, 2) . "\n"
+                . "Entry window: {$entryWindow}s\n"
+                . "YES threshold: >= " . number_format($minEntryPrice, 2) . "\n"
+                . "NO threshold: <= " . number_format($maxEntryPrice, 2);
 
-        $this->sendMessage($chatId, $message);
+            $this->sendMessage($chatId, $message);
+        } catch (\Throwable $e) {
+            Log::channel('bot')->error('Telegram /strategy command failed', [
+                'chat_id' => $chatId,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->sendMessage($chatId, "Could not load strategy settings right now. Please try again shortly.");
+        }
     }
 
     private function handleBalance(string $chatId): void
