@@ -149,14 +149,13 @@ class TelegramBotService
         $chatId = (string) $message['chat']['id'];
         $text = trim($message['text']);
         $username = $message['from']['username'] ?? null;
-        $commandToken = explode(' ', $text, 2)[0] ?? '';
-        $commandLower = function_exists('mb_strtolower')
-            ? mb_strtolower((string) $commandToken)
-            : strtolower((string) $commandToken);
-        $normalizedCommand = ltrim($commandLower, '/');
-        if (str_contains($normalizedCommand, '@')) {
-            $normalizedCommand = explode('@', $normalizedCommand, 2)[0];
-        }
+        $normalizedCommand = $this->extractCommand($text);
+
+        Log::channel('bot')->debug('Telegram command received', [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'command' => $normalizedCommand,
+        ]);
 
         if ($normalizedCommand === 'start') {
             $this->handleStart($chatId, $text, $username);
@@ -173,6 +172,16 @@ class TelegramBotService
         } elseif ($normalizedCommand === 'help') {
             $this->handleHelp($chatId);
         }
+    }
+
+    private function extractCommand(string $text): string
+    {
+        if (preg_match('/^\/?([a-z0-9_]+)(?:@[\w_]+)?(?:\s|$)/i', trim($text), $m) !== 1) {
+            return '';
+        }
+
+        $command = (string) ($m[1] ?? '');
+        return function_exists('mb_strtolower') ? mb_strtolower($command) : strtolower($command);
     }
 
     public function registerWebhook(string $url): bool
