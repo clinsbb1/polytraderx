@@ -203,6 +203,32 @@ class MarketService
         }
     }
 
+    private function getMarketStartTime(array $market): ?Carbon
+    {
+        $startTime = $market['start_date_iso']
+            ?? $market['start_date']
+            ?? $market['start_time']
+            ?? $market['startTime']
+            ?? $market['startDateIso']
+            ?? $market['startDate']
+            ?? $market['created_at']
+            ?? $market['createdAt']
+            ?? null;
+
+        if ($startTime === null) {
+            return null;
+        }
+
+        try {
+            if (is_numeric($startTime)) {
+                return Carbon::createFromTimestamp((int) $startTime);
+            }
+            return Carbon::parse($startTime);
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
     public function parseMarketPrices(array $market): array
     {
         $tokens = $market['tokens'] ?? [];
@@ -521,7 +547,38 @@ class MarketService
             }
         }
 
-        return $this->identifyDuration($textCorpus);
+        $fromText = $this->identifyDuration($textCorpus);
+        if ($fromText !== null) {
+            return $fromText;
+        }
+
+        // If text is ambiguous, infer using market times when available.
+        $start = $this->getMarketStartTime($market);
+        $end = $this->getMarketEndTime($market);
+        if ($start !== null && $end !== null) {
+            $spanSeconds = abs($end->diffInSeconds($start, false));
+
+            // Wide tolerances to absorb API clock/rounding drift.
+            if ($spanSeconds >= 180 && $spanSeconds <= 540) {
+                return '5min';
+            }
+            if ($spanSeconds >= 660 && $spanSeconds <= 1200) {
+                return '15min';
+            }
+        }
+
+        // Final fallback: only classify very near-term unknowns, never long-dated markets.
+        if ($end !== null) {
+            $remaining = (int) now()->diffInSeconds($end, false);
+            if ($remaining > 0 && $remaining <= 420) {
+                return '5min';
+            }
+            if ($remaining > 420 && $remaining <= 1200) {
+                return '15min';
+            }
+        }
+
+        return null;
     }
 
     private function summarizeNormalizationDropReasons(array $markets): array
@@ -548,7 +605,7 @@ class MarketService
                 continue;
             }
 
-            if ($this->identifyDuration($text) === null) {
+            if ($this->resolveMarketDuration($market, $text) === null) {
                 $stats['duration_not_detected']++;
                 continue;
             }
