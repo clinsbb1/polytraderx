@@ -58,6 +58,18 @@ return [
         'base_url' => env('BINANCE_BASE_URL', 'https://api.binance.com/api/v3'),
     ],
 
+    'coinbase' => [
+        'base_url' => env('COINBASE_BASE_URL', 'https://api.exchange.coinbase.com'),
+    ],
+
+    'kraken' => [
+        'base_url' => env('KRAKEN_BASE_URL', 'https://api.kraken.com/0/public'),
+    ],
+
+    'coingecko' => [
+        'base_url' => env('COINGECKO_BASE_URL', 'https://api.coingecko.com/api/v3'),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

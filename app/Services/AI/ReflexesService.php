@@ -61,7 +61,7 @@ class ReflexesService
             'yes_price' => $market['yes_price'] ?? 0,
             'no_price' => $market['no_price'] ?? 0,
         ];
-        $desync = $spotData['desync_details'] ?? $this->priceAggregator->detectDesync($asset, $polymarketPrices);
+        $desync = $spotData['desync_details'] ?? $this->priceAggregator->detectDesync($asset, $polymarketPrices, $userId);
         $details['desync'] = $desync;
         if ($desync !== null) {
             $rulesFailed[] = 'desync_detected';

@@ -56,6 +56,9 @@
                         <strong>ENTRY_WINDOW_SECONDS:</strong> Only enter trades in the final X seconds before market close. Default: 60s.
                     </li>
                     <li class="mb-2">
+                        <strong>PRICE_FEED_SOURCE:</strong> Select where simulation price context comes from. Default is Binance.
+                    </li>
+                    <li class="mb-2">
                         <strong>MONITORED_ASSETS:</strong> Which cryptos to trade (BTC, ETH, SOL, XRP). Select from checkboxes.
                     </li>
                     <li>
@@ -179,6 +182,16 @@
                                         </label>
                                     </div>
                                     <input type="hidden" name="params[{{ $param->key }}]" id="market_durations_input" value="{{ $param->value }}">
+                                @elseif($param->key === 'PRICE_FEED_SOURCE')
+                                    @php
+                                        $currentSource = strtolower(trim((string) $param->value));
+                                    @endphp
+                                    <select name="params[{{ $param->key }}]" class="ptx-input ptx-input-sm" style="width:220px">
+                                        <option value="binance" {{ $currentSource === 'binance' ? 'selected' : '' }}>Binance (Default)</option>
+                                        <option value="coingecko" {{ $currentSource === 'coingecko' ? 'selected' : '' }}>CoinGecko</option>
+                                        <option value="coinbase" {{ $currentSource === 'coinbase' ? 'selected' : '' }}>Coinbase</option>
+                                        <option value="kraken" {{ $currentSource === 'kraken' ? 'selected' : '' }}>Kraken</option>
+                                    </select>
                                 @elseif($param->type === 'boolean')
                                     <select name="params[{{ $param->key }}]" class="ptx-input ptx-input-sm" style="width:100px">
                                         <option value="true" {{ $param->value === 'true' ? 'selected' : '' }}>true</option>

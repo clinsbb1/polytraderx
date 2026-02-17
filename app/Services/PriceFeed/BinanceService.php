@@ -17,6 +17,7 @@ class BinanceService
         'BTC' => 'BTCUSDT',
         'ETH' => 'ETHUSDT',
         'SOL' => 'SOLUSDT',
+        'XRP' => 'XRPUSDT',
     ];
 
     private const RATE_LIMIT_KEY = 'binance:request_count';

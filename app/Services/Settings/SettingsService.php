@@ -169,6 +169,7 @@ class SettingsService
             ['key' => 'MAX_ENTRY_PRICE_THRESHOLD', 'value' => '0.08', 'type' => 'decimal', 'description' => 'Only buy cheap contrarian side at this price or below', 'group' => 'trading'],
             ['key' => 'ENTRY_WINDOW_SECONDS', 'value' => '60', 'type' => 'number', 'description' => 'Only enter within this many seconds of market close', 'group' => 'trading'],
             ['key' => 'DRY_RUN', 'value' => 'true', 'type' => 'boolean', 'description' => 'Paper trading mode', 'group' => 'trading'],
+            ['key' => 'PRICE_FEED_SOURCE', 'value' => 'binance', 'type' => 'string', 'description' => 'Price source used for simulation context (default: binance)', 'group' => 'trading'],
             ['key' => 'MONITORED_ASSETS', 'value' => 'BTC,ETH,SOL,XRP', 'type' => 'string', 'description' => 'Comma-separated list of monitored assets', 'group' => 'trading'],
             ['key' => 'MARKET_DURATIONS', 'value' => '5min,15min', 'type' => 'string', 'description' => 'Which market durations to trade (5min, 15min, or both)', 'group' => 'trading'],
             ['key' => 'AI_AUTO_APPLY_FIXES', 'value' => 'false', 'type' => 'boolean', 'description' => 'Auto-apply low-risk AI suggestions', 'group' => 'ai'],

@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Services\Polymarket\BalanceService;
 use App\Services\Polymarket\MarketService;
 use App\Services\Polymarket\PolymarketClient;
-use App\Services\PriceFeed\BinanceService;
 use App\Services\PriceFeed\PriceAggregator;
 use App\Services\Settings\SettingsService;
 use App\Services\Subscription\SubscriptionService;
@@ -21,7 +20,6 @@ class StrategyEngine
     public function __construct(
         private MarketService $marketService,
         private MarketTimingService $timingService,
-        private BinanceService $binanceService,
         private PriceAggregator $priceAggregator,
         private SignalGenerator $signalGenerator,
         private TradeExecutor $tradeExecutor,
@@ -87,7 +85,7 @@ class StrategyEngine
                     'yes_price' => $market['yes_price'],
                     'no_price' => $market['no_price'],
                 ];
-                $spotData = $this->priceAggregator->getMarketContext($market['asset'], $polymarketPrices);
+                $spotData = $this->priceAggregator->getMarketContext($market['asset'], $polymarketPrices, $user->id);
 
                 // Get Muscles AI analysis (null if unavailable)
                 $musclesResult = null;
@@ -176,7 +174,7 @@ class StrategyEngine
                 // Fetch spot price at resolution
                 $spotAtResolution = null;
                 try {
-                    $spotAtResolution = $this->binanceService->getPriceForAsset($trade->asset);
+                    $spotAtResolution = $this->priceAggregator->getSpotPriceForUser($trade->asset, $user->id);
                 } catch (\Exception $e) {
                     // Non-critical
                 }
@@ -281,7 +279,7 @@ class StrategyEngine
     {
         // Use Binance to infer: did the price go up or down over the market period?
         try {
-            $currentPrice = $this->binanceService->getPriceForAsset($trade->asset);
+            $currentPrice = $this->priceAggregator->getSpotPriceForUser($trade->asset, $trade->user_id);
             $entrySpot = (float) $trade->external_spot_at_entry;
 
             if ($entrySpot <= 0) {

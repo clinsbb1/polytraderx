@@ -38,7 +38,7 @@ class SimAnalyzeMarkets extends Command
                     'yes_price' => $market['yes_price'],
                     'no_price' => $market['no_price'],
                 ];
-                $spotData = $priceAggregator->getMarketContext($market['asset'], $polymarketPrices);
+                $spotData = $priceAggregator->getMarketContext($market['asset'], $polymarketPrices, $user->id);
 
                 $result = $aiRouter->getMusclesAnalysis($market, $spotData, $user->id);
 
