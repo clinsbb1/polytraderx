@@ -248,6 +248,7 @@ Route::middleware(['auth', 'simulation_acknowledged', 'subscribed'])->group(func
     Route::get('/balance', [BalanceController::class, 'index'])->name('balance.index');
     Route::post('/balance/reset', [BalanceController::class, 'reset'])->name('balance.reset');
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+    Route::get('/logs/bot-activity', [LogController::class, 'botActivity'])->name('logs.bot-activity');
     // Commented out - AI costs are included in subscription, only admin needs to see them
     // Route::get('/ai-costs', [AiCostController::class, 'index'])->name('ai-costs.index');
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Trading;
 
+use App\Models\BotActivityLog;
 use App\Models\Trade;
 use App\Models\TradeLog;
 use App\Models\User;
@@ -14,6 +15,7 @@ use App\Services\PriceFeed\PriceAggregator;
 use App\Services\Settings\SettingsService;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class StrategyEngine
 {
@@ -29,8 +31,10 @@ class StrategyEngine
 
     public function runForUser(User $user): array
     {
+        $cycleId = (string) Str::uuid();
         $summary = [
             'user_id' => $user->id,
+            'cycle_id' => $cycleId,
             'markets_scanned' => 0,
             'in_entry_window' => 0,
             'signals_generated' => 0,
@@ -40,6 +44,7 @@ class StrategyEngine
 
         if (!$this->settings->getBool('SIMULATOR_ENABLED', false, $user->id)) {
             $summary['skipped'][] = 'Simulator disabled';
+            $this->logBotActivity($user->id, $cycleId, 'cycle_skipped', 'Simulator is disabled for this user.');
             return $summary;
         }
 
@@ -47,6 +52,7 @@ class StrategyEngine
         if (!$this->subscriptionService->canSimulateMore($user)) {
             Log::channel('simulator')->info("User {$user->account_id} hit daily signal limit");
             $summary['skipped'][] = 'Daily signal limit reached';
+            $this->logBotActivity($user->id, $cycleId, 'cycle_skipped', 'Daily signal limit reached.');
             return $summary;
         }
 
@@ -60,7 +66,19 @@ class StrategyEngine
         $entryMarkets = $this->timingService->getActiveEntryWindows($markets, $user->id);
         $summary['in_entry_window'] = $entryMarkets->count();
 
+        $this->logBotActivity(
+            $user->id,
+            $cycleId,
+            'cycle_scanned',
+            "Scanned {$summary['markets_scanned']} market(s), {$summary['in_entry_window']} in entry window.",
+            context: [
+                'markets_scanned' => $summary['markets_scanned'],
+                'in_entry_window' => $summary['in_entry_window'],
+            ]
+        );
+
         if ($entryMarkets->isEmpty()) {
+            $this->logBotActivity($user->id, $cycleId, 'no_match', 'No market in entry window matched current strategy.');
             return $summary;
         }
 
@@ -77,6 +95,15 @@ class StrategyEngine
 
                 if ($existingTrade) {
                     $summary['skipped'][] = "Already have position on {$market['asset']} market {$market['condition_id']}";
+                    $this->logMarketActivity(
+                        userId: $user->id,
+                        cycleId: $cycleId,
+                        market: $market,
+                        matched: false,
+                        action: 'SKIP_EXISTING_POSITION',
+                        message: 'Skipped: already have an open/pending position on this market.',
+                        context: ['reason' => 'existing_position']
+                    );
                     continue;
                 }
 
@@ -105,6 +132,18 @@ class StrategyEngine
 
                 if ($signal['action'] !== 'EXECUTE') {
                     $summary['skipped'][] = $signal['reasoning'];
+                    $this->logMarketActivity(
+                        userId: $user->id,
+                        cycleId: $cycleId,
+                        market: $market,
+                        matched: false,
+                        action: (string) ($signal['action'] ?? 'SKIP'),
+                        message: (string) ($signal['reasoning'] ?? 'Market did not match strategy'),
+                        context: [
+                            'signal' => $signal,
+                            'spot' => $spotData,
+                        ]
+                    );
                     continue;
                 }
 
@@ -113,6 +152,18 @@ class StrategyEngine
                 $maxConcurrent = $this->settings->getInt('MAX_CONCURRENT_POSITIONS', 3, $user->id);
                 if ($openCount >= $maxConcurrent) {
                     $summary['skipped'][] = 'Max concurrent positions reached during batch';
+                    $this->logMarketActivity(
+                        userId: $user->id,
+                        cycleId: $cycleId,
+                        market: $market,
+                        matched: true,
+                        action: 'SKIP_MAX_CONCURRENT',
+                        message: 'Matched strategy but skipped: max concurrent positions reached.',
+                        context: [
+                            'open_positions' => $openCount,
+                            'max_concurrent' => $maxConcurrent,
+                        ]
+                    );
                     continue;
                 }
 
@@ -121,6 +172,31 @@ class StrategyEngine
 
                 if ($trade !== null) {
                     $summary['trades_placed']++;
+                    $this->logMarketActivity(
+                        userId: $user->id,
+                        cycleId: $cycleId,
+                        market: $market,
+                        matched: true,
+                        action: 'TRADE_PLACED',
+                        message: 'Matched strategy and trade was placed.',
+                        context: [
+                            'trade_id' => $trade->id,
+                            'side' => $trade->side,
+                            'amount' => $trade->amount,
+                        ]
+                    );
+                } else {
+                    $this->logMarketActivity(
+                        userId: $user->id,
+                        cycleId: $cycleId,
+                        market: $market,
+                        matched: true,
+                        action: 'MATCHED_NO_TRADE',
+                        message: 'Matched strategy but no trade was placed.',
+                        context: [
+                            'signal' => $signal,
+                        ]
+                    );
                 }
             } catch (\Exception $e) {
                 Log::channel('simulator')->error('Error processing market for user', [
@@ -129,6 +205,15 @@ class StrategyEngine
                     'message' => $e->getMessage(),
                 ]);
                 $summary['skipped'][] = "Error on {$market['asset']}: {$e->getMessage()}";
+                $this->logMarketActivity(
+                    userId: $user->id,
+                    cycleId: $cycleId,
+                    market: $market,
+                    matched: false,
+                    action: 'ERROR',
+                    message: "Error while evaluating market: {$e->getMessage()}",
+                    context: ['exception' => $e->getMessage()]
+                );
             }
         }
 
@@ -315,6 +400,58 @@ class StrategyEngine
                 'message' => $e->getMessage(),
             ]);
             return 100.0;
+        }
+    }
+
+    private function logBotActivity(
+        int $userId,
+        string $cycleId,
+        string $event,
+        string $message,
+        ?array $context = null
+    ): void {
+        try {
+            BotActivityLog::create([
+                'user_id' => $userId,
+                'cycle_id' => $cycleId,
+                'event' => $event,
+                'market_id' => null,
+                'asset' => null,
+                'matched_strategy' => null,
+                'action' => null,
+                'message' => $message,
+                'context' => $context,
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable) {
+            // Never break simulator execution due to activity logging.
+        }
+    }
+
+    private function logMarketActivity(
+        int $userId,
+        string $cycleId,
+        array $market,
+        bool $matched,
+        string $action,
+        string $message,
+        ?array $context = null
+    ): void {
+        try {
+            BotActivityLog::create([
+                'user_id' => $userId,
+                'cycle_id' => $cycleId,
+                'event' => 'market_checked',
+                'market_id' => (string) ($market['condition_id'] ?? ''),
+                'asset' => (string) ($market['asset'] ?? ''),
+                'matched_strategy' => $matched,
+                'action' => $action,
+                'message' => $message,
+                'context' => $context,
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable) {
+            // Never break simulator execution due to activity logging.
         }
     }
 }

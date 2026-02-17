@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\AiDecision;
 use App\Models\BalanceSnapshot;
+use App\Models\BotActivityLog;
 use App\Models\TradeLog;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +31,9 @@ class SimCleanupLogs extends Command
             })
             ->delete();
 
+        // 4. Delete bot activity logs older than 30 days
+        $botActivity = BotActivityLog::where('created_at', '<', now()->subDays(30))->delete();
+
         // Also clean orphaned ai_decisions (no trade) older than 90 days
         $orphaned = AiDecision::where('created_at', '<', now()->subDays(90))
             ->whereNull('trade_id')
@@ -41,9 +45,10 @@ class SimCleanupLogs extends Command
             'trade_logs' => $tradeLogs,
             'snapshots' => $snapshots,
             'ai_decisions' => $totalAi,
+            'bot_activity_logs' => $botActivity,
         ]);
 
-        $this->info("Cleaned up {$tradeLogs} trade_logs, {$snapshots} snapshots, {$totalAi} ai_decisions.");
+        $this->info("Cleaned up {$tradeLogs} trade_logs, {$snapshots} snapshots, {$totalAi} ai_decisions, {$botActivity} bot_activity_logs.");
 
         return Command::SUCCESS;
     }
