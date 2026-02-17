@@ -98,7 +98,7 @@ class MarketService
         $question = strtoupper($marketQuestion);
 
         foreach (self::CRYPTO_ASSETS as $asset) {
-            if (str_contains($question, $asset)) {
+            if (preg_match('/\b' . preg_quote($asset, '/') . '\b/i', $question) === 1) {
                 return $asset;
             }
         }
@@ -124,19 +124,13 @@ class MarketService
     {
         $question = strtoupper($marketQuestion);
 
-        // Check for 5-minute market
-        if (str_contains($question, '5 MIN') ||
-            str_contains($question, '5-MIN') ||
-            str_contains($question, '5MIN') ||
-            str_contains($question, 'FIVE MINUTE')) {
+        // 5-minute variants: "5 min", "5m", "5-minute", "five minute", etc.
+        if (preg_match('/(?:\b5\s*[- ]?\s*M(?:IN(?:UTE)?S?)?\b|\bFIVE\s+MIN(?:UTE)?S?\b)/i', $question) === 1) {
             return '5min';
         }
 
-        // Check for 15-minute market
-        if (str_contains($question, '15 MIN') ||
-            str_contains($question, '15-MIN') ||
-            str_contains($question, '15MIN') ||
-            str_contains($question, 'FIFTEEN MINUTE')) {
+        // 15-minute variants: "15 min", "15m", "15-minute", "fifteen minute", etc.
+        if (preg_match('/(?:\b15\s*[- ]?\s*M(?:IN(?:UTE)?S?)?\b|\bFIFTEEN\s+MIN(?:UTE)?S?\b)/i', $question) === 1) {
             return '15min';
         }
 
@@ -271,14 +265,21 @@ class MarketService
 
     private function normalizeMarket(array $market): ?array
     {
-        $question = $market['question'] ?? $market['market_question'] ?? '';
-        $asset = $this->identifyAsset($question);
+        $question = (string) ($market['question']
+            ?? $market['market_question']
+            ?? $market['title']
+            ?? $market['name']
+            ?? '');
+
+        // Use a broader text corpus so minor API wording changes don't zero out valid markets.
+        $textCorpus = $this->buildDetectionText($market);
+        $asset = $this->identifyAsset($textCorpus);
 
         if ($asset === null) {
             return null;
         }
 
-        $duration = $this->identifyDuration($question);
+        $duration = $this->identifyDuration($textCorpus);
 
         if ($duration === null) {
             return null;
@@ -312,5 +313,25 @@ class MarketService
             'end_time' => $endTime,
             'seconds_remaining' => $secondsRemaining,
         ];
+    }
+
+    private function buildDetectionText(array $market): string
+    {
+        $parts = [
+            $market['question'] ?? null,
+            $market['market_question'] ?? null,
+            $market['title'] ?? null,
+            $market['name'] ?? null,
+            $market['slug'] ?? null,
+            $market['market_slug'] ?? null,
+            $market['description'] ?? null,
+            $market['subtitle'] ?? null,
+            $market['ticker'] ?? null,
+        ];
+
+        return strtoupper(implode(' ', array_filter(array_map(
+            fn($v) => is_scalar($v) ? (string) $v : '',
+            $parts
+        ))));
     }
 }
