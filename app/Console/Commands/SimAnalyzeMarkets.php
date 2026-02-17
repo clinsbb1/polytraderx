@@ -6,12 +6,10 @@ namespace App\Console\Commands;
 
 use App\Services\AI\AIRouter;
 use App\Services\Polymarket\MarketService;
-use App\Services\Polymarket\PolymarketClient;
 use App\Services\PriceFeed\PriceAggregator;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 class SimAnalyzeMarkets extends Command
 {
@@ -25,8 +23,7 @@ class SimAnalyzeMarkets extends Command
         AIRouter $aiRouter,
     ): int {
         $results = $runner->runForEachUser(function ($user) use ($marketService, $priceAggregator, $aiRouter) {
-            $client = new PolymarketClient($user);
-            $markets = $marketService->getMarketsEndingSoon($client, 300);
+            $markets = $marketService->getMarketsEndingSoon(withinSeconds: 300, userId: $user->id);
 
             $analyzed = 0;
             foreach ($markets as $market) {

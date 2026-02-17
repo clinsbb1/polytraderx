@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\Polymarket\MarketService;
-use App\Services\Polymarket\PolymarketClient;
 use App\Services\PriceFeed\BinanceService;
 use App\Services\Trading\MarketTimingService;
 use App\Services\UserBotRunner;
@@ -72,8 +71,7 @@ class SimScanMarkets extends Command
         MarketTimingService $timingService,
     ): array {
         return $runner->runForEachUser(function ($user) use ($marketService, $timingService) {
-            $client = new PolymarketClient($user);
-            $markets = $marketService->getActiveCryptoMarkets($client, $user->id);
+            $markets = $marketService->getActiveCryptoMarkets(userId: $user->id);
             $entryWindows = $timingService->getActiveEntryWindows($markets, $user->id);
             $assets = $markets->pluck('asset')->unique()->values()->toArray();
 

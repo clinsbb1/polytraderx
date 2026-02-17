@@ -6,33 +6,39 @@ namespace App\Services\Polymarket;
 
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class MarketService
 {
     private const CRYPTO_ASSETS = ['BTC', 'ETH', 'SOL', 'XRP'];
+    private const SHARED_MARKETS_CACHE_KEY = 'polymarket:active_crypto_markets:shared:v1';
+    private const SHARED_MARKETS_CACHE_TTL_SECONDS = 10;
+    private const MAX_RETRIES = 3;
+    private const RETRY_BACKOFF_SECONDS = [1, 2, 4];
 
     public function __construct(private ?\App\Services\Settings\SettingsService $settings = null)
     {
         $this->settings = $this->settings ?? app(\App\Services\Settings\SettingsService::class);
     }
 
-    public function getActiveCryptoMarkets(PolymarketClient $client, ?int $userId = null): Collection
+    public function getActiveCryptoMarkets(?PolymarketClient $client = null, ?int $userId = null): Collection
     {
         try {
-            $response = $client->get('/markets', [
-                'active' => 'true',
-            ]);
+            $normalized = Cache::remember(
+                self::SHARED_MARKETS_CACHE_KEY,
+                now()->addSeconds(self::SHARED_MARKETS_CACHE_TTL_SECONDS),
+                fn() => $this->fetchSharedActiveCryptoMarkets()
+            );
 
-            $markets = $response['data'] ?? $response;
-
-            if (!is_array($markets)) {
-                return collect();
+            if (is_array($normalized)) {
+                $normalized = collect($normalized);
             }
 
-            $normalized = collect($markets)
-                ->map(fn(array $market) => $this->normalizeMarket($market))
-                ->filter(fn(?array $market) => $market !== null);
+            if (!$normalized instanceof Collection) {
+                return collect();
+            }
 
             // Filter by user's selected durations if userId provided
             if ($userId !== null) {
@@ -45,14 +51,14 @@ class MarketService
             return $normalized->values();
         } catch (\Exception $e) {
             Log::channel('simulator')->error('Failed to fetch active crypto markets', [
-                'user_id' => $client->getUserId(),
+                'user_id' => $client?->getUserId(),
                 'message' => $e->getMessage(),
             ]);
             return collect();
         }
     }
 
-    public function getMarketsEndingSoon(PolymarketClient $client, int $withinSeconds = 180, ?int $userId = null): Collection
+    public function getMarketsEndingSoon(?PolymarketClient $client = null, int $withinSeconds = 180, ?int $userId = null): Collection
     {
         return $this->getActiveCryptoMarkets($client, $userId)
             ->filter(fn(array $market) => $market['seconds_remaining'] <= $withinSeconds && $market['seconds_remaining'] > 0)
@@ -194,6 +200,73 @@ class MarketService
             'yes_token_id' => $yesToken['token_id'] ?? $market['yes_token_id'] ?? $market['clobTokenIds'][0] ?? '',
             'no_token_id' => $noToken['token_id'] ?? $market['no_token_id'] ?? $market['clobTokenIds'][1] ?? '',
         ];
+    }
+
+    private function fetchSharedActiveCryptoMarkets(): Collection
+    {
+        $baseUrl = rtrim((string) config('services.polymarket.base_url', 'https://clob.polymarket.com'), '/');
+        $url = $baseUrl . '/markets';
+        $lastException = null;
+
+        for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
+            try {
+                $response = Http::timeout(15)->get($url, [
+                    'active' => 'true',
+                ]);
+
+                if ($response->successful()) {
+                    $payload = $response->json();
+                    $markets = $payload['data'] ?? $payload;
+
+                    if (!is_array($markets)) {
+                        return collect();
+                    }
+
+                    return collect($markets)
+                        ->filter(fn($market) => is_array($market))
+                        ->map(fn(array $market) => $this->normalizeMarket($market))
+                        ->filter(fn(?array $market) => $market !== null)
+                        ->values();
+                }
+
+                $status = $response->status();
+
+                if ($status === 429 || $status >= 500) {
+                    $sleepFor = (int) ($response->header('Retry-After') ?: (self::RETRY_BACKOFF_SECONDS[$attempt] ?? 2));
+                    Log::channel('simulator')->warning('Shared Polymarket market fetch throttled or failed', [
+                        'status' => $status,
+                        'attempt' => $attempt + 1,
+                        'retry_after' => $sleepFor,
+                    ]);
+
+                    if ($attempt < self::MAX_RETRIES - 1) {
+                        sleep(max(1, $sleepFor));
+                        continue;
+                    }
+                }
+
+                Log::channel('simulator')->warning('Shared Polymarket market fetch returned non-success response', [
+                    'status' => $status,
+                    'body' => $response->body(),
+                ]);
+
+                return collect();
+            } catch (\Throwable $e) {
+                $lastException = $e;
+
+                if ($attempt < self::MAX_RETRIES - 1) {
+                    $sleepFor = self::RETRY_BACKOFF_SECONDS[$attempt] ?? 2;
+                    sleep(max(1, $sleepFor));
+                    continue;
+                }
+            }
+        }
+
+        if ($lastException) {
+            throw $lastException;
+        }
+
+        return collect();
     }
 
     private function normalizeMarket(array $market): ?array
