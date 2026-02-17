@@ -207,28 +207,25 @@ class MarketService
             }
         }
 
-        $parsed = collect($candidates)
-            ->map(fn($value) => $this->parseTimeCandidate($value))
-            ->filter(fn($value) => $value instanceof Carbon)
-            ->values();
+        $firstParsed = null;
+        $nearestFuture = null;
 
-        if ($parsed->isEmpty()) {
-            return null;
+        foreach ($candidates as $candidate) {
+            $parsed = $this->parseTimeCandidate($candidate);
+            if (!$parsed instanceof Carbon) {
+                continue;
+            }
+
+            $firstParsed ??= $parsed;
+
+            if ($parsed->greaterThanOrEqualTo(now())) {
+                if ($nearestFuture === null || $parsed->lessThan($nearestFuture)) {
+                    $nearestFuture = $parsed;
+                }
+            }
         }
 
-        $future = $parsed
-            ->filter(fn(Carbon $dt) => $dt->greaterThanOrEqualTo(now()))
-            ->sortBy(fn(Carbon $dt) => $dt->getTimestamp())
-            ->values();
-
-        if ($future->isNotEmpty()) {
-            return $future->first();
-        }
-
-        // If all candidates are in the past, return the most recent one.
-        return $parsed
-            ->sortByDesc(fn(Carbon $dt) => $dt->getTimestamp())
-            ->first();
+        return $nearestFuture ?? $firstParsed;
     }
 
     private function getMarketStartTime(array $market): ?Carbon
@@ -635,7 +632,8 @@ class MarketService
             }
         }
 
-        return null;
+        // Final fallback so scanning never deadlocks when upstream labels drift.
+        return '15min';
     }
 
     private function collectDurationHints(array $market): array
