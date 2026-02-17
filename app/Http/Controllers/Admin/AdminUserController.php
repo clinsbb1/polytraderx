@@ -35,7 +35,11 @@ class AdminUserController extends Controller
             $query->where('is_active', $request->boolean('active'));
         }
 
-        $users = $query->latest()->paginate(25)->withQueryString();
+        $users = $query
+            ->withCount('trades')
+            ->latest()
+            ->paginate(25)
+            ->withQueryString();
 
         return view('admin.users.index', compact('users'));
     }
