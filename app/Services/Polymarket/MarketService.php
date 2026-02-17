@@ -55,6 +55,20 @@ class MarketService
                         'normalized_before_filter' => $beforeCount,
                     ]);
                 }
+
+                $afterDurationCount = $normalized->count();
+                $allowedAssets = $this->getAllowedAssets($userId);
+                $normalized = $normalized->filter(fn(array $market) =>
+                    in_array((string) ($market['asset'] ?? ''), $allowedAssets, true)
+                );
+
+                if ($afterDurationCount > 0 && $normalized->isEmpty()) {
+                    Log::channel('simulator')->warning('All normalized markets filtered out by user asset selection', [
+                        'user_id' => $userId,
+                        'allowed_assets' => $allowedAssets,
+                        'normalized_before_filter' => $afterDurationCount,
+                    ]);
+                }
             }
 
             return $normalized->values();
@@ -171,6 +185,22 @@ class MarketService
 
         // If empty, default to both
         return !empty($valid) ? $valid : ['5min', '15min'];
+    }
+
+    private function getAllowedAssets(int $userId): array
+    {
+        $assetsString = $this->settings->getString('MONITORED_ASSETS', 'BTC,ETH,SOL,XRP', $userId);
+        $assets = array_map(
+            fn($asset) => strtoupper(trim((string) $asset)),
+            explode(',', $assetsString)
+        );
+
+        $valid = array_values(array_filter(
+            array_unique($assets),
+            fn($asset) => in_array($asset, self::CRYPTO_ASSETS, true)
+        ));
+
+        return !empty($valid) ? $valid : self::CRYPTO_ASSETS;
     }
 
     public function getMarketEndTime(array $market): ?Carbon
