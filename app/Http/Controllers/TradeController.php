@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Models\AiAudit;
 use App\Models\Trade;
 use App\Services\Subscription\SubscriptionService;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -24,37 +22,22 @@ class TradeController extends Controller
         return view('trades.index', compact('trades'));
     }
 
-    public function show(Trade $trade): View
+    public function show(string $tradeId): View
     {
-        abort_if((int) $trade->user_id !== auth()->id(), 403);
-
-        if ($this->canLoadTradeLogs()) {
-            try {
-                $trade->load('tradeLogs');
-                $trade->setRelation('tradeLogs', $trade->tradeLogs->sortBy('created_at')->values());
-            } catch (\Throwable) {
-                $trade->setRelation('tradeLogs', new EloquentCollection());
-            }
-        } else {
-            $trade->setRelation('tradeLogs', new EloquentCollection());
+        $id = filter_var($tradeId, FILTER_VALIDATE_INT);
+        if ($id === false || $id <= 0) {
+            abort(404);
         }
 
-        if ($this->canLoadAiDecisions()) {
-            try {
-                $trade->load('aiDecisions');
-            } catch (\Throwable) {
-                $trade->setRelation('aiDecisions', new EloquentCollection());
-            }
-        } else {
-            $trade->setRelation('aiDecisions', new EloquentCollection());
-        }
+        $trade = DB::table('trades')
+            ->where('id', $id)
+            ->where('user_id', auth()->id())
+            ->whereNull('deleted_at')
+            ->first();
 
-        $audit = null;
-        if ($trade->status === 'lost' && $trade->audited) {
-            $audit = $this->findTradeAudit((int) auth()->id(), (int) $trade->id);
-        }
+        abort_if(!$trade, 404);
 
-        return view('trades.show', compact('trade', 'audit'));
+        return view('trades.show', ['trade' => $trade]);
     }
 
     public function export(Request $request): StreamedResponse
@@ -126,65 +109,4 @@ class TradeController extends Controller
         return $query;
     }
 
-    private function findTradeAudit(int $userId, int $tradeId): ?AiAudit
-    {
-        if (! $this->canLoadAiAudits()) {
-            return null;
-        }
-
-        try {
-            return AiAudit::forUser($userId)
-                ->whereJsonContains('losing_trade_ids', $tradeId)
-                ->latest('created_at')
-                ->first();
-        } catch (\Throwable) {
-            try {
-                // Fallback for legacy rows where losing_trade_ids may contain invalid JSON.
-                return AiAudit::forUser($userId)
-                    ->latest('created_at')
-                    ->get()
-                    ->first(function (AiAudit $audit) use ($tradeId) {
-                        $ids = $audit->losing_trade_ids;
-                        if (!is_array($ids)) {
-                            return false;
-                        }
-
-                        return in_array($tradeId, array_map('intval', $ids), true);
-                    });
-            } catch (\Throwable) {
-                return null;
-            }
-        }
-    }
-
-    private function canLoadTradeLogs(): bool
-    {
-        try {
-            return Schema::hasTable('trade_logs')
-                && Schema::hasColumn('trade_logs', 'trade_id');
-        } catch (\Throwable) {
-            return false;
-        }
-    }
-
-    private function canLoadAiDecisions(): bool
-    {
-        try {
-            return Schema::hasTable('ai_decisions')
-                && Schema::hasColumn('ai_decisions', 'trade_id');
-        } catch (\Throwable) {
-            return false;
-        }
-    }
-
-    private function canLoadAiAudits(): bool
-    {
-        try {
-            return Schema::hasTable('ai_audits')
-                && Schema::hasColumn('ai_audits', 'user_id')
-                && Schema::hasColumn('ai_audits', 'losing_trade_ids');
-        } catch (\Throwable) {
-            return false;
-        }
-    }
 }
