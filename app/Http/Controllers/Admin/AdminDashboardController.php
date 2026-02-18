@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminTelegramMessage;
 use App\Models\AiUsage;
 use App\Models\Payment;
 use App\Models\Trade;
 use App\Models\User;
 use App\Services\AI\CostTracker;
 use App\Services\Settings\PlatformSettingsService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class AdminDashboardController extends Controller
@@ -82,6 +85,7 @@ class AdminDashboardController extends Controller
             ->get();
 
         $health = $this->buildHealthSnapshot();
+        $queueBacklog = $this->buildQueueBacklog();
 
         return view('admin.dashboard', compact(
             'stats',
@@ -98,7 +102,56 @@ class AdminDashboardController extends Controller
             'aiBudgetPaused',
             'aiTopUsers',
             'health',
+            'queueBacklog',
         ));
+    }
+
+    private function buildQueueBacklog(): array
+    {
+        $emailQueue = (string) config('services.queues.email', 'emails');
+        $telegramQueue = (string) config('services.queues.telegram', 'telegram');
+
+        $data = [
+            'email_queue' => $emailQueue,
+            'telegram_queue' => $telegramQueue,
+            'email_pending' => 0,
+            'telegram_pending' => 0,
+            'admin_telegram_pending' => 0,
+            'admin_telegram_failed' => 0,
+            'oldest_email_pending' => null,
+            'oldest_telegram_pending' => null,
+            'checked_at' => now(),
+            'status' => 'ok',
+        ];
+
+        try {
+            if (Schema::hasTable('jobs')) {
+                $emailPendingQuery = DB::table('jobs')->where('queue', $emailQueue);
+                $telegramPendingQuery = DB::table('jobs')->where('queue', $telegramQueue);
+
+                $data['email_pending'] = (int) $emailPendingQuery->count();
+                $data['telegram_pending'] = (int) $telegramPendingQuery->count();
+
+                $emailCreated = $emailPendingQuery->min('created_at');
+                $telegramCreated = $telegramPendingQuery->min('created_at');
+
+                $data['oldest_email_pending'] = is_numeric($emailCreated) ? Carbon::createFromTimestamp((int) $emailCreated) : null;
+                $data['oldest_telegram_pending'] = is_numeric($telegramCreated) ? Carbon::createFromTimestamp((int) $telegramCreated) : null;
+            }
+
+            if (Schema::hasTable('admin_telegram_messages')) {
+                $data['admin_telegram_pending'] = AdminTelegramMessage::query()
+                    ->where('status', 'pending')
+                    ->count();
+                $data['admin_telegram_failed'] = AdminTelegramMessage::query()
+                    ->where('status', 'failed')
+                    ->count();
+            }
+        } catch (\Throwable) {
+            $data['status'] = 'degraded';
+        }
+
+        return $data;
     }
 
     private function buildHealthSnapshot(): array

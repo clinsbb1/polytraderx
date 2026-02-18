@@ -67,12 +67,27 @@ class PublicController extends Controller
         ]);
 
         try {
-            Mail::to('admin@polytraderx.xyz')->send(new ContactSupportMail(
-                user: $user,
-                topic: $validated['subject'],
-                issueMessage: $validated['message'],
-                screenshot: $request->file('screenshot')
-            ));
+            $screenshotPath = null;
+            $screenshotName = null;
+            $screenshotMime = null;
+
+            if ($request->hasFile('screenshot')) {
+                $file = $request->file('screenshot');
+                $screenshotPath = $file?->store('support-attachments');
+                $screenshotName = $file?->getClientOriginalName();
+                $screenshotMime = $file?->getClientMimeType();
+            }
+
+            Mail::to('admin@polytraderx.xyz')->queue(
+                (new ContactSupportMail(
+                    user: $user,
+                    topic: $validated['subject'],
+                    issueMessage: $validated['message'],
+                    screenshotPath: $screenshotPath,
+                    screenshotName: $screenshotName,
+                    screenshotMime: $screenshotMime
+                ))->onQueue((string) config('services.queues.email', 'emails'))
+            );
         } catch (\Throwable $e) {
             Log::channel('simulator')->error('Contact form email send failed', [
                 'user_id' => $user->id,

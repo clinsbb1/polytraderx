@@ -90,4 +90,9 @@ return [
         'secret_key' => env('TURNSTILE_SECRET_KEY', env('CLOUDFLARE_TURNSTILE_SECRET_KEY')),
     ],
 
+    'queues' => [
+        'email' => env('MAIL_QUEUE', 'emails'),
+        'telegram' => env('TELEGRAM_QUEUE', 'telegram'),
+    ],
+
 ];

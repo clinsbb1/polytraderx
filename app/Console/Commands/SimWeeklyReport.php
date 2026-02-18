@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Jobs\SendTelegramMessageJob;
 use App\Services\AI\AIRouter;
-use App\Services\Telegram\TelegramBotService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 
@@ -17,9 +17,8 @@ class SimWeeklyReport extends Command
     public function handle(
         UserBotRunner $runner,
         AIRouter $aiRouter,
-        TelegramBotService $telegram,
     ): int {
-        $results = $runner->runForEachUser(function ($user) use ($aiRouter, $telegram) {
+        $results = $runner->runForEachUser(function ($user) use ($aiRouter) {
             $audit = $aiRouter->requestWeeklyReport($user->id);
 
             if (is_array($audit)) {
@@ -36,7 +35,8 @@ class SimWeeklyReport extends Command
                 . "Suggested Changes: {$fixCount}\n"
                 . "Review in your dashboard to approve/reject.";
 
-            $telegram->sendToUser($user->id, $message);
+            SendTelegramMessageJob::dispatch($user->id, $message)
+                ->onQueue((string) config('services.queues.telegram', 'telegram'));
 
             return ['status' => 'completed', 'audit_id' => $audit->id, 'fixes' => $fixCount];
         });

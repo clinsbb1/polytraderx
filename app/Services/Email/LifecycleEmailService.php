@@ -246,7 +246,9 @@ class LifecycleEmailService
         }
 
         try {
-            Mail::to($user->email)->send($mail);
+            Mail::to($user->email)->queue(
+                $mail->onQueue((string) config('services.queues.email', 'emails'))
+            );
             return true;
         } catch (\Throwable $e) {
             Log::channel('simulator')->warning('Lifecycle email failed', array_merge($context, [

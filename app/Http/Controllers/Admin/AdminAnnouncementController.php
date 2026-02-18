@@ -204,14 +204,14 @@ class AdminAnnouncementController extends Controller
 
                     try {
                         Mail::to($user->email)->queue(
-                            new BrandedNotificationMail(
+                            (new BrandedNotificationMail(
                                 subjectLine: $subject,
                                 headline: $headline,
                                 lines: $lines,
                                 actionText: 'Open Dashboard',
                                 actionUrl: url('/dashboard'),
                                 smallPrint: 'This announcement was sent by PolyTraderX admin.'
-                            )
+                            ))->onQueue((string) config('services.queues.email', 'emails'))
                         );
                         $count++;
                     } catch (\Throwable $e) {

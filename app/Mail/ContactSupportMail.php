@@ -6,7 +6,6 @@ namespace App\Mail;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
@@ -22,7 +21,9 @@ class ContactSupportMail extends Mailable
         public User $user,
         public string $topic,
         public string $issueMessage,
-        public ?UploadedFile $screenshot = null,
+        public ?string $screenshotPath = null,
+        public ?string $screenshotName = null,
+        public ?string $screenshotMime = null,
     ) {}
 
     public function envelope(): Envelope
@@ -44,14 +45,14 @@ class ContactSupportMail extends Mailable
 
     public function attachments(): array
     {
-        if (!$this->screenshot) {
+        if (!$this->screenshotPath) {
             return [];
         }
 
         return [
-            Attachment::fromPath($this->screenshot->getRealPath())
-                ->as($this->screenshot->getClientOriginalName())
-                ->withMime($this->screenshot->getClientMimeType() ?: 'application/octet-stream'),
+            Attachment::fromPath(storage_path('app/' . $this->screenshotPath))
+                ->as($this->screenshotName ?: basename($this->screenshotPath))
+                ->withMime($this->screenshotMime ?: 'application/octet-stream'),
         ];
     }
 }

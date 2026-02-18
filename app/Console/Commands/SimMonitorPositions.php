@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Jobs\SendTelegramMessageJob;
 use App\Services\Settings\SettingsService;
-use App\Services\Telegram\TelegramBotService;
 use App\Services\Trading\StrategyEngine;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
@@ -19,9 +19,8 @@ class SimMonitorPositions extends Command
         UserBotRunner $runner,
         StrategyEngine $engine,
         SettingsService $settings,
-        TelegramBotService $telegram,
     ): int {
-        $results = $runner->runForEachUser(function ($user) use ($engine, $settings, $telegram) {
+        $results = $runner->runForEachUser(function ($user) use ($engine, $settings) {
             $summary = $engine->checkResolutions($user);
 
             // Send Telegram notifications for resolved trades
@@ -38,7 +37,8 @@ class SimMonitorPositions extends Command
                     if ($lost > 0) {
                         $message .= " | {$lost} lost";
                     }
-                    $telegram->sendToUser($user->id, $message);
+                    SendTelegramMessageJob::dispatch($user->id, $message)
+                        ->onQueue((string) config('services.queues.telegram', 'telegram'));
                 }
             }
 

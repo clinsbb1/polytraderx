@@ -155,6 +155,52 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Queue Backlog</h6>
+        <span class="badge bg-{{ $queueBacklog['status'] === 'ok' ? 'success' : 'warning' }}">{{ strtoupper($queueBacklog['status']) }}</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Email Queue</div>
+                    <div class="fw-bold fs-5">{{ number_format((int) $queueBacklog['email_pending']) }}</div>
+                    <div class="small text-muted">Queue: <code>{{ $queueBacklog['email_queue'] }}</code></div>
+                    <div class="small text-muted">
+                        Oldest: {{ $queueBacklog['oldest_email_pending'] ? $queueBacklog['oldest_email_pending']->diffForHumans() : '—' }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Telegram Queue</div>
+                    <div class="fw-bold fs-5">{{ number_format((int) $queueBacklog['telegram_pending']) }}</div>
+                    <div class="small text-muted">Queue: <code>{{ $queueBacklog['telegram_queue'] }}</code></div>
+                    <div class="small text-muted">
+                        Oldest: {{ $queueBacklog['oldest_telegram_pending'] ? $queueBacklog['oldest_telegram_pending']->diffForHumans() : '—' }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Admin Telegram Outbox</div>
+                    <div class="fw-bold fs-5">{{ number_format((int) $queueBacklog['admin_telegram_pending']) }}</div>
+                    <div class="small text-muted">Pending rows</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3">
+                    <div class="text-muted small">Admin Telegram Failed</div>
+                    <div class="fw-bold fs-5 text-danger">{{ number_format((int) $queueBacklog['admin_telegram_failed']) }}</div>
+                    <div class="small text-muted">Failed rows</div>
+                </div>
+            </div>
+        </div>
+        <div class="small text-muted mt-2">Checked {{ $queueBacklog['checked_at']->diffForHumans() }}</div>
+    </div>
+</div>
+
 <div class="row g-4">
     <div class="col-md-4">
         <div class="card">

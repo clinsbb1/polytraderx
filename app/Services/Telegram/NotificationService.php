@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Telegram;
 
+use App\Jobs\SendTelegramMessageJob;
 use App\Models\AiAudit;
 use App\Models\DailySummary;
 use App\Models\Trade;
@@ -16,7 +17,6 @@ use Illuminate\Support\Facades\Log;
 class NotificationService
 {
     public function __construct(
-        private TelegramBotService $telegram,
         private NotificationFormatter $formatter,
         private SettingsService $settings,
     ) {}
@@ -177,14 +177,8 @@ class NotificationService
     private function send(User $user, string $message): void
     {
         try {
-            $sent = $this->telegram->sendToUser($user->id, $message);
-
-            if ($sent) {
-                Log::channel('simulator')->debug('Notification sent', [
-                    'user_id' => $user->id,
-                    'length' => strlen($message),
-                ]);
-            }
+            SendTelegramMessageJob::dispatch($user->id, $message)
+                ->onQueue((string) config('services.queues.telegram', 'telegram'));
         } catch (\Exception $e) {
             Log::channel('simulator')->warning('Notification send failed', [
                 'user_id' => $user->id,
