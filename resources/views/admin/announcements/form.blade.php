@@ -29,9 +29,9 @@
                 <textarea name="body" class="form-control @error('body') is-invalid @enderror" rows="6" required placeholder="Announcement content...">{{ old('body', $announcement->body ?? '') }}</textarea>
                 @error('body') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 <div class="form-text">
-                    Supported tags: <code>{'{'}{name}{'}'}</code>, <code>{'{'}{first_name}{'}'}</code>, <code>{'{'}{email}{'}'}</code>,
-                    <code>{'{'}{account_id}{'}'}</code>, <code>{'{'}{plan}{'}'}</code>, <code>{'{'}{subscription_ends_at}{'}'}</code>,
-                    <code>{'{'}{dashboard_url}{'}'}</code>, <code>{'{'}{today}{'}'}</code>, <code>{'{'}{support_email}{'}'}</code>.
+                    Supported tags: <code>&#123;&#123;name&#125;&#125;</code>, <code>&#123;&#123;first_name&#125;&#125;</code>, <code>&#123;&#123;email&#125;&#125;</code>,
+                    <code>&#123;&#123;account_id&#125;&#125;</code>, <code>&#123;&#123;plan&#125;&#125;</code>, <code>&#123;&#123;subscription_ends_at&#125;&#125;</code>,
+                    <code>&#123;&#123;dashboard_url&#125;&#125;</code>, <code>&#123;&#123;today&#125;&#125;</code>, <code>&#123;&#123;support_email&#125;&#125;</code>.
                     Line breaks are preserved in dashboard, Telegram, and email.
                 </div>
             </div>
