@@ -7,7 +7,6 @@ namespace App\Http\Controllers;
 use App\Models\Trade;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -22,20 +21,11 @@ class TradeController extends Controller
         return view('trades.index', compact('trades'));
     }
 
-    public function show(string $trade): View
+    public function show(Trade $trade): View
     {
-        $id = filter_var($trade, FILTER_VALIDATE_INT);
-        if ($id === false || $id <= 0) {
-            abort(404);
+        if ((int) $trade->user_id !== (int) auth()->id()) {
+            abort(403);
         }
-
-        $trade = DB::table('trades')
-            ->where('id', $id)
-            ->where('user_id', auth()->id())
-            ->whereNull('deleted_at')
-            ->first();
-
-        abort_if(!$trade, 404);
 
         return view('trades.show', ['trade' => $trade]);
     }

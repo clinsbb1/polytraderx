@@ -18,6 +18,10 @@
             return '-';
         }
 
+        if ($value instanceof \Illuminate\Support\Carbon) {
+            return $value->format('M d, Y H:i:s');
+        }
+
         try {
             return \Illuminate\Support\Carbon::parse((string) $value)->format('M d, Y H:i:s');
         } catch (\Throwable) {
@@ -33,13 +37,7 @@
         return number_format((float) $value, $decimals);
     };
 
-    $reasoning = [];
-    if (isset($trade->decision_reasoning) && is_string($trade->decision_reasoning)) {
-        $decoded = json_decode($trade->decision_reasoning, true);
-        if (is_array($decoded)) {
-            $reasoning = $decoded;
-        }
-    }
+    $reasoning = is_array($trade->decision_reasoning) ? $trade->decision_reasoning : [];
 @endphp
 
 <div class="ptx-card mb-4">
