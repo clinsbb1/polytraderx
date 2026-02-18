@@ -7,7 +7,9 @@ namespace App\Http\Controllers;
 use App\Models\AiAudit;
 use App\Models\Trade;
 use App\Services\Subscription\SubscriptionService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -26,7 +28,28 @@ class TradeController extends Controller
     {
         abort_if((int) $trade->user_id !== auth()->id(), 403);
 
-        $trade->load(['tradeLogs' => fn ($q) => $q->orderBy('created_at'), 'aiDecisions']);
+        try {
+            $trade->load('tradeLogs');
+            $trade->setRelation('tradeLogs', $trade->tradeLogs->sortBy('created_at')->values());
+        } catch (\Throwable $e) {
+            Log::channel('simulator')->warning('Failed to load trade logs for trade details', [
+                'trade_id' => $trade->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+            $trade->setRelation('tradeLogs', new EloquentCollection());
+        }
+
+        try {
+            $trade->load('aiDecisions');
+        } catch (\Throwable $e) {
+            Log::channel('simulator')->warning('Failed to load AI decisions for trade details', [
+                'trade_id' => $trade->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+            $trade->setRelation('aiDecisions', new EloquentCollection());
+        }
 
         $audit = null;
         if ($trade->status === 'lost' && $trade->audited) {
