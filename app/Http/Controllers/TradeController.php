@@ -22,9 +22,9 @@ class TradeController extends Controller
         return view('trades.index', compact('trades'));
     }
 
-    public function show(string $tradeId): View
+    public function show(string $trade): View
     {
-        $id = filter_var($tradeId, FILTER_VALIDATE_INT);
+        $id = filter_var($trade, FILTER_VALIDATE_INT);
         if ($id === false || $id <= 0) {
             abort(404);
         }
