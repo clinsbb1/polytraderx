@@ -7,7 +7,10 @@
 @foreach($announcements as $announcement)
     <div class="alert alert-dismissible fade show ptx-alert ptx-alert-{{ $announcement->type }}" role="alert">
         <i class="bi bi-{{ $announcement->type === 'warning' ? 'exclamation-triangle-fill' : ($announcement->type === 'danger' ? 'x-circle-fill' : ($announcement->type === 'success' ? 'check-circle-fill' : 'info-circle-fill')) }}"></i>
-        <span><strong>{{ $announcement->title }}</strong> — {{ $announcement->body }}</span>
+        <span>
+            <strong>{{ $announcement->rendered_title ?? $announcement->title }}</strong><br>
+            {!! nl2br(e($announcement->rendered_body ?? $announcement->body)) !!}
+        </span>
         <button
             type="button"
             class="btn-close ms-auto js-dismiss-announcement"

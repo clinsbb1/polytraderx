@@ -20,7 +20,7 @@
                     <tr>
                         <td style="padding:22px 24px 12px 24px;">
                             @foreach($lines as $line)
-                                <p style="margin:0 0 14px 0;font-size:15px;line-height:1.65;color:#334155;">{{ $line }}</p>
+                                <p style="margin:0 0 14px 0;font-size:15px;line-height:1.65;color:#334155;">{!! nl2br(e($line)) !!}</p>
                             @endforeach
 
                             @if($actionText && $actionUrl)

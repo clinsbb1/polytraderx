@@ -10,6 +10,7 @@ use App\Models\AnnouncementDismissal;
 use App\Models\BalanceSnapshot;
 use App\Models\DailySummary;
 use App\Models\Trade;
+use App\Support\AnnouncementTemplate;
 use App\Services\Analytics\StrategyMetrics;
 use App\Services\Settings\SettingsService;
 use Illuminate\Http\JsonResponse;
@@ -37,7 +38,16 @@ class DashboardController extends Controller
         $winRateToday = $this->calculateWinRate($userId, 0);
 
         $recentTrades = Trade::forUser($userId)->latest('created_at')->take(10)->get();
-        $announcements = Announcement::forDashboard($userId)->latest()->take(3)->get();
+        $announcements = Announcement::forDashboard($userId)
+            ->latest()
+            ->take(3)
+            ->get()
+            ->map(function (Announcement $announcement) use ($user) {
+                $announcement->rendered_title = AnnouncementTemplate::render((string) $announcement->title, $user);
+                $announcement->rendered_body = AnnouncementTemplate::render((string) $announcement->body, $user);
+
+                return $announcement;
+            });
         $pendingAudits = AiAudit::forUser($userId)->where('status', 'pending_review')->count();
 
         $dryRun = $settings->getBool('DRY_RUN', true, $userId);

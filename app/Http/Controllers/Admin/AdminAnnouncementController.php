@@ -9,6 +9,7 @@ use App\Mail\BrandedNotificationMail;
 use App\Models\AdminTelegramMessage;
 use App\Models\Announcement;
 use App\Models\User;
+use App\Support\AnnouncementTemplate;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -127,7 +128,7 @@ class AdminAnnouncementController extends Controller
     {
         $recipients = User::query()
             ->whereNotNull('telegram_chat_id')
-            ->get(['id', 'telegram_chat_id']);
+            ->get(['id', 'name', 'email', 'account_id', 'subscription_plan', 'subscription_ends_at', 'telegram_chat_id']);
 
         if ($recipients->isEmpty()) {
             return 0;
@@ -135,19 +136,19 @@ class AdminAnnouncementController extends Controller
 
         $batchId = (string) Str::uuid();
         $now = now();
-        $safeTitle = trim(strip_tags((string) $announcement->title));
-        $safeBody = trim(strip_tags((string) $announcement->body));
-        $message = "<b>Platform Announcement</b>\n\n"
-            . "<b>{$safeTitle}</b>\n"
-            . "{$safeBody}";
-        if (function_exists('mb_substr')) {
-            $message = mb_substr($message, 0, 3900);
-        } else {
-            $message = substr($message, 0, 3900);
-        }
-
         $rows = [];
         foreach ($recipients as $recipient) {
+            $safeTitle = trim(strip_tags(AnnouncementTemplate::render((string) $announcement->title, $recipient)));
+            $safeBody = trim(strip_tags(AnnouncementTemplate::render((string) $announcement->body, $recipient)));
+            $message = "<b>Platform Announcement</b>\n\n"
+                . "<b>{$safeTitle}</b>\n"
+                . "{$safeBody}";
+            if (function_exists('mb_substr')) {
+                $message = mb_substr($message, 0, 3900);
+            } else {
+                $message = substr($message, 0, 3900);
+            }
+
             $rows[] = [
                 'admin_id' => $adminId,
                 'recipient_user_id' => $recipient->id,
@@ -183,22 +184,24 @@ class AdminAnnouncementController extends Controller
     private function queueEmailBroadcast(Announcement $announcement): int
     {
         $count = 0;
-        $subject = 'Platform Announcement: ' . trim((string) $announcement->title);
         $headline = 'Platform Announcement';
-        $safeTitle = trim(strip_tags((string) $announcement->title));
-        $safeBody = trim(strip_tags((string) $announcement->body));
-        $lines = array_values(array_filter([
-            $safeTitle,
-            $safeBody,
-        ]));
 
         User::query()
             ->whereNotNull('email')
             ->where('email', '!=', '')
-            ->select('id', 'email')
+            ->select('id', 'name', 'email', 'account_id', 'subscription_plan', 'subscription_ends_at')
             ->orderBy('id')
-            ->chunkById(500, function ($users) use (&$count, $subject, $headline, $lines, $announcement) {
+            ->chunkById(500, function ($users) use (&$count, $headline, $announcement) {
                 foreach ($users as $user) {
+                    $subject = 'Platform Announcement: '
+                        . trim(strip_tags(AnnouncementTemplate::render((string) $announcement->title, $user)));
+                    $safeTitle = trim(strip_tags(AnnouncementTemplate::render((string) $announcement->title, $user)));
+                    $safeBody = trim(strip_tags(AnnouncementTemplate::render((string) $announcement->body, $user)));
+                    $lines = array_values(array_filter([
+                        $safeTitle,
+                        $safeBody,
+                    ]));
+
                     try {
                         Mail::to($user->email)->queue(
                             new BrandedNotificationMail(

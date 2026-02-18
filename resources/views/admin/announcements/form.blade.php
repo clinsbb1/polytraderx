@@ -28,6 +28,12 @@
                 <label class="form-label fw-semibold">Body <span class="text-danger">*</span></label>
                 <textarea name="body" class="form-control @error('body') is-invalid @enderror" rows="6" required placeholder="Announcement content...">{{ old('body', $announcement->body ?? '') }}</textarea>
                 @error('body') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <div class="form-text">
+                    Supported tags: <code>{'{'}{name}{'}'}</code>, <code>{'{'}{first_name}{'}'}</code>, <code>{'{'}{email}{'}'}</code>,
+                    <code>{'{'}{account_id}{'}'}</code>, <code>{'{'}{plan}{'}'}</code>, <code>{'{'}{subscription_ends_at}{'}'}</code>,
+                    <code>{'{'}{dashboard_url}{'}'}</code>, <code>{'{'}{today}{'}'}</code>, <code>{'{'}{support_email}{'}'}</code>.
+                    Line breaks are preserved in dashboard, Telegram, and email.
+                </div>
             </div>
 
             <div class="mb-3">
