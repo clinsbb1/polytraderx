@@ -292,9 +292,12 @@
                     <tr>
                         <td style="color: var(--text-secondary); padding: 6px 0;">Plan</td>
                         <td class="text-end">
-                            @php $plan = $user->currentPlan(); @endphp
+                            @php
+                                $plan = $user->currentPlan();
+                                $isLifetimePlan = $user->is_lifetime || $user->subscription_plan === 'lifetime' || ($plan && $plan->slug === 'lifetime');
+                            @endphp
                             {{ $plan ? $plan->name : 'None' }}
-                            @if(!$user->is_lifetime && $user->subscription_ends_at && $user->subscription_ends_at->isFuture())
+                            @if(!$isLifetimePlan && $user->subscription_ends_at && $user->subscription_ends_at->isFuture())
                                 <span style="color:var(--text-secondary); font-size:0.8rem"> — {{ $user->subscription_ends_at->diffForHumans() }}</span>
                             @elseif($user->trial_ends_at && $user->trial_ends_at->isFuture())
                                 <span style="color:var(--text-secondary); font-size:0.8rem"> — {{ $user->daysLeftInTrial() }}d left</span>
