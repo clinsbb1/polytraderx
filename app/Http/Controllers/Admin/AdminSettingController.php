@@ -78,11 +78,13 @@ class AdminSettingController extends Controller
         $telegram = $this->runTelegramDiagnostics();
         $polymarket = $this->runPolymarketPublicDiagnostics();
         $anthropic = $this->runAnthropicDiagnostics();
+        $turnstile = $this->runTurnstileDiagnostics();
 
         return view('admin.settings.diagnostics', [
             'telegram' => $telegram,
             'polymarket' => $polymarket,
             'anthropic' => $anthropic,
+            'turnstile' => $turnstile,
             'checkedAt' => now(),
         ]);
     }
@@ -208,6 +210,62 @@ class AdminSettingController extends Controller
                 $report['models_count'] = is_array($models) ? count($models) : 0;
             } else {
                 $report['error'] = 'HTTP ' . $response->status() . ': ' . $response->body();
+            }
+        } catch (\Throwable $e) {
+            $report['error'] = $e->getMessage();
+        }
+
+        return $report;
+    }
+
+    private function runTurnstileDiagnostics(): array
+    {
+        $enabled = (bool) config('services.turnstile.enabled', false);
+        $siteKey = trim((string) config('services.turnstile.site_key', ''));
+        $secretKey = trim((string) config('services.turnstile.secret_key', ''));
+
+        $report = [
+            'enabled' => $enabled,
+            'site_key_configured' => $siteKey !== '',
+            'secret_key_configured' => $secretKey !== '',
+            'site_key_preview' => $siteKey !== '' ? substr($siteKey, 0, 8) . '...' : null,
+            'verify_endpoint_ok' => null,
+            'secret_valid' => null,
+            'error_codes' => [],
+            'hostname' => null,
+            'error' => null,
+        ];
+
+        if (!$enabled || $secretKey === '') {
+            return $report;
+        }
+
+        try {
+            $response = Http::asForm()
+                ->timeout(10)
+                ->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+                    'secret' => $secretKey,
+                    'response' => 'diagnostics-test-token',
+                ]);
+
+            $report['verify_endpoint_ok'] = $response->successful();
+            $payload = $response->json() ?? [];
+            $errorCodes = $payload['error-codes'] ?? [];
+
+            if (!is_array($errorCodes)) {
+                $errorCodes = [];
+            }
+
+            $report['error_codes'] = $errorCodes;
+            $report['hostname'] = $payload['hostname'] ?? null;
+
+            // With a fake token, a valid secret should usually return invalid-input-response.
+            if (in_array('invalid-input-secret', $errorCodes, true)) {
+                $report['secret_valid'] = false;
+            } elseif (in_array('invalid-input-response', $errorCodes, true) || ($payload['success'] ?? false) === true) {
+                $report['secret_valid'] = true;
+            } else {
+                $report['secret_valid'] = null;
             }
         } catch (\Throwable $e) {
             $report['error'] = $e->getMessage();

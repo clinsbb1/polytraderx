@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Security;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TurnstileService
 {
@@ -22,6 +23,11 @@ class TurnstileService
         $secret = (string) config('services.turnstile.secret_key', '');
 
         if ($secret === '' || $token === null || $token === '') {
+            Log::channel('simulator')->warning('Turnstile verification skipped due to missing secret or token', [
+                'secret_configured' => $secret !== '',
+                'token_present' => $token !== null && $token !== '',
+                'ip' => $ip,
+            ]);
             return false;
         }
 
@@ -34,8 +40,24 @@ class TurnstileService
                     'remoteip' => $ip,
                 ]);
 
-            return (bool) $response->json('success', false);
-        } catch (\Throwable) {
+            $success = (bool) $response->json('success', false);
+
+            if (!$success) {
+                Log::channel('simulator')->warning('Turnstile verification failed', [
+                    'status' => $response->status(),
+                    'error_codes' => $response->json('error-codes', []),
+                    'hostname' => $response->json('hostname'),
+                    'action' => $response->json('action'),
+                    'ip' => $ip,
+                ]);
+            }
+
+            return $success;
+        } catch (\Throwable $e) {
+            Log::channel('simulator')->error('Turnstile verification request failed', [
+                'ip' => $ip,
+                'message' => $e->getMessage(),
+            ]);
             return false;
         }
     }
