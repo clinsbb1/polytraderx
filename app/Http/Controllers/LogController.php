@@ -42,6 +42,7 @@ class LogController extends Controller
     public function botActivity(Request $request): View
     {
         $query = BotActivityLog::forUser(auth()->id());
+        $query->where('created_at', '>=', now()->subHours(24));
 
         if ($search = trim((string) $request->get('search', ''))) {
             $query->where(function ($q) use ($search) {
