@@ -129,7 +129,7 @@
 </div>
 
 <div class="mt-3">
-    {{ $history->links() }}
+    {{ $history->links('pagination::bootstrap-5') }}
 </div>
 @endsection
 

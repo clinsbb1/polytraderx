@@ -92,5 +92,5 @@
     </div>
 </div>
 
-<div class="mt-3">{{ $announcements->links() }}</div>
+<div class="mt-3">{{ $announcements->links('pagination::bootstrap-5') }}</div>
 @endsection

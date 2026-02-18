@@ -22,7 +22,7 @@ class AdminAnnouncementController extends Controller
 {
     public function index(): View
     {
-        $announcements = Announcement::latest()->paginate(20);
+        $announcements = Announcement::latest()->paginate(20)->withQueryString();
 
         return view('admin.announcements.index', compact('announcements'));
     }

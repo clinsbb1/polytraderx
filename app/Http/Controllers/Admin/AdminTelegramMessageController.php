@@ -24,7 +24,8 @@ class AdminTelegramMessageController extends Controller
         $history = AdminTelegramMessage::query()
             ->with(['admin:id,name', 'recipient:id,name,account_id'])
             ->latest('created_at')
-            ->paginate(50);
+            ->paginate(25)
+            ->withQueryString();
 
         return view('admin.telegram.messages', compact('connectedUsers', 'history'));
     }

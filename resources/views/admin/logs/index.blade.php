@@ -145,7 +145,7 @@
     </div>
 </div>
 
-<div class="mt-3">{{ $logs->withQueryString()->links() }}</div>
+<div class="mt-3">{{ $logs->links('pagination::bootstrap-5') }}</div>
 @endsection
 
 @section('extra-styles')

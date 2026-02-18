@@ -20,6 +20,10 @@ class AdminLogController extends Controller
             $query->whereHas('trade', fn ($q) => $q->where('user_id', $userId));
         }
 
+        if ($tradeId = $request->get('trade_id')) {
+            $query->where('trade_id', $tradeId);
+        }
+
         if ($event = $request->get('event')) {
             $query->where('event', $event);
         }
@@ -29,7 +33,7 @@ class AdminLogController extends Controller
             $query->where('event', $level);
         }
 
-        $logs = $query->latest()->paginate(50)->withQueryString();
+        $logs = $query->latest()->paginate(25)->withQueryString();
         $users = User::query()->select('id', 'name', 'account_id')->orderBy('name')->get();
 
         return view('admin.logs.index', compact('logs', 'users'));
