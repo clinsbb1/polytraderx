@@ -3,6 +3,10 @@
 @section('title', 'Trade #' . $trade->id)
 
 @section('content')
+@php
+    $tradeLogs = $trade->tradeLogs instanceof \Illuminate\Support\Collection ? $trade->tradeLogs : collect();
+    $aiDecisions = $trade->aiDecisions instanceof \Illuminate\Support\Collection ? $trade->aiDecisions : collect();
+@endphp
 <div class="mb-3">
     <a href="{{ route('trades.index') }}" style="color: var(--accent); text-decoration: none;">
         <i class="bi bi-arrow-left me-1"></i> Back to Trades
@@ -199,11 +203,11 @@
         <h5 class="mb-0"><i class="bi bi-clock-history me-1"></i> Timeline</h5>
     </div>
     <div class="ptx-card-body">
-        @if($trade->tradeLogs->isEmpty())
+        @if($tradeLogs->isEmpty())
             <p style="color: var(--text-secondary); margin: 0;">No log entries recorded for this trade.</p>
         @else
             <div class="d-flex flex-column gap-3">
-                @foreach($trade->tradeLogs as $log)
+                @foreach($tradeLogs as $log)
                     <div style="border-left: 2px solid rgba(255,255,255,0.1); padding-left: 1rem;">
                         <div class="d-flex align-items-center gap-2 mb-1">
                             @switch($log->event)
@@ -238,20 +242,25 @@
 </div>
 
 {{-- AI Decisions --}}
-@if($trade->aiDecisions->isNotEmpty())
+@if($aiDecisions->isNotEmpty())
     <div class="ptx-card mb-4">
         <div class="ptx-card-header">
             <h5 class="mb-0"><i class="bi bi-cpu me-1"></i> AI Decisions</h5>
         </div>
         <div class="ptx-card-body p-0">
-            @foreach($trade->aiDecisions as $index => $decision)
+            @foreach($aiDecisions as $index => $decision)
                 <details class="p-3" style="{{ !$loop->last ? 'border-bottom: 1px solid rgba(255,255,255,0.06);' : '' }}">
                     <summary style="cursor: pointer; user-select: none;">
                         <span class="ptx-badge ptx-badge-secondary me-1" style="font-size: 0.7rem;">{{ strtoupper((string) $decision->tier) }}</span>
                         <span style="font-size: 0.85rem;">{{ $decision->decision_type ?? 'Decision' }}</span>
+                        @php
+                            $tokensInput = is_numeric($decision->tokens_input ?? null) ? (int) $decision->tokens_input : 0;
+                            $tokensOutput = is_numeric($decision->tokens_output ?? null) ? (int) $decision->tokens_output : 0;
+                            $tokensTotal = $tokensInput + $tokensOutput;
+                        @endphp
                         <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: 0.5rem;">
-                            {{ $decision->model_used }} &middot;
-                            {{ number_format($decision->tokens_input + $decision->tokens_output) }} tokens &middot;
+                            {{ (string) ($decision->model_used ?? '-') }} &middot;
+                            {{ number_format($tokensTotal) }} tokens &middot;
                             ${{ number_format((float) $decision->cost_usd, 4) }}
                         </span>
                         <span style="color: var(--text-secondary); font-size: 0.75rem; margin-left: 0.5rem;">
