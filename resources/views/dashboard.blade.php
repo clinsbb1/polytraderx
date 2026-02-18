@@ -294,7 +294,7 @@
                         <td class="text-end">
                             @php $plan = $user->currentPlan(); @endphp
                             {{ $plan ? $plan->name : 'None' }}
-                            @if($user->subscription_ends_at && $user->subscription_ends_at->isFuture())
+                            @if(!$user->is_lifetime && $user->subscription_ends_at && $user->subscription_ends_at->isFuture())
                                 <span style="color:var(--text-secondary); font-size:0.8rem"> — {{ $user->subscription_ends_at->diffForHumans() }}</span>
                             @elseif($user->trial_ends_at && $user->trial_ends_at->isFuture())
                                 <span style="color:var(--text-secondary); font-size:0.8rem"> — {{ $user->daysLeftInTrial() }}d left</span>
