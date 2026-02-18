@@ -6,11 +6,14 @@ namespace App\Http\Controllers;
 
 use App\Models\AiAudit;
 use App\Models\Announcement;
+use App\Models\AnnouncementDismissal;
 use App\Models\BalanceSnapshot;
 use App\Models\DailySummary;
 use App\Models\Trade;
 use App\Services\Analytics\StrategyMetrics;
 use App\Services\Settings\SettingsService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -34,7 +37,7 @@ class DashboardController extends Controller
         $winRateToday = $this->calculateWinRate($userId, 0);
 
         $recentTrades = Trade::forUser($userId)->latest('created_at')->take(10)->get();
-        $announcements = Announcement::forDashboard()->latest()->take(3)->get();
+        $announcements = Announcement::forDashboard($userId)->latest()->take(3)->get();
         $pendingAudits = AiAudit::forUser($userId)->where('status', 'pending_review')->count();
 
         $dryRun = $settings->getBool('DRY_RUN', true, $userId);
@@ -114,5 +117,26 @@ class DashboardController extends Controller
         $won = (clone $query)->where('status', 'won')->count();
 
         return round(($won / $total) * 100, 1);
+    }
+
+    public function dismissAnnouncement(Request $request, Announcement $announcement): JsonResponse
+    {
+        $userId = (int) $request->user()->id;
+
+        if (! $announcement->is_active || ! $announcement->show_on_dashboard || $announcement->isClosed()) {
+            abort(404);
+        }
+
+        AnnouncementDismissal::query()->updateOrCreate(
+            [
+                'announcement_id' => $announcement->id,
+                'user_id' => $userId,
+            ],
+            [
+                'dismissed_at' => now(),
+            ]
+        );
+
+        return response()->json(['ok' => true]);
     }
 }

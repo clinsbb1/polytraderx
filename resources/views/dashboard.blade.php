@@ -5,10 +5,16 @@
 @section('content')
 {{-- Announcements --}}
 @foreach($announcements as $announcement)
-    <div class="ptx-alert ptx-alert-{{ $announcement->type }}" role="alert">
+    <div class="alert alert-dismissible fade show ptx-alert ptx-alert-{{ $announcement->type }}" role="alert">
         <i class="bi bi-{{ $announcement->type === 'warning' ? 'exclamation-triangle-fill' : ($announcement->type === 'danger' ? 'x-circle-fill' : ($announcement->type === 'success' ? 'check-circle-fill' : 'info-circle-fill')) }}"></i>
         <span><strong>{{ $announcement->title }}</strong> — {{ $announcement->body }}</span>
-        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        <button
+            type="button"
+            class="btn-close ms-auto js-dismiss-announcement"
+            data-announcement-id="{{ $announcement->id }}"
+            data-bs-dismiss="alert"
+            aria-label="Close"
+        ></button>
     </div>
 @endforeach
 
@@ -353,5 +359,26 @@ new Chart(document.getElementById('pnlChart'), {
     }
 });
 @endif
+
+document.querySelectorAll('.js-dismiss-announcement').forEach(function (button) {
+    button.addEventListener('click', function () {
+        var announcementId = this.getAttribute('data-announcement-id');
+        if (!announcementId) {
+            return;
+        }
+
+        fetch('/announcements/' + announcementId + '/dismiss', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: '{}'
+        }).catch(function () {
+            // Silent failure: announcement is already dismissed in UI.
+        });
+    });
+});
 </script>
 @endpush

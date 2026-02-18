@@ -20,6 +20,8 @@
                         <th>Type</th>
                         <th class="text-center">Active</th>
                         <th class="text-center">Dashboard</th>
+                        <th>Until</th>
+                        <th>Status</th>
                         <th>Created</th>
                         <th>Actions</th>
                     </tr>
@@ -48,6 +50,18 @@
                                 <span class="badge bg-secondary">No</span>
                             @endif
                         </td>
+                        <td class="small text-muted">
+                            {{ $a->dashboard_until_at ? $a->dashboard_until_at->format('M j, Y') : '—' }}
+                        </td>
+                        <td>
+                            @if($a->show_on_dashboard && $a->isClosed())
+                                <span class="badge bg-secondary">Closed</span>
+                            @elseif($a->is_active)
+                                <span class="badge bg-success">Open</span>
+                            @else
+                                <span class="badge bg-secondary">Inactive</span>
+                            @endif
+                        </td>
                         <td class="small text-muted">{{ $a->created_at->format('M j, Y') }}</td>
                         <td>
                             <div class="d-flex gap-1">
@@ -66,7 +80,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="8" class="text-center text-muted py-4">
                             <i class="bi bi-megaphone fs-3 d-block mb-2"></i>
                             No announcements yet. Create your first one.
                         </td>

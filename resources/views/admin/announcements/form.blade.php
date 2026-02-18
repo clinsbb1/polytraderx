@@ -58,6 +58,28 @@
                 <div class="form-text">If checked, this announcement will appear on the user dashboard.</div>
             </div>
 
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Dashboard Until Date <span class="text-danger">*</span></label>
+                <input
+                    type="date"
+                    name="dashboard_until_date"
+                    id="dashboardUntilDate"
+                    class="form-control @error('dashboard_until_date') is-invalid @enderror"
+                    value="{{ old('dashboard_until_date', isset($announcement?->dashboard_until_at) ? $announcement->dashboard_until_at->toDateString() : '') }}"
+                >
+                <div class="form-text">Required when "Show on Dashboard" is enabled. This announcement auto-closes after this date.</div>
+                @error('dashboard_until_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+
+            <div class="mb-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="send_email" value="1" id="sendEmail"
+                        {{ old('send_email', false) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="sendEmail">Send Email</label>
+                </div>
+                <div class="form-text">If checked, this announcement is queued to all users with an email address.</div>
+            </div>
+
             <div class="d-flex justify-content-between">
                 <a href="/admin/announcements" class="btn btn-outline-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">
@@ -67,4 +89,25 @@
         </form>
     </div>
 </div>
+
+<script>
+    (function () {
+        var showOnDashboard = document.getElementById('showOnDashboard');
+        var dashboardUntilDate = document.getElementById('dashboardUntilDate');
+
+        if (!showOnDashboard || !dashboardUntilDate) {
+            return;
+        }
+
+        function syncRequiredState() {
+            dashboardUntilDate.required = showOnDashboard.checked;
+            if (!showOnDashboard.checked) {
+                dashboardUntilDate.value = '';
+            }
+        }
+
+        showOnDashboard.addEventListener('change', syncRequiredState);
+        syncRequiredState();
+    })();
+</script>
 @endsection

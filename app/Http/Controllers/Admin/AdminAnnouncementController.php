@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\BrandedNotificationMail;
 use App\Models\AdminTelegramMessage;
 use App\Models\Announcement;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -36,10 +39,16 @@ class AdminAnnouncementController extends Controller
             'type' => ['required', 'in:info,warning,success,danger'],
             'is_active' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
+            'dashboard_until_date' => ['required_if:show_on_dashboard,1', 'nullable', 'date'],
+            'send_email' => ['boolean'],
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['show_on_dashboard'] = $request->boolean('show_on_dashboard', true);
+        $validated['dashboard_until_at'] = $validated['show_on_dashboard']
+            ? Carbon::parse((string) $request->input('dashboard_until_date'))->endOfDay()
+            : null;
+        unset($validated['dashboard_until_date']);
 
         $announcement = Announcement::create($validated);
 
@@ -47,10 +56,16 @@ class AdminAnnouncementController extends Controller
         if ($announcement->is_active) {
             $queuedCount = $this->queueTelegramBroadcast($announcement, (int) auth()->id());
         }
+        $emailQueuedCount = $request->boolean('send_email')
+            ? $this->queueEmailBroadcast($announcement)
+            : 0;
 
         $message = 'Announcement created.';
         if ($queuedCount > 0) {
             $message .= " Telegram broadcast queued for {$queuedCount} connected user(s).";
+        }
+        if ($emailQueuedCount > 0) {
+            $message .= " Email broadcast queued for {$emailQueuedCount} user(s).";
         }
 
         return redirect('/admin/announcements')->with('success', $message);
@@ -69,10 +84,16 @@ class AdminAnnouncementController extends Controller
             'type' => ['required', 'in:info,warning,success,danger'],
             'is_active' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
+            'dashboard_until_date' => ['required_if:show_on_dashboard,1', 'nullable', 'date'],
+            'send_email' => ['boolean'],
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['show_on_dashboard'] = $request->boolean('show_on_dashboard');
+        $validated['dashboard_until_at'] = $validated['show_on_dashboard']
+            ? Carbon::parse((string) $request->input('dashboard_until_date'))->endOfDay()
+            : null;
+        unset($validated['dashboard_until_date']);
 
         $announcement->update($validated);
 
@@ -80,10 +101,16 @@ class AdminAnnouncementController extends Controller
         if ($announcement->is_active) {
             $queuedCount = $this->queueTelegramBroadcast($announcement, (int) auth()->id());
         }
+        $emailQueuedCount = $request->boolean('send_email')
+            ? $this->queueEmailBroadcast($announcement)
+            : 0;
 
         $message = 'Announcement updated.';
         if ($queuedCount > 0) {
             $message .= " Telegram broadcast queued for {$queuedCount} connected user(s).";
+        }
+        if ($emailQueuedCount > 0) {
+            $message .= " Email broadcast queued for {$emailQueuedCount} user(s).";
         }
 
         return redirect('/admin/announcements')->with('success', $message);
@@ -151,5 +178,50 @@ class AdminAnnouncementController extends Controller
 
             return 0;
         }
+    }
+
+    private function queueEmailBroadcast(Announcement $announcement): int
+    {
+        $count = 0;
+        $subject = 'Platform Announcement: ' . trim((string) $announcement->title);
+        $headline = 'Platform Announcement';
+        $safeTitle = trim(strip_tags((string) $announcement->title));
+        $safeBody = trim(strip_tags((string) $announcement->body));
+        $lines = array_values(array_filter([
+            $safeTitle,
+            $safeBody,
+        ]));
+
+        User::query()
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->select('id', 'email')
+            ->orderBy('id')
+            ->chunkById(500, function ($users) use (&$count, $subject, $headline, $lines, $announcement) {
+                foreach ($users as $user) {
+                    try {
+                        Mail::to($user->email)->queue(
+                            new BrandedNotificationMail(
+                                subjectLine: $subject,
+                                headline: $headline,
+                                lines: $lines,
+                                actionText: 'Open Dashboard',
+                                actionUrl: url('/dashboard'),
+                                smallPrint: 'This announcement was sent by PolyTraderX admin.'
+                            )
+                        );
+                        $count++;
+                    } catch (\Throwable $e) {
+                        Log::channel('simulator')->warning('Failed to queue announcement email', [
+                            'announcement_id' => $announcement->id,
+                            'user_id' => $user->id,
+                            'email' => $user->email,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            });
+
+        return $count;
     }
 }

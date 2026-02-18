@@ -229,6 +229,8 @@ Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
 // Main app (auth + active subscription required)
 Route::middleware(['auth', 'simulation_acknowledged', 'subscribed'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/announcements/{announcement}/dismiss', [DashboardController::class, 'dismissAnnouncement'])
+        ->name('announcements.dismiss');
 
     Route::get('/trades', [TradeController::class, 'index'])->name('trades.index');
     Route::get('/trades/export', [TradeController::class, 'export'])->name('trades.export');
