@@ -299,7 +299,7 @@
                             {{ $plan ? $plan->name : 'None' }}
                             @if(!$isLifetimePlan && $user->subscription_ends_at && $user->subscription_ends_at->isFuture())
                                 <span style="color:var(--text-secondary); font-size:0.8rem"> — {{ $user->subscription_ends_at->diffForHumans() }}</span>
-                            @elseif($user->trial_ends_at && $user->trial_ends_at->isFuture())
+                            @elseif(!$isLifetimePlan && $user->trial_ends_at && $user->trial_ends_at->isFuture())
                                 <span style="color:var(--text-secondary); font-size:0.8rem"> — {{ $user->daysLeftInTrial() }}d left</span>
                             @endif
                         </td>
