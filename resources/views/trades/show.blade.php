@@ -220,9 +220,9 @@
                                     <span class="ptx-badge ptx-badge-danger" style="font-size: 0.7rem;">ERROR</span>
                                     @break
                                 @default
-                                    <span class="ptx-badge ptx-badge-secondary" style="font-size: 0.7rem;">{{ strtoupper($log->event) }}</span>
+                                    <span class="ptx-badge ptx-badge-secondary" style="font-size: 0.7rem;">{{ strtoupper((string) $log->event) }}</span>
                             @endswitch
-                            <span style="color: var(--text-secondary); font-size: 0.8rem;">{{ $log->created_at->format('M d, H:i:s') }}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.8rem;">{{ $log->created_at?->format('M d, H:i:s') ?? '-' }}</span>
                         </div>
                         @if(!empty($log->data))
                             <details>
@@ -247,7 +247,7 @@
             @foreach($trade->aiDecisions as $index => $decision)
                 <details class="p-3" style="{{ !$loop->last ? 'border-bottom: 1px solid rgba(255,255,255,0.06);' : '' }}">
                     <summary style="cursor: pointer; user-select: none;">
-                        <span class="ptx-badge ptx-badge-secondary me-1" style="font-size: 0.7rem;">{{ strtoupper($decision->tier) }}</span>
+                        <span class="ptx-badge ptx-badge-secondary me-1" style="font-size: 0.7rem;">{{ strtoupper((string) $decision->tier) }}</span>
                         <span style="font-size: 0.85rem;">{{ $decision->decision_type ?? 'Decision' }}</span>
                         <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: 0.5rem;">
                             {{ $decision->model_used }} &middot;
@@ -255,7 +255,7 @@
                             ${{ number_format((float) $decision->cost_usd, 4) }}
                         </span>
                         <span style="color: var(--text-secondary); font-size: 0.75rem; margin-left: 0.5rem;">
-                            {{ $decision->created_at->format('M d, H:i:s') }}
+                            {{ $decision->created_at?->format('M d, H:i:s') ?? '-' }}
                         </span>
                     </summary>
                     <div class="mt-3">

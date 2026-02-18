@@ -8,6 +8,8 @@ use App\Models\AiAudit;
 use App\Models\Trade;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -24,39 +26,51 @@ class TradeController extends Controller
         return view('trades.index', compact('trades'));
     }
 
-    public function show(Trade $trade): View
+    public function show(Trade $trade): Response|RedirectResponse
     {
         abort_if((int) $trade->user_id !== auth()->id(), 403);
 
         try {
-            $trade->load('tradeLogs');
-            $trade->setRelation('tradeLogs', $trade->tradeLogs->sortBy('created_at')->values());
+            try {
+                $trade->load('tradeLogs');
+                $trade->setRelation('tradeLogs', $trade->tradeLogs->sortBy('created_at')->values());
+            } catch (\Throwable $e) {
+                Log::channel('simulator')->warning('Failed to load trade logs for trade details', [
+                    'trade_id' => $trade->id,
+                    'user_id' => auth()->id(),
+                    'error' => $e->getMessage(),
+                ]);
+                $trade->setRelation('tradeLogs', new EloquentCollection());
+            }
+
+            try {
+                $trade->load('aiDecisions');
+            } catch (\Throwable $e) {
+                Log::channel('simulator')->warning('Failed to load AI decisions for trade details', [
+                    'trade_id' => $trade->id,
+                    'user_id' => auth()->id(),
+                    'error' => $e->getMessage(),
+                ]);
+                $trade->setRelation('aiDecisions', new EloquentCollection());
+            }
+
+            $audit = null;
+            if ($trade->status === 'lost' && $trade->audited) {
+                $audit = $this->findTradeAudit((int) auth()->id(), (int) $trade->id);
+            }
+
+            return response()->view('trades.show', compact('trade', 'audit'));
         } catch (\Throwable $e) {
-            Log::channel('simulator')->warning('Failed to load trade logs for trade details', [
+            Log::channel('simulator')->error('Trade details view failed', [
                 'trade_id' => $trade->id,
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
             ]);
-            $trade->setRelation('tradeLogs', new EloquentCollection());
-        }
 
-        try {
-            $trade->load('aiDecisions');
-        } catch (\Throwable $e) {
-            Log::channel('simulator')->warning('Failed to load AI decisions for trade details', [
-                'trade_id' => $trade->id,
-                'user_id' => auth()->id(),
-                'error' => $e->getMessage(),
-            ]);
-            $trade->setRelation('aiDecisions', new EloquentCollection());
+            return redirect()
+                ->route('trades.index')
+                ->with('error', 'Unable to load this trade details right now.');
         }
-
-        $audit = null;
-        if ($trade->status === 'lost' && $trade->audited) {
-            $audit = $this->findTradeAudit((int) auth()->id(), (int) $trade->id);
-        }
-
-        return view('trades.show', compact('trade', 'audit'));
     }
 
     public function export(Request $request): StreamedResponse
