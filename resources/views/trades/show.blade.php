@@ -184,7 +184,7 @@
                 <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;" class="mb-1">Decision Notes</div>
                 <ul class="mb-0" style="padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.9rem;">
                     @foreach($reasoning as $reason)
-                        <li>{{ (string) $reason }}</li>
+                        <li>{{ is_array($reason) ? json_encode($reason) : (string) $reason }}</li>
                     @endforeach
                 </ul>
             </div>
