@@ -9,7 +9,7 @@ use App\Models\Trade;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -28,26 +28,24 @@ class TradeController extends Controller
     {
         abort_if((int) $trade->user_id !== auth()->id(), 403);
 
-        try {
-            $trade->load('tradeLogs');
-            $trade->setRelation('tradeLogs', $trade->tradeLogs->sortBy('created_at')->values());
-        } catch (\Throwable $e) {
-            $this->safeLogWarning('Failed to load trade logs for trade details', [
-                'trade_id' => $trade->id,
-                'user_id' => auth()->id(),
-                'error' => $e->getMessage(),
-            ]);
+        if ($this->canLoadTradeLogs()) {
+            try {
+                $trade->load('tradeLogs');
+                $trade->setRelation('tradeLogs', $trade->tradeLogs->sortBy('created_at')->values());
+            } catch (\Throwable) {
+                $trade->setRelation('tradeLogs', new EloquentCollection());
+            }
+        } else {
             $trade->setRelation('tradeLogs', new EloquentCollection());
         }
 
-        try {
-            $trade->load('aiDecisions');
-        } catch (\Throwable $e) {
-            $this->safeLogWarning('Failed to load AI decisions for trade details', [
-                'trade_id' => $trade->id,
-                'user_id' => auth()->id(),
-                'error' => $e->getMessage(),
-            ]);
+        if ($this->canLoadAiDecisions()) {
+            try {
+                $trade->load('aiDecisions');
+            } catch (\Throwable) {
+                $trade->setRelation('aiDecisions', new EloquentCollection());
+            }
+        } else {
             $trade->setRelation('aiDecisions', new EloquentCollection());
         }
 
@@ -130,6 +128,10 @@ class TradeController extends Controller
 
     private function findTradeAudit(int $userId, int $tradeId): ?AiAudit
     {
+        if (! $this->canLoadAiAudits()) {
+            return null;
+        }
+
         try {
             return AiAudit::forUser($userId)
                 ->whereJsonContains('losing_trade_ids', $tradeId)
@@ -149,24 +151,40 @@ class TradeController extends Controller
 
                         return in_array($tradeId, array_map('intval', $ids), true);
                     });
-            } catch (\Throwable $e) {
-                $this->safeLogWarning('Failed to resolve AI audit for trade details', [
-                    'trade_id' => $tradeId,
-                    'user_id' => $userId,
-                    'error' => $e->getMessage(),
-                ]);
-
+            } catch (\Throwable) {
                 return null;
             }
         }
     }
 
-    private function safeLogWarning(string $message, array $context = []): void
+    private function canLoadTradeLogs(): bool
     {
         try {
-            Log::channel('simulator')->warning($message, $context);
+            return Schema::hasTable('trade_logs')
+                && Schema::hasColumn('trade_logs', 'trade_id');
         } catch (\Throwable) {
-            logger()->warning($message, $context);
+            return false;
+        }
+    }
+
+    private function canLoadAiDecisions(): bool
+    {
+        try {
+            return Schema::hasTable('ai_decisions')
+                && Schema::hasColumn('ai_decisions', 'trade_id');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function canLoadAiAudits(): bool
+    {
+        try {
+            return Schema::hasTable('ai_audits')
+                && Schema::hasColumn('ai_audits', 'user_id')
+                && Schema::hasColumn('ai_audits', 'losing_trade_ids');
+        } catch (\Throwable) {
+            return false;
         }
     }
 }
