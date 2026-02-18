@@ -135,4 +135,20 @@ class TradeExecutorTest extends TestCase
         $this->assertNotNull($errorLog);
         $this->assertArrayHasKey('error', $errorLog->data);
     }
+
+    public function test_execute_skips_when_bet_amount_is_zero(): void
+    {
+        $user = $this->makeUser();
+        $signal = $this->makeSignal();
+        $signal['bet_amount'] = 0.0;
+
+        $settings = $this->createMock(SettingsService::class);
+        $settings->method('getBool')->willReturn(true);
+
+        $executor = new TradeExecutor($settings);
+        $trade = $executor->execute($signal, $this->makeMarket(), $this->makeSpotData(), $user);
+
+        $this->assertNull($trade);
+        $this->assertDatabaseCount('trades', 0);
+    }
 }

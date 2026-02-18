@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\BalanceSnapshot;
-use App\Models\Trade;
 use App\Services\Settings\SettingsService;
 use App\Services\Telegram\NotificationService;
+use App\Services\Trading\SimulationBalanceService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 
@@ -20,35 +20,14 @@ class SimSnapshotBalance extends Command
         UserBotRunner $runner,
         SettingsService $settings,
         NotificationService $notifications,
+        SimulationBalanceService $balanceService,
     ): int {
-        $results = $runner->runForEachUser(function ($user) use ($settings, $notifications) {
+        $results = $runner->runForEachUser(function ($user) use ($settings, $notifications, $balanceService) {
             $isDryRun = true; // Simulation-only platform: balance snapshots are always simulated.
-
-            $balance = 0.0;
-            $positionsValue = 0.0;
-
-            // Simulate from initial balance + resolved trade PNL + open exposure.
-            $initialBalance = 100.0; // Default starting balance
-            $totalPnl = (float) Trade::forUser($user->id)
-                ->whereNotNull('pnl')
-                ->sum('pnl');
-            $balance = $initialBalance + $totalPnl;
-
-            $openAmount = (float) Trade::forUser($user->id)
-                ->open()
-                ->sum('amount');
-            $positionsValue = $openAmount;
-
-            $totalEquity = $balance + $positionsValue;
-
-            $snapshot = BalanceSnapshot::create([
-                'user_id' => $user->id,
-                'balance_usdc' => $balance,
-                'open_positions_value' => $positionsValue,
-                'total_equity' => $totalEquity,
-                'snapshot_at' => now(),
-                'created_at' => now(),
-            ]);
+            $snapshot = $balanceService->snapshotForUser($user->id);
+            $balance = (float) $snapshot->balance_usdc;
+            $positionsValue = (float) $snapshot->open_positions_value;
+            $totalEquity = (float) $snapshot->total_equity;
 
             // Check low balance alert
             $lowThreshold = $settings->getFloat('LOW_BALANCE_THRESHOLD', 20.0, $user->id);

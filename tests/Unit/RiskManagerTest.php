@@ -160,4 +160,13 @@ class RiskManagerTest extends TestCase
         $bet = $rm->calculateBetSize(0.91, 100.0, 1);
         $this->assertGreaterThanOrEqual(1.0, $bet);
     }
+
+    public function test_bet_size_with_zero_bankroll_is_still_positive(): void
+    {
+        $rm = $this->makeRiskManager(['MAX_BET_AMOUNT' => 10.0, 'MAX_BET_PERCENTAGE' => 10.0]);
+
+        $bet = $rm->calculateBetSize(0.95, 0.0, 1);
+
+        $this->assertGreaterThan(0.0, $bet);
+    }
 }

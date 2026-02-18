@@ -27,7 +27,16 @@ class TradeExecutor
             ? ($market['yes_token_id'] ?? '')
             : ($market['no_token_id'] ?? '');
 
-        $amount = (float) $signal['bet_amount'];
+        $amount = (float) ($signal['bet_amount'] ?? 0);
+        if (!is_finite($amount) || $amount <= 0) {
+            Log::channel('simulator')->warning('Trade execution skipped due to invalid bet amount', [
+                'user_id' => $user->id,
+                'market_id' => $market['condition_id'] ?? null,
+                'bet_amount' => $signal['bet_amount'] ?? null,
+            ]);
+
+            return null;
+        }
         $potentialPayout = $entryPrice > 0 ? round($amount / $entryPrice, 2) : 0.0;
 
         // 1. Create trade record as pending
@@ -118,6 +127,12 @@ class TradeExecutor
                 app(\App\Services\Telegram\NotificationService::class)->notifyTradeExecuted($trade);
             } catch (\Exception $e) {
                 // Notification failure must never crash trading
+            }
+
+            try {
+                app(\App\Services\Trading\SimulationBalanceService::class)->snapshotForUser($user->id);
+            } catch (\Throwable) {
+                // Snapshot failure must never crash trade execution.
             }
 
             return $trade;

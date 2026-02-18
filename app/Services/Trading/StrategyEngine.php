@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Trading;
 
+use App\Models\BalanceSnapshot;
 use App\Models\BotActivityLog;
 use App\Models\Trade;
 use App\Models\TradeLog;
@@ -216,6 +217,7 @@ class StrategyEngine
 
                 if ($trade !== null) {
                     $summary['trades_placed']++;
+                    $bankroll = max(0.0, $bankroll - (float) $trade->amount);
                     $this->logMarketActivity(
                         userId: $user->id,
                         cycleId: $cycleId,
@@ -350,6 +352,12 @@ class StrategyEngine
                 } catch (\Exception $e) {
                     // Notification failure must never crash trading
                 }
+
+                try {
+                    app(\App\Services\Trading\SimulationBalanceService::class)->snapshotForUser($user->id);
+                } catch (\Throwable) {
+                    // Snapshot failure must never crash trade resolution.
+                }
             } catch (\Exception $e) {
                 Log::channel('simulator')->error('Error resolving trade', [
                     'user_id' => $user->id,
@@ -434,17 +442,30 @@ class StrategyEngine
 
     private function estimateBankroll(PolymarketClient $client, User $user): float
     {
+        // Simulation-first: prefer latest simulated equity snapshot.
+        $latestSnapshot = BalanceSnapshot::forUser($user->id)
+            ->latest('snapshot_at')
+            ->first();
+
+        if ($latestSnapshot && (float) $latestSnapshot->total_equity > 0) {
+            return round((float) $latestSnapshot->total_equity, 2);
+        }
+
         try {
             $balanceService = new BalanceService($client);
-            return $balanceService->getTotalEquity();
+            $equity = (float) $balanceService->getTotalEquity();
+            if ($equity > 0) {
+                return round($equity, 2);
+            }
         } catch (\Exception $e) {
-            // Fallback: use a conservative estimate
             Log::channel('simulator')->warning('Could not fetch bankroll, using default', [
                 'user_id' => $user->id,
                 'message' => $e->getMessage(),
             ]);
-            return 100.0;
         }
+
+        // Safe simulation fallback to avoid zero-sized trades.
+        return 100.0;
     }
 
     private function logBotActivity(

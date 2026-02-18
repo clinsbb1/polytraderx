@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BalanceSnapshot;
 use App\Models\DailySummary;
+use App\Models\Trade;
 use Illuminate\View\View;
 
 class BalanceController extends Controller
@@ -13,6 +14,9 @@ class BalanceController extends Controller
     public function index(): View
     {
         $userId = auth()->id();
+        $openTradeCount = Trade::forUser($userId)
+            ->whereIn('status', ['open', 'pending'])
+            ->count();
 
         // Latest snapshot for stat cards
         $latestSnapshot = BalanceSnapshot::forUser($userId)
@@ -52,12 +56,24 @@ class BalanceController extends Controller
             'equityCurve',
             'dailyPnl',
             'weeklyStatsWithCumulative',
+            'openTradeCount',
         ));
     }
 
     public function reset()
     {
         $userId = auth()->id();
+        $openTradeCount = Trade::forUser($userId)
+            ->whereIn('status', ['open', 'pending'])
+            ->count();
+
+        if ($openTradeCount > 0) {
+            return redirect()->route('balance.index')->with(
+                'toast',
+                "Balance reset is unavailable while you have {$openTradeCount} open/pending trade(s). "
+                . 'Please turn off the simulator and wait for those trades to resolve first.'
+            );
+        }
 
         // Validate and get the reset amount
         $amount = (float) request()->input('amount', 100);

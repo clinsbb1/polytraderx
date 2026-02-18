@@ -12,7 +12,12 @@ use Tests\TestCase;
 
 class SignalGeneratorTest extends TestCase
 {
-    private function makeGenerator(bool $riskAllowed = true, string $reflexAction = 'BUY_YES', float $reversalProb = 0.03): SignalGenerator
+    private function makeGenerator(
+        bool $riskAllowed = true,
+        string $reflexAction = 'BUY_YES',
+        float $reversalProb = 0.03,
+        float $betAmount = 5.0
+    ): SignalGenerator
     {
         $riskManager = $this->createMock(RiskManager::class);
         $riskManager->method('canTrade')->willReturn([
@@ -20,7 +25,7 @@ class SignalGeneratorTest extends TestCase
             'reason' => $riskAllowed ? null : 'Daily loss limit reached',
             'checks' => [],
         ]);
-        $riskManager->method('calculateBetSize')->willReturn(5.0);
+        $riskManager->method('calculateBetSize')->willReturn($betAmount);
 
         $reflexes = $this->createMock(ReflexesService::class);
         $reflexes->method('evaluate')->willReturn([
@@ -109,5 +114,20 @@ class SignalGeneratorTest extends TestCase
         $this->assertEquals('EXECUTE', $signal['action']);
         $this->assertEquals('muscles', $signal['decision_tier']);
         $this->assertEquals(0.95, $signal['confidence']);
+    }
+
+    public function test_non_positive_bet_size_returns_skip(): void
+    {
+        $generator = $this->makeGenerator(
+            riskAllowed: true,
+            reflexAction: 'BUY_YES',
+            reversalProb: 0.03,
+            betAmount: 0.0
+        );
+
+        $signal = $generator->generateSignal($this->makeMarket(), $this->makeSpotData(), 1, 100.0);
+
+        $this->assertEquals('SKIP', $signal['action']);
+        $this->assertStringContainsString('invalid', strtolower((string) $signal['reasoning']));
     }
 }

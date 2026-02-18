@@ -101,21 +101,20 @@ class RiskManager
 
     public function calculateBetSize(float $confidence, float $currentBankroll, int $userId): float
     {
-        $maxBet = $this->settings->getFloat('MAX_BET_AMOUNT', 10.0, $userId);
-        $maxPct = $this->settings->getFloat('MAX_BET_PERCENTAGE', 10.0, $userId);
+        $maxBet = max(0.01, $this->settings->getFloat('MAX_BET_AMOUNT', 10.0, $userId));
+        $maxPct = max(0.01, $this->settings->getFloat('MAX_BET_PERCENTAGE', 10.0, $userId));
+        $effectiveBankroll = max(1.0, $currentBankroll);
 
-        $pctLimit = $currentBankroll * ($maxPct / 100.0);
+        $pctLimit = max(0.01, $effectiveBankroll * ($maxPct / 100.0));
         $base = min($maxBet, $pctLimit);
 
         // Scale from 0 at confidence=0.90 to full at confidence=1.0
         $scale = max(0.0, min(1.0, ($confidence - 0.90) / 0.10));
         $betSize = $base * $scale;
 
-        // Floor at $1, cap at max
-        $betSize = max(1.0, min($betSize, $maxBet));
-
-        // Never exceed percentage of bankroll
-        $betSize = min($betSize, $pctLimit);
+        // Never return zero and never exceed the computed cap.
+        $minimumExecutable = max(0.01, min(1.0, $base));
+        $betSize = max($minimumExecutable, min($betSize, $base));
 
         return round($betSize, 2);
     }

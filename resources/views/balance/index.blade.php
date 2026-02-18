@@ -5,9 +5,15 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="mb-0" style="font-family: var(--font-display);">Balance & Equity</h4>
-    <button type="button" class="btn btn-outline-danger btn-sm" onclick="showResetModal()">
-        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Balance
-    </button>
+    @if(($openTradeCount ?? 0) > 0)
+        <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Close open/pending trades first">
+            <i class="bi bi-lock-fill me-1"></i> Reset Unavailable ({{ $openTradeCount }})
+        </button>
+    @else
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="showResetModal()">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Balance
+        </button>
+    @endif
 </div>
 
 <div class="ptx-info-card mb-4" style="background: var(--card-bg); border-left: 4px solid var(--accent);">
@@ -18,6 +24,21 @@
         </p>
     </div>
 </div>
+
+@if(($openTradeCount ?? 0) > 0)
+<div class="ptx-info-card mb-4" style="background: var(--card-bg); border-left: 4px solid #ffc107;">
+    <div class="info-body">
+        <p class="mb-1">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Balance reset is currently locked.</strong> You have {{ $openTradeCount }} open/pending trade(s).
+        </p>
+        <p class="mb-0" style="color: var(--text-secondary);">
+            Reset is blocked while trades are active so simulation accounting stays accurate.
+            Turn off the simulator in <a href="{{ route('strategy.index') }}" style="color: var(--accent);">Strategy</a> (or from the sidebar toggle), then reset after those trades resolve.
+        </p>
+    </div>
+</div>
+@endif
 
 {{-- Row 1: Stat Cards --}}
 <div class="row g-4 mb-4">
@@ -138,13 +159,31 @@
                     <p style="color: #b8b8d1; margin-bottom: 1.25rem;">
                         Enter your desired starting balance. All equity history and trade data will be preserved, but balance tracking will restart from this amount.
                     </p>
+                    @if(($openTradeCount ?? 0) > 0)
+                        <div class="alert mb-3" style="background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.35); color: #ffd56a; border-radius: 8px;">
+                            <i class="bi bi-lock-fill me-2"></i>
+                            Reset is unavailable while you have {{ $openTradeCount }} open/pending trade(s). Turn off simulation and wait for resolution first.
+                        </div>
+                    @endif
                     <div class="mb-3">
                         <label for="reset_amount" class="form-label" style="color: #ffffff; font-weight: 500; margin-bottom: 0.5rem;">
                             Reset Amount (USD)
                         </label>
                         <div class="input-group">
                             <span class="input-group-text" style="background: #12141f; border: 1px solid rgba(255,255,255,0.1); color: var(--accent); border-right: none;">$</span>
-                            <input type="number" class="form-control" id="reset_amount" name="amount" value="100" min="1" max="1000000" step="0.01" required style="background: #12141f; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; font-size: 1.1rem; font-weight: 500;">
+                            <input
+                                type="number"
+                                class="form-control"
+                                id="reset_amount"
+                                name="amount"
+                                value="100"
+                                min="1"
+                                max="1000000"
+                                step="0.01"
+                                required
+                                {{ ($openTradeCount ?? 0) > 0 ? 'disabled' : '' }}
+                                style="background: #12141f; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; font-size: 1.1rem; font-weight: 500;"
+                            >
                         </div>
                         <small style="color: #8888a0; display: block; margin-top: 0.5rem;">
                             Recommended: $100 - $10,000
@@ -159,7 +198,7 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="padding: 0.5rem 1.25rem;">
                         Cancel
                     </button>
-                    <button type="submit" class="btn btn-danger" style="padding: 0.5rem 1.25rem; font-weight: 500;">
+                    <button type="submit" class="btn btn-danger" style="padding: 0.5rem 1.25rem; font-weight: 500;" {{ ($openTradeCount ?? 0) > 0 ? 'disabled' : '' }}>
                         <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Balance
                     </button>
                 </div>

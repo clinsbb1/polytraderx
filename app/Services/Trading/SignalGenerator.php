@@ -101,6 +101,19 @@ class SignalGenerator
 
         // 5. Calculate bet size
         $betAmount = $this->riskManager->calculateBetSize($confidence, $currentBankroll, $userId);
+        if (!is_finite($betAmount) || $betAmount <= 0) {
+            return [
+                'action' => 'SKIP',
+                'side' => $reflexesResult['side'],
+                'confidence' => round($confidence, 4),
+                'bet_amount' => 0.0,
+                'decision_tier' => $decisionTier,
+                'reasoning' => 'Calculated bet size is invalid (non-positive), skipping trade.',
+                'reflexes_result' => $reflexesResult,
+                'muscles_result' => $musclesResult,
+                'risk_check' => $riskCheck,
+            ];
+        }
 
         return [
             'action' => 'EXECUTE',
