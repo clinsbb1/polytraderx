@@ -181,15 +181,7 @@
         <div class="ptx-stat-card">
             <div class="stat-label">Strategy Health</div>
             <div class="stat-value text-accent">
-                @if(isset($strategyHealth))
-                    @if($strategyHealth === 'Insufficient_data')
-                        No Data
-                    @else
-                        {{ ucfirst($strategyHealth) }}
-                    @endif
-                @else
-                    N/A
-                @endif
+                {{ $strategyHealth ?? 'N/A' }}
             </div>
             <div style="color: var(--text-secondary); font-size: 0.75rem;">Drawdown: {{ isset($maxDrawdown) ? number_format($maxDrawdown, 1) : '0.0' }}%</div>
         </div>

@@ -178,7 +178,7 @@ class StrategyMetrics
      *
      * @param User $user
      * @param int $days Number of days to analyze
-     * @return string 'excellent' | 'good' | 'moderate' | 'poor' | 'insufficient_data'
+     * @return string 'excellent' | 'very_good' | 'good' | 'fair' | 'needs_improvement' | 'building_history'
      */
     public function assessStability(User $user, int $days = 30): string
     {
@@ -188,50 +188,26 @@ class StrategyMetrics
             ->get();
 
         if ($trades->count() < 20) {
-            return 'insufficient_data';
+            return 'building_history';
         }
-
-        $drawdown = $this->calculateMaxDrawdown($user, $days);
-        $consistency = $this->calculateConsistencyScore($user, $days);
 
         $wins = $trades->where('status', 'won')->count();
         $winRate = ($wins / $trades->count()) * 100;
 
-        // Scoring criteria
-        $score = 0;
-
-        // Drawdown score (max 40 points)
-        if ($drawdown['percent'] < 5) {
-            $score += 40;
-        } elseif ($drawdown['percent'] < 10) {
-            $score += 30;
-        } elseif ($drawdown['percent'] < 20) {
-            $score += 20;
-        } elseif ($drawdown['percent'] < 30) {
-            $score += 10;
-        }
-
-        // Consistency score (max 30 points)
-        $score += ($consistency / 100) * 30;
-
-        // Win rate score (max 30 points)
-        if ($winRate > 60) {
-            $score += 30;
-        } elseif ($winRate > 55) {
-            $score += 20;
-        } elseif ($winRate > 50) {
-            $score += 10;
-        }
-
-        // Classify based on total score
-        if ($score >= 80) {
+        // Explicit win-rate bands so labels map directly to expected percentages.
+        if ($winRate >= 95.0) {
             return 'excellent';
-        } elseif ($score >= 60) {
-            return 'good';
-        } elseif ($score >= 40) {
-            return 'moderate';
-        } else {
-            return 'poor';
         }
+        if ($winRate >= 85.0) {
+            return 'very_good';
+        }
+        if ($winRate >= 70.0) {
+            return 'good';
+        }
+        if ($winRate >= 55.0) {
+            return 'fair';
+        }
+
+        return 'needs_improvement';
     }
 }

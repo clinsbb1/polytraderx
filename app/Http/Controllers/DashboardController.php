@@ -15,6 +15,7 @@ use App\Services\Analytics\StrategyMetrics;
 use App\Services\Settings\SettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -66,7 +67,15 @@ class DashboardController extends Controller
             ->get();
 
         $telegramLinked = $user->hasTelegramLinked();
-        $strategyHealth = ucfirst($stability);
+        $strategyHealth = match ($stability) {
+            'excellent' => 'Excellent (95%+)',
+            'very_good' => 'Very Good (85-94.9%)',
+            'good' => 'Good (70-84.9%)',
+            'fair' => 'Fair (55-69.9%)',
+            'needs_improvement' => 'Needs Improvement (<55%)',
+            'building_history' => 'Building History (<20 resolved trades)',
+            default => Str::of($stability)->replace('_', ' ')->title()->value(),
+        };
         $maxDrawdown = $drawdown['percent'];
 
         // Additional stats
