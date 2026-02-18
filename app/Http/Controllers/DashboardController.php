@@ -68,12 +68,12 @@ class DashboardController extends Controller
 
         $telegramLinked = $user->hasTelegramLinked();
         $strategyHealth = match ($stability) {
-            'excellent' => 'Excellent (95%+)',
-            'very_good' => 'Very Good (85-94.9%)',
-            'good' => 'Good (70-84.9%)',
-            'fair' => 'Fair (55-69.9%)',
-            'needs_improvement' => 'Needs Improvement (<55%)',
-            'building_history' => 'Building History (<20 resolved trades)',
+            'excellent' => 'Excellent',
+            'very_good' => 'Very Good',
+            'good' => 'Good',
+            'fair' => 'Fair',
+            'needs_improvement' => 'Needs Improvement',
+            'building_history' => 'Building History',
             default => Str::of($stability)->replace('_', ' ')->title()->value(),
         };
         $maxDrawdown = $drawdown['percent'];
