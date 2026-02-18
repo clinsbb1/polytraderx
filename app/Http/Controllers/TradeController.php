@@ -30,10 +30,7 @@ class TradeController extends Controller
 
         $audit = null;
         if ($trade->status === 'lost' && $trade->audited) {
-            $audit = AiAudit::forUser(auth()->id())
-                ->whereJsonContains('losing_trade_ids', $trade->id)
-                ->latest('created_at')
-                ->first();
+            $audit = $this->findTradeAudit((int) auth()->id(), (int) $trade->id);
         }
 
         return view('trades.show', compact('trade', 'audit'));
@@ -106,5 +103,28 @@ class TradeController extends Controller
         }
 
         return $query;
+    }
+
+    private function findTradeAudit(int $userId, int $tradeId): ?AiAudit
+    {
+        try {
+            return AiAudit::forUser($userId)
+                ->whereJsonContains('losing_trade_ids', $tradeId)
+                ->latest('created_at')
+                ->first();
+        } catch (\Throwable) {
+            // Fallback for legacy rows where losing_trade_ids may contain invalid JSON.
+            return AiAudit::forUser($userId)
+                ->latest('created_at')
+                ->get()
+                ->first(function (AiAudit $audit) use ($tradeId) {
+                    $ids = $audit->losing_trade_ids;
+                    if (!is_array($ids)) {
+                        return false;
+                    }
+
+                    return in_array($tradeId, array_map('intval', $ids), true);
+                });
+        }
     }
 }

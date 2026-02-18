@@ -165,7 +165,7 @@
         </div>
 
         {{-- Decision Reasoning --}}
-        @if(!empty($trade->decision_reasoning))
+        @if(is_array($trade->decision_reasoning) && !empty($trade->decision_reasoning))
             <div class="mt-3">
                 <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;" class="mb-1">Decision Reasoning</div>
                 <ul class="mb-0" style="padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.9rem;">
