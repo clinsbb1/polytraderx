@@ -29,6 +29,16 @@ class SimSnapshotBalance extends Command
             $positionsValue = (float) $snapshot->open_positions_value;
             $totalEquity = (float) $snapshot->total_equity;
 
+            // Auto-pause simulator when balance is depleted.
+            $simulatorEnabled = $settings->getBool('SIMULATOR_ENABLED', false, $user->id);
+            if ($simulatorEnabled && $balance <= 0.0) {
+                $settings->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
+                $notifications->notifyBotPaused(
+                    'Balance reached $0.00. Simulator has been turned off to prevent further simulated entries.',
+                    $user
+                );
+            }
+
             // Check low balance alert
             $lowThreshold = $settings->getFloat('LOW_BALANCE_THRESHOLD', 20.0, $user->id);
             if ($balance < $lowThreshold && $balance > 0) {
