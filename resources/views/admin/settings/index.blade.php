@@ -5,9 +5,32 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h5 class="mb-0">Platform Settings</h5>
-    <a href="/admin/settings/diagnostics" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-activity me-1"></i>Service Diagnostics
-    </a>
+    <div class="d-flex align-items-center gap-2">
+        <a href="/admin/settings/diagnostics" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-activity me-1"></i>Service Diagnostics
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <div class="fw-semibold">AI Audit Recharge Marker</div>
+            <div class="small text-muted">
+                @if($aiAuditRechargedAt !== '')
+                    Current marker: {{ $aiAuditRechargedAt }}
+                @else
+                    Not set. Loss audits are currently skipped.
+                @endif
+            </div>
+        </div>
+        <form method="POST" action="/admin/settings/ai-recharged-now" class="m-0">
+            @csrf
+            <button type="submit" class="btn btn-sm btn-warning">
+                <i class="bi bi-lightning-charge me-1"></i>Mark AI Recharged Now
+            </button>
+        </form>
+    </div>
 </div>
 
 <form method="POST" action="/admin/settings">

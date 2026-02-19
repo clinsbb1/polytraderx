@@ -83,6 +83,13 @@ class AdminSettingController extends Controller
                 'group' => 'ai',
                 'description' => 'Force Muscles tier to Haiku-like cheap model to control cost',
             ],
+            [
+                'key' => 'AI_AUDIT_RECHARGED_AT',
+                'value' => '',
+                'type' => 'string',
+                'group' => 'ai',
+                'description' => 'Loss audits run only for losses resolved at/after this timestamp. Empty = skip.',
+            ],
         ];
 
         foreach ($requiredDefaults as $setting) {
@@ -94,8 +101,9 @@ class AdminSettingController extends Controller
             ->orderBy('key')
             ->get();
         $groups = $settings->groupBy('group');
+        $aiAuditRechargedAt = trim((string) $this->platformSettings->get('AI_AUDIT_RECHARGED_AT', ''));
 
-        return view('admin.settings.index', compact('groups'));
+        return view('admin.settings.index', compact('groups', 'aiAuditRechargedAt'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -119,6 +127,24 @@ class AdminSettingController extends Controller
         }
 
         return back()->with('success', 'Platform settings updated.');
+    }
+
+    public function markAiRechargedNow(): RedirectResponse
+    {
+        PlatformSetting::firstOrCreate(
+            ['key' => 'AI_AUDIT_RECHARGED_AT'],
+            [
+                'value' => '',
+                'type' => 'string',
+                'group' => 'ai',
+                'description' => 'Loss audits run only for losses resolved at/after this timestamp. Empty = skip.',
+            ]
+        );
+
+        $timestamp = now()->toDateTimeString();
+        $this->platformSettings->set('AI_AUDIT_RECHARGED_AT', $timestamp);
+
+        return back()->with('success', "AI recharge marker updated: {$timestamp}");
     }
 
     public function telegramDiagnostics(): View

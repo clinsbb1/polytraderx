@@ -39,6 +39,7 @@ class PlatformSettingsSeeder extends Seeder
             ['key' => 'AI_MUSCLES_MAX_PROMPT_TOKENS_HARD_CAP', 'value' => '1500', 'type' => 'number', 'group' => 'ai', 'description' => 'Hard cap on Muscles prompt tokens per request'],
             ['key' => 'AI_MUSCLES_MAX_COMPLETION_TOKENS', 'value' => '256', 'type' => 'number', 'group' => 'ai', 'description' => 'Hard cap on Muscles completion tokens per request'],
             ['key' => 'AI_MUSCLES_ENFORCE_CHEAP_MODEL', 'value' => 'true', 'type' => 'boolean', 'group' => 'ai', 'description' => 'Force Muscles tier to Haiku-like cheap model to control cost'],
+            ['key' => 'AI_AUDIT_RECHARGED_AT', 'value' => '', 'type' => 'string', 'group' => 'ai', 'description' => 'Loss audits run only for losses resolved at/after this timestamp. Empty = skip.'],
 
             // Payments
             ['key' => 'NOWPAYMENTS_API_KEY', 'value' => '', 'type' => 'string', 'group' => 'payments', 'description' => 'NOWPayments API key'],

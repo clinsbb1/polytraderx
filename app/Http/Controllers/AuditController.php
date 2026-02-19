@@ -7,9 +7,11 @@ namespace App\Http\Controllers;
 use App\Models\AiAudit;
 use App\Models\Trade;
 use App\Services\AI\AIRouter;
+use App\Services\Settings\PlatformSettingsService;
 use App\Services\Subscription\SubscriptionService;
 use App\Services\Telegram\NotificationService;
 use App\Services\Trading\StrategyUpdater;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -118,11 +120,28 @@ class AuditController extends Controller
             }
         }
 
+        $platformSettings = app(PlatformSettingsService::class);
+        $rechargedAtRaw = trim((string) $platformSettings->get('AI_AUDIT_RECHARGED_AT', ''));
+
+        if ($rechargedAtRaw === '') {
+            return redirect()->route('audits.index')
+                ->with('warning', 'AI analysis quota used for this cycle. Admin has not marked AI recharge yet, so backlog audits are skipped.');
+        }
+
+        try {
+            $rechargedAt = Carbon::parse($rechargedAtRaw);
+        } catch (\Throwable) {
+            return redirect()->route('audits.index')
+                ->with('warning', 'AI analysis quota used for this cycle. Admin recharge marker is invalid, so backlog audits are skipped.');
+        }
+
         Cache::put($cooldownKey, true, now()->addSeconds(self::MANUAL_TRIGGER_COOLDOWN_SECONDS));
 
         $losses = Trade::forUser($userId)
             ->where('status', 'lost')
             ->where('audited', false)
+            ->whereNotNull('resolved_at')
+            ->where('resolved_at', '>=', $rechargedAt)
             ->orderBy('resolved_at', 'asc')
             ->limit(5)
             ->get();
