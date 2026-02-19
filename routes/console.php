@@ -26,5 +26,5 @@ Schedule::command('sim:weekly-report')->weeklyOn(0, '23:55')->withoutOverlapping
 
 // Housekeeping
 Schedule::command('sim:snapshot-balance')->everyFifteenMinutes()->withoutOverlapping()->runInBackground();
-Schedule::command('sim:daily-summary')->dailyAt('00:05')->withoutOverlapping()->runInBackground();
+Schedule::command('sim:daily-summary')->everyFifteenMinutes()->withoutOverlapping()->runInBackground();
 Schedule::command('sim:cleanup-logs')->hourly()->withoutOverlapping()->runInBackground();

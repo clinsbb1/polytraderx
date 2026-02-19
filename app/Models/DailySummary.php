@@ -27,6 +27,7 @@ class DailySummary extends Model
         'best_trade_id',
         'worst_trade_id',
         'created_at',
+        'telegram_notified_at',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class DailySummary extends Model
         'net_pnl' => 'decimal:2',
         'ai_cost_usd' => 'decimal:4',
         'created_at' => 'datetime',
+        'telegram_notified_at' => 'datetime',
     ];
 
     public function bestTrade(): BelongsTo

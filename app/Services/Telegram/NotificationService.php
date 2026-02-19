@@ -41,13 +41,13 @@ class NotificationService
         $this->send($user, $this->formatter->formatTradeResolved($trade));
     }
 
-    public function notifyDailySummary(DailySummary $summary, User $user): void
+    public function notifyDailySummary(DailySummary $summary, User $user): bool
     {
         if (!$this->shouldNotify($user, 'NOTIFY_DAILY_PNL')) {
-            return;
+            return false;
         }
 
-        $this->send($user, $this->formatter->formatDailySummary($summary, $user));
+        return $this->send($user, $this->formatter->formatDailySummary($summary, $user));
     }
 
     public function notifyWeeklyReport(array $weekData, User $user): void
@@ -174,16 +174,18 @@ class NotificationService
         return $this->settings->getBool($preferenceKey, false, $user->id);
     }
 
-    private function send(User $user, string $message): void
+    private function send(User $user, string $message): bool
     {
         try {
             SendTelegramMessageJob::dispatch($user->id, $message)
                 ->onQueue((string) config('services.queues.telegram', 'telegram'));
+            return true;
         } catch (\Exception $e) {
             Log::channel('simulator')->warning('Notification send failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
+            return false;
         }
     }
 }

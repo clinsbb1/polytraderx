@@ -9,32 +9,78 @@ use App\Models\DailySummary;
 use App\Models\Trade;
 use App\Services\Telegram\NotificationService;
 use App\Services\UserBotRunner;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Schema;
 
 class SimDailySummary extends Command
 {
     protected $signature = 'sim:daily-summary';
-    protected $description = 'Compile daily stats and send Telegram summary';
+    protected $description = 'Compile daily stats and send Telegram summary (timezone-aware)';
 
     public function handle(
         UserBotRunner $runner,
         NotificationService $notifications,
     ): int {
-        $yesterday = now()->subDay()->toDateString();
+        $hasTelegramNotifiedAt = Schema::hasTable('daily_summaries')
+            && Schema::hasColumn('daily_summaries', 'telegram_notified_at');
 
-        $results = $runner->runForEachUser(function ($user) use ($yesterday, $notifications) {
+        $results = $runner->runForEachUser(function ($user) use ($notifications, $hasTelegramNotifiedAt) {
+            $timezone = $this->resolveUserTimezone($user->timezone ?? null);
+            $nowLocal = now()->setTimezone($timezone);
+
+            // Give a small post-midnight buffer so last-minute trades have time to resolve.
+            $readyAt = $nowLocal->copy()->startOfDay()->addMinutes(30);
+            if ($nowLocal->lt($readyAt)) {
+                return [
+                    'status' => 'waiting_for_local_day_close',
+                    'timezone' => $timezone,
+                    'local_now' => $nowLocal->format('Y-m-d H:i'),
+                ];
+            }
+
+            $summaryDate = $nowLocal->copy()->subDay()->toDateString();
+            [$rangeStart, $rangeEnd] = $this->localDateToStorageRange($summaryDate, $timezone);
+
+            // Wait if there are trades from that local day still not resolved.
+            $pendingResolutions = Trade::forUser($user->id)
+                ->whereIn('status', ['pending', 'open'])
+                ->whereBetween('market_end_time', [$rangeStart, $rangeEnd])
+                ->count();
+            if ($pendingResolutions > 0) {
+                return [
+                    'status' => 'waiting_for_trade_resolution',
+                    'timezone' => $timezone,
+                    'date' => $summaryDate,
+                    'pending' => $pendingResolutions,
+                ];
+            }
+
             // Check if summary already exists
             $existing = DailySummary::forUser($user->id)
-                ->whereDate('date', $yesterday)
+                ->whereDate('date', $summaryDate)
                 ->first();
 
             if ($existing) {
-                return ['status' => 'already_exists', 'summary_id' => $existing->id];
+                $wasQueued = false;
+                if ($hasTelegramNotifiedAt && $existing->telegram_notified_at === null) {
+                    $wasQueued = $notifications->notifyDailySummary($existing, $user);
+                    if ($wasQueued) {
+                        $existing->update(['telegram_notified_at' => now()]);
+                    }
+                }
+
+                return [
+                    'status' => $wasQueued ? 'already_exists_notification_queued' : 'already_exists',
+                    'summary_id' => $existing->id,
+                    'timezone' => $timezone,
+                    'date' => $summaryDate,
+                ];
             }
 
-            // Calculate stats for yesterday
+            // Calculate stats for the user's previous local day
             $trades = Trade::forUser($user->id)
-                ->whereDate('resolved_at', $yesterday)
+                ->whereBetween('resolved_at', [$rangeStart, $rangeEnd])
                 ->get();
 
             $totalTrades = $trades->count();
@@ -45,7 +91,7 @@ class SimDailySummary extends Command
 
             // AI cost for the day
             $aiCost = (float) AiDecision::forUser($user->id)
-                ->whereDate('created_at', $yesterday)
+                ->whereBetween('created_at', [$rangeStart, $rangeEnd])
                 ->sum('cost_usd');
 
             $netPnl = round($grossPnl - $aiCost, 2);
@@ -54,9 +100,9 @@ class SimDailySummary extends Command
             $bestTrade = $trades->whereNotNull('pnl')->sortByDesc('pnl')->first();
             $worstTrade = $trades->whereNotNull('pnl')->sortBy('pnl')->first();
 
-            $summary = DailySummary::create([
+            $summaryPayload = [
                 'user_id' => $user->id,
-                'date' => $yesterday,
+                'date' => $summaryDate,
                 'total_trades' => $totalTrades,
                 'wins' => $wins,
                 'losses' => $losses,
@@ -67,15 +113,26 @@ class SimDailySummary extends Command
                 'best_trade_id' => $bestTrade?->id,
                 'worst_trade_id' => $worstTrade?->id,
                 'created_at' => now(),
-            ]);
+            ];
+            if ($hasTelegramNotifiedAt) {
+                $summaryPayload['telegram_notified_at'] = null;
+            }
 
-            $notifications->notifyDailySummary($summary, $user);
+            $summary = DailySummary::create($summaryPayload);
+
+            $queued = $notifications->notifyDailySummary($summary, $user);
+            if ($queued && $hasTelegramNotifiedAt) {
+                $summary->update(['telegram_notified_at' => now()]);
+            }
 
             return [
                 'status' => 'created',
                 'summary_id' => $summary->id,
+                'timezone' => $timezone,
+                'date' => $summaryDate,
                 'trades' => $totalTrades,
                 'pnl' => $grossPnl,
+                'notification_queued' => $queued,
             ];
         });
 
@@ -84,7 +141,12 @@ class SimDailySummary extends Command
                 $this->error("User #{$userId}: {$result['error']}");
             } else {
                 $r = $result['result'];
-                $this->info("User #{$userId}: {$r['status']}" . (isset($r['trades']) ? " ({$r['trades']} trades, \${$r['pnl']} P&L)" : ''));
+                $meta = '';
+                if (isset($r['date'], $r['timezone'])) {
+                    $meta = " [{$r['date']} {$r['timezone']}]";
+                }
+                $details = isset($r['trades']) ? " ({$r['trades']} trades, \${$r['pnl']} P&L)" : '';
+                $this->info("User #{$userId}: {$r['status']}{$meta}{$details}");
             }
         }
 
@@ -93,5 +155,34 @@ class SimDailySummary extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    private function resolveUserTimezone(?string $timezone): string
+    {
+        if (is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true)) {
+            return $timezone;
+        }
+
+        return (string) config('app.timezone', 'UTC');
+    }
+
+    /**
+     * Convert a user's local calendar date into DB storage timezone boundaries.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function localDateToStorageRange(string $localDate, string $userTimezone): array
+    {
+        $storageTimezone = (string) config('app.timezone', 'UTC');
+
+        $start = Carbon::parse($localDate, $userTimezone)
+            ->startOfDay()
+            ->setTimezone($storageTimezone);
+
+        $end = Carbon::parse($localDate, $userTimezone)
+            ->endOfDay()
+            ->setTimezone($storageTimezone);
+
+        return [$start, $end];
     }
 }

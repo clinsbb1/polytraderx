@@ -73,8 +73,7 @@ class NotificationFormatter
             . "Trades: {$summary->total_trades} ({$summary->wins}W / {$summary->losses}L)\n"
             . "Win Rate: {$summary->win_rate}%\n"
             . "P&L: {$pnlEmoji} {$pnlFormatted}\n"
-            . "Net P&L: {$netFormatted}\n"
-            . "AI Cost: \$" . number_format((float) $summary->ai_cost_usd, 2)
+            . "Net P&L: {$netFormatted}"
             . $bestLine
             . $worstLine;
     }
