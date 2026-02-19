@@ -12,6 +12,7 @@ class SettingsService
 {
     private const CACHE_PREFIX = 'settings:';
     private const CACHE_TTL = 3600;
+    private const DEFAULTS_SCHEMA_VERSION = '2026-02-19';
 
     public function get(string $key, mixed $default = null, ?int $userId = null): mixed
     {
@@ -53,7 +54,7 @@ class SettingsService
         ]);
 
         Cache::forget(self::CACHE_PREFIX . $userId . ':' . $key);
-        Cache::forget(self::CACHE_PREFIX . $userId . ':group.' . $param->group);
+        Cache::forget($this->groupCacheKey($userId, $param->group));
     }
 
     public function getGroup(string $group, ?int $userId = null): Collection
@@ -61,7 +62,7 @@ class SettingsService
         $userId = $userId ?? auth()->id();
 
         return Cache::remember(
-            self::CACHE_PREFIX . $userId . ':group.' . $group,
+            $this->groupCacheKey($userId, $group),
             self::CACHE_TTL,
             function () use ($group, $userId) {
                 // Get user's existing params for this group
@@ -195,5 +196,10 @@ class SettingsService
             'json' => json_decode($value, true),
             default => $value,
         };
+    }
+
+    private function groupCacheKey(int|string|null $userId, string $group): string
+    {
+        return self::CACHE_PREFIX . $userId . ':group.' . $group . ':v' . self::DEFAULTS_SCHEMA_VERSION;
     }
 }
