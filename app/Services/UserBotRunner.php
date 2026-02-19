@@ -22,6 +22,7 @@ class UserBotRunner
             ->where(function ($query) {
                 $query->where('trial_ends_at', '>', now())
                     ->orWhere('subscription_ends_at', '>', now())
+                    ->orWhere('is_lifetime', true)
                     ->orWhere('is_superadmin', true);
             })
             ->get();

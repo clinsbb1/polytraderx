@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Services\AI\AIRouter;
 use App\Services\Polymarket\MarketService;
 use App\Services\PriceFeed\PriceAggregator;
+use App\Services\Settings\PlatformSettingsService;
 use App\Services\UserBotRunner;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -20,17 +21,40 @@ class SimAnalyzeMarkets extends Command
         UserBotRunner $runner,
         MarketService $marketService,
         PriceAggregator $priceAggregator,
+        PlatformSettingsService $platformSettings,
         AIRouter $aiRouter,
     ): int {
-        $results = $runner->runForEachUser(function ($user) use ($marketService, $priceAggregator, $aiRouter) {
+        $preAnalysisEnabled = $platformSettings->getBool('AI_PRE_ANALYSIS_ENABLED', false);
+        if (!$preAnalysisEnabled) {
+            $this->info('AI pre-analysis is disabled (AI_PRE_ANALYSIS_ENABLED=false).');
+            return Command::SUCCESS;
+        }
+
+        $maxCandidates = max(1, min(20, $platformSettings->getInt('AI_PRE_ANALYSIS_MAX_CANDIDATES', 3)));
+
+        $results = $runner->runForEachUser(function ($user) use ($marketService, $priceAggregator, $aiRouter, $maxCandidates) {
             $markets = $marketService->getMarketsEndingSoon(withinSeconds: 300, userId: $user->id);
+            $candidates = $markets
+                ->filter(function ($market) {
+                    $secondsRemaining = (int) ($market['seconds_remaining'] ?? 0);
+                    return $secondsRemaining >= 60 && $secondsRemaining <= 300;
+                })
+                ->sortBy(fn($m) => (int) ($m['seconds_remaining'] ?? PHP_INT_MAX))
+                // Keep cost predictable: pre-analyze only a small nearest subset per cycle.
+                ->take($maxCandidates)
+                ->values();
 
             $analyzed = 0;
-            foreach ($markets as $market) {
-                $secondsRemaining = $market['seconds_remaining'] ?? 0;
+            $cachedHits = 0;
+            foreach ($candidates as $market) {
+                $conditionId = (string) ($market['condition_id'] ?? '');
+                if ($conditionId === '') {
+                    continue;
+                }
 
-                // Pre-score markets 1-5 minutes from close (before entry window)
-                if ($secondsRemaining < 60 || $secondsRemaining > 300) {
+                $cacheKey = "muscles:{$user->id}:{$conditionId}";
+                if (Cache::has($cacheKey)) {
+                    $cachedHits++;
                     continue;
                 }
 
@@ -43,13 +67,17 @@ class SimAnalyzeMarkets extends Command
                 $result = $aiRouter->getMusclesAnalysis($market, $spotData, $user->id);
 
                 if (is_array($result) && isset($result['confidence'])) {
-                    $cacheKey = "muscles:{$user->id}:{$market['condition_id']}";
-                    Cache::put($cacheKey, $result, 300);
                     $analyzed++;
                 }
             }
 
-            return ['markets_found' => $markets->count(), 'analyzed' => $analyzed];
+            return [
+                'markets_found' => $markets->count(),
+                'candidates' => $candidates->count(),
+                'analyzed' => $analyzed,
+                'cache_hits' => $cachedHits,
+                'max_candidates' => $maxCandidates,
+            ];
         });
 
         foreach ($results as $userId => $result) {
@@ -57,7 +85,9 @@ class SimAnalyzeMarkets extends Command
                 $this->error("User #{$userId}: {$result['error']}");
             } else {
                 $r = $result['result'];
-                $this->info("User #{$userId}: {$r['markets_found']} markets, {$r['analyzed']} pre-analyzed");
+                $this->info(
+                    "User #{$userId}: {$r['markets_found']} markets, {$r['candidates']} candidates (max {$r['max_candidates']}), {$r['analyzed']} pre-analyzed, {$r['cache_hits']} cached"
+                );
             }
         }
 

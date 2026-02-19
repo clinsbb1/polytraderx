@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PlatformSetting;
 use App\Services\Polymarket\MarketService;
 use App\Services\Settings\PlatformSettingsService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -25,15 +26,68 @@ class AdminSettingController extends Controller
 
     public function index(): View
     {
-        PlatformSetting::firstOrCreate(
-            ['key' => 'TELEGRAM_WEBHOOK_SECRET'],
+        $requiredDefaults = [
             [
+                'key' => 'TELEGRAM_WEBHOOK_SECRET',
                 'value' => '',
                 'type' => 'string',
                 'group' => 'telegram',
                 'description' => 'Secret token used to verify Telegram webhook requests',
-            ]
-        );
+            ],
+            [
+                'key' => 'AI_PRE_ANALYSIS_ENABLED',
+                'value' => 'false',
+                'type' => 'boolean',
+                'group' => 'ai',
+                'description' => 'Enable background AI pre-analysis (costly at scale)',
+            ],
+            [
+                'key' => 'AI_PRE_ANALYSIS_MAX_CANDIDATES',
+                'value' => '3',
+                'type' => 'number',
+                'group' => 'ai',
+                'description' => 'Max markets per cycle/user for AI pre-analysis',
+            ],
+            [
+                'key' => 'AI_MUSCLES_CACHE_TTL_SECONDS',
+                'value' => '900',
+                'type' => 'number',
+                'group' => 'ai',
+                'description' => 'Cache lifetime for Muscles results per user/market',
+            ],
+            [
+                'key' => 'AI_MUSCLES_FAILURE_COOLDOWN_SECONDS',
+                'value' => '300',
+                'type' => 'number',
+                'group' => 'ai',
+                'description' => 'Cooldown after failed Muscles response before retry',
+            ],
+            [
+                'key' => 'AI_MUSCLES_MAX_PROMPT_TOKENS_HARD_CAP',
+                'value' => '1500',
+                'type' => 'number',
+                'group' => 'ai',
+                'description' => 'Hard cap on Muscles prompt tokens per request',
+            ],
+            [
+                'key' => 'AI_MUSCLES_MAX_COMPLETION_TOKENS',
+                'value' => '256',
+                'type' => 'number',
+                'group' => 'ai',
+                'description' => 'Hard cap on Muscles completion tokens per request',
+            ],
+            [
+                'key' => 'AI_MUSCLES_ENFORCE_CHEAP_MODEL',
+                'value' => 'true',
+                'type' => 'boolean',
+                'group' => 'ai',
+                'description' => 'Force Muscles tier to Haiku-like cheap model to control cost',
+            ],
+        ];
+
+        foreach ($requiredDefaults as $setting) {
+            PlatformSetting::firstOrCreate(['key' => $setting['key']], $setting);
+        }
 
         $settings = PlatformSetting::whereNotIn('key', self::HIDDEN_KEYS)
             ->orderBy('group')
@@ -226,16 +280,25 @@ class AdminSettingController extends Controller
     {
         $apiKey = trim((string) $this->platformSettings->get('ANTHROPIC_API_KEY', ''));
         $baseUrl = rtrim((string) config('services.anthropic.base_url', 'https://api.anthropic.com/v1'), '/');
+        $musclesModel = (string) $this->platformSettings->get('AI_MUSCLES_MODEL', 'claude-haiku-4-5-20251001');
+        $creditPauseReason = Cache::get('ai:anthropic:insufficient_credit');
 
         $report = [
             'api_key_configured' => $apiKey !== '',
             'base_url' => $baseUrl,
             'models_ok' => null,
             'models_count' => null,
+            'inference_ok' => null,
+            'inference_model' => $musclesModel,
+            'inference_error' => null,
+            'credits_status' => 'unknown',
+            'credit_pause_active' => is_string($creditPauseReason) && trim($creditPauseReason) !== '',
+            'credit_pause_reason' => is_string($creditPauseReason) ? $creditPauseReason : null,
             'error' => null,
         ];
 
         if ($apiKey === '') {
+            $report['credits_status'] = 'not_configured';
             return $report;
         }
 
@@ -254,6 +317,39 @@ class AdminSettingController extends Controller
                 $report['models_count'] = is_array($models) ? count($models) : 0;
             } else {
                 $report['error'] = 'HTTP ' . $response->status() . ': ' . $response->body();
+            }
+
+            $probe = Http::timeout(15)
+                ->withHeaders([
+                    'x-api-key' => $apiKey,
+                    'anthropic-version' => '2023-06-01',
+                    'content-type' => 'application/json',
+                ])
+                ->post($baseUrl . '/messages', [
+                    'model' => $musclesModel,
+                    'max_tokens' => 8,
+                    'system' => 'Health check',
+                    'messages' => [
+                        ['role' => 'user', 'content' => 'Reply with OK'],
+                    ],
+                ]);
+
+            $report['inference_ok'] = $probe->successful();
+            if ($probe->successful()) {
+                $report['credits_status'] = 'available';
+            } else {
+                $probeJson = $probe->json() ?? [];
+                $msg = (string) ($probeJson['error']['message']
+                    ?? $probeJson['error']['detail']
+                    ?? $probeJson['message']
+                    ?? $probe->body());
+                $report['inference_error'] = 'HTTP ' . $probe->status() . ': ' . $msg;
+                $msgLower = strtolower($msg);
+                $isInsufficientCredit = $probe->status() === 402
+                    || str_contains($msgLower, 'payment required')
+                    || ((str_contains($msgLower, 'credit') || str_contains($msgLower, 'balance') || str_contains($msgLower, 'billing'))
+                        && (str_contains($msgLower, 'insufficient') || str_contains($msgLower, 'depleted') || str_contains($msgLower, 'too low') || str_contains($msgLower, 'exhausted')));
+                $report['credits_status'] = $isInsufficientCredit ? 'insufficient' : 'unknown';
             }
         } catch (\Throwable $e) {
             $report['error'] = $e->getMessage();

@@ -27,14 +27,27 @@ class MusclesService
             }
 
             $user = \App\Models\User::find($userId);
-            $maxPromptTokens = $user ? $this->subscriptionService->getAiMaxTokensPerRequest($user) : 0;
-            if ($maxPromptTokens <= 0) {
-                $maxPromptTokens = 6000;
+            $planPromptCap = $user ? $this->subscriptionService->getAiMaxTokensPerRequest($user) : 0;
+            if ($planPromptCap <= 0) {
+                $planPromptCap = 6000;
             }
+
+            $hardPromptCap = max(800, $this->platformSettings->getInt('AI_MUSCLES_MAX_PROMPT_TOKENS_HARD_CAP', 1500));
+            $maxPromptTokens = min($planPromptCap, $hardPromptCap);
 
             $prompt = $this->promptBuilder->buildMusclesPrompt($market, $spotData, $userId, $maxPromptTokens);
             $model = $this->platformSettings->get('AI_MUSCLES_MODEL', 'claude-haiku-4-5-20251001');
-            $completionCap = max(256, min(1024, intdiv($maxPromptTokens, 2)));
+            $enforceCheapModel = $this->platformSettings->getBool('AI_MUSCLES_ENFORCE_CHEAP_MODEL', true);
+            if ($enforceCheapModel && !str_contains(strtolower((string) $model), 'haiku')) {
+                Log::channel('simulator')->warning('Muscles model forced to Haiku to control cost', [
+                    'configured_model' => $model,
+                    'fallback_model' => 'claude-haiku-4-5-20251001',
+                ]);
+                $model = 'claude-haiku-4-5-20251001';
+            }
+
+            $maxCompletionTokens = max(128, $this->platformSettings->getInt('AI_MUSCLES_MAX_COMPLETION_TOKENS', 256));
+            $completionCap = max(128, min($maxCompletionTokens, intdiv($maxPromptTokens, 2)));
 
             $response = $this->anthropic->sendMessage($model, $prompt['system'], $prompt['user'], $completionCap);
 

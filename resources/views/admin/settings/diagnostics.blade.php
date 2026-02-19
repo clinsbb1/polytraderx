@@ -90,8 +90,26 @@
                 <div class="mb-2">{{ $anthropic['api_key_configured'] ? 'Yes' : 'No' }}</div>
                 <div class="small text-muted mb-2">/models check</div>
                 <div class="mb-2">{{ is_null($anthropic['models_ok']) ? '(not run)' : ($anthropic['models_ok'] ? 'OK' : 'Failed') }}</div>
-                <div class="small text-muted mb-2">Models returned</div>
+                <div class="small text-muted mb-2">Models returned (not account balance)</div>
                 <div class="mb-2">{{ is_null($anthropic['models_count']) ? '(n/a)' : number_format((int) $anthropic['models_count']) }}</div>
+                <div class="small text-muted mb-2">Inference probe (/messages)</div>
+                <div class="mb-2">
+                    @if(is_null($anthropic['inference_ok']))
+                        (not run)
+                    @else
+                        {{ $anthropic['inference_ok'] ? 'OK' : 'Failed' }}
+                    @endif
+                </div>
+                <div class="small text-muted mb-2">Credits status</div>
+                <div class="mb-2">{{ strtoupper((string) ($anthropic['credits_status'] ?? 'unknown')) }}</div>
+                @if($anthropic['credit_pause_active'])
+                    <div class="alert alert-warning py-2 px-3 mt-3 mb-0 small">
+                        AI calls are temporarily paused: {{ $anthropic['credit_pause_reason'] ?? 'insufficient credits detected' }}
+                    </div>
+                @endif
+                @if($anthropic['inference_error'])
+                    <div class="alert alert-warning py-2 px-3 mt-3 mb-0 small">{{ $anthropic['inference_error'] }}</div>
+                @endif
                 @if($anthropic['error'])
                     <div class="alert alert-danger py-2 px-3 mt-3 mb-0 small">{{ $anthropic['error'] }}</div>
                 @endif

@@ -163,7 +163,28 @@ class StrategyEngine
                 ];
                 $spotData = $this->priceAggregator->getMarketContext($market['asset'], $polymarketPrices, $user->id);
 
-                // Get Muscles AI analysis (null if unavailable)
+                // Generate baseline signal with reflexes first. This avoids paid AI calls on obvious SKIPs.
+                $baselineSignal = $this->signalGenerator->generateSignal($market, $spotData, $user->id, $bankroll, null);
+                $summary['signals_generated']++;
+
+                if ($baselineSignal['action'] !== 'EXECUTE') {
+                    $summary['skipped'][] = $baselineSignal['reasoning'];
+                    $this->logMarketActivity(
+                        userId: $user->id,
+                        cycleId: $cycleId,
+                        market: $market,
+                        matched: false,
+                        action: (string) ($baselineSignal['action'] ?? 'SKIP'),
+                        message: (string) ($baselineSignal['reasoning'] ?? 'Market did not match strategy'),
+                        context: [
+                            'signal' => $baselineSignal,
+                            'spot' => $spotData,
+                        ]
+                    );
+                    continue;
+                }
+
+                // Baseline says execute: now optionally refine/override with Muscles.
                 $musclesResult = null;
                 try {
                     $aiRouter = app(\App\Services\AI\AIRouter::class);
@@ -175,9 +196,12 @@ class StrategyEngine
                     ]);
                 }
 
-                // Generate signal
-                $signal = $this->signalGenerator->generateSignal($market, $spotData, $user->id, $bankroll, $musclesResult);
-                $summary['signals_generated']++;
+                $signal = $baselineSignal;
+                if (is_array($musclesResult) && isset($musclesResult['confidence'])) {
+                    $signal = $this->signalGenerator->generateSignal($market, $spotData, $user->id, $bankroll, $musclesResult);
+                } elseif (is_array($musclesResult) && isset($musclesResult['message'])) {
+                    $signal['muscles_result'] = $musclesResult;
+                }
 
                 if ($signal['action'] !== 'EXECUTE') {
                     $summary['skipped'][] = $signal['reasoning'];

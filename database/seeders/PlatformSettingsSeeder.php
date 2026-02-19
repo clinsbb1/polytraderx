@@ -32,6 +32,13 @@ class PlatformSettingsSeeder extends Seeder
             ['key' => 'AI_BRAIN_MODEL', 'value' => 'claude-sonnet-4-5-20250929', 'type' => 'string', 'group' => 'ai', 'description' => 'Claude model for Brain tier (expensive, high quality)'],
             ['key' => 'AI_MUSCLES_MODEL', 'value' => 'claude-haiku-4-5-20251001', 'type' => 'string', 'group' => 'ai', 'description' => 'Claude model for Muscles tier (cheap, fast)'],
             ['key' => 'AI_MONTHLY_BUDGET', 'value' => '100.00', 'type' => 'decimal', 'group' => 'ai', 'description' => 'Platform-wide monthly AI spend cap in USD'],
+            ['key' => 'AI_PRE_ANALYSIS_ENABLED', 'value' => 'false', 'type' => 'boolean', 'group' => 'ai', 'description' => 'Enable background AI pre-analysis (costly at scale)'],
+            ['key' => 'AI_PRE_ANALYSIS_MAX_CANDIDATES', 'value' => '3', 'type' => 'number', 'group' => 'ai', 'description' => 'Max markets per cycle/user for AI pre-analysis'],
+            ['key' => 'AI_MUSCLES_CACHE_TTL_SECONDS', 'value' => '900', 'type' => 'number', 'group' => 'ai', 'description' => 'Cache lifetime for Muscles results per user/market'],
+            ['key' => 'AI_MUSCLES_FAILURE_COOLDOWN_SECONDS', 'value' => '300', 'type' => 'number', 'group' => 'ai', 'description' => 'Cooldown after failed Muscles response before retry'],
+            ['key' => 'AI_MUSCLES_MAX_PROMPT_TOKENS_HARD_CAP', 'value' => '1500', 'type' => 'number', 'group' => 'ai', 'description' => 'Hard cap on Muscles prompt tokens per request'],
+            ['key' => 'AI_MUSCLES_MAX_COMPLETION_TOKENS', 'value' => '256', 'type' => 'number', 'group' => 'ai', 'description' => 'Hard cap on Muscles completion tokens per request'],
+            ['key' => 'AI_MUSCLES_ENFORCE_CHEAP_MODEL', 'value' => 'true', 'type' => 'boolean', 'group' => 'ai', 'description' => 'Force Muscles tier to Haiku-like cheap model to control cost'],
 
             // Payments
             ['key' => 'NOWPAYMENTS_API_KEY', 'value' => '', 'type' => 'string', 'group' => 'payments', 'description' => 'NOWPayments API key'],

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\AI;
 
 use App\Services\Settings\PlatformSettingsService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -12,6 +13,8 @@ class AnthropicClient
 {
     private const API_VERSION = '2023-06-01';
     private const MAX_RETRIES = 2;
+    private const CREDIT_PAUSE_CACHE_KEY = 'ai:anthropic:insufficient_credit';
+    private const CREDIT_PAUSE_SECONDS = 900;
 
     private string $baseUrl;
 
@@ -22,6 +25,11 @@ class AnthropicClient
 
     public function sendMessage(string $model, string $systemPrompt, string $userMessage, int $maxTokens = 2048): array
     {
+        $creditPauseReason = Cache::get(self::CREDIT_PAUSE_CACHE_KEY);
+        if (is_string($creditPauseReason) && trim($creditPauseReason) !== '') {
+            throw new \RuntimeException($creditPauseReason);
+        }
+
         $apiKey = $this->platformSettings->get('ANTHROPIC_API_KEY', '');
 
         if (empty($apiKey)) {
@@ -52,6 +60,7 @@ class AnthropicClient
                     ->post("{$this->baseUrl}/messages", $payload);
 
                 if ($response->successful()) {
+                    Cache::forget(self::CREDIT_PAUSE_CACHE_KEY);
                     $data = $response->json();
                     $content = '';
                     foreach ($data['content'] ?? [] as $block) {
@@ -70,6 +79,18 @@ class AnthropicClient
                 }
 
                 $status = $response->status();
+                $errorText = $this->extractErrorMessage($response->json() ?? [], $response->body());
+
+                if ($this->isInsufficientCredit($status, $errorText)) {
+                    $pauseMessage = 'Anthropic credits depleted or billing inactive. AI calls paused temporarily.';
+                    Cache::put(self::CREDIT_PAUSE_CACHE_KEY, $pauseMessage, self::CREDIT_PAUSE_SECONDS);
+                    Log::channel('simulator')->warning('Anthropic insufficient credit detected; pausing AI calls', [
+                        'status' => $status,
+                        'error' => $errorText,
+                        'pause_seconds' => self::CREDIT_PAUSE_SECONDS,
+                    ]);
+                    throw new \RuntimeException($pauseMessage);
+                }
 
                 if ($status === 401) {
                     Log::channel('simulator')->error('Invalid Anthropic API key in platform settings');
@@ -121,5 +142,40 @@ class AnthropicClient
     {
         $key = $this->platformSettings->get('ANTHROPIC_API_KEY', '');
         return !empty($key);
+    }
+
+    private function extractErrorMessage(array $json, string $fallbackBody): string
+    {
+        $message = (string) ($json['error']['message']
+            ?? $json['error']['detail']
+            ?? $json['message']
+            ?? $fallbackBody);
+
+        return trim($message);
+    }
+
+    private function isInsufficientCredit(int $status, string $errorText): bool
+    {
+        if ($status === 402) {
+            return true;
+        }
+
+        $text = strtolower($errorText);
+        if ($text === '') {
+            return false;
+        }
+
+        if (str_contains($text, 'payment required')) {
+            return true;
+        }
+
+        $mentionsCredit = str_contains($text, 'credit') || str_contains($text, 'balance') || str_contains($text, 'billing');
+        $indicatesShortfall = str_contains($text, 'insufficient')
+            || str_contains($text, 'depleted')
+            || str_contains($text, 'too low')
+            || str_contains($text, 'exhausted')
+            || str_contains($text, 'no balance');
+
+        return $mentionsCredit && $indicatesShortfall;
     }
 }

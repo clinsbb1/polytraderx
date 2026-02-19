@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Admin\AdminTelegramMessageController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\SimulationAcknowledgmentController;
+use App\Models\PlatformSetting;
 use Database\Seeders\PlatformSettingsSeeder;
 use Database\Seeders\SubscriptionPlansSeeder;
 use Illuminate\Http\Request;
@@ -94,6 +95,53 @@ Route::middleware(['throttle:3,1'])->get('/admin/run-telegram-enforcement', func
     $output[] = 'Tip: use ?dry=0 to run live changes.';
 
     return response('<pre>' . e(implode("\n\n", $output)) . '</pre>');
+}); // delete after one-time maintenance
+
+// Temporary maintenance helper: apply strict low-burn AI profile (token only).
+Route::middleware(['throttle:3,1'])->get('/admin/run-ai-low-burn-profile', function (Request $request) {
+    $expectedToken = (string) env('MAINTENANCE_ROUTE_TOKEN', '');
+    $providedToken = (string) $request->query('token', '');
+
+    if ($expectedToken === '' || ! hash_equals($expectedToken, $providedToken)) {
+        abort(404);
+    }
+
+    $settings = app(\App\Services\Settings\PlatformSettingsService::class);
+    $profile = [
+        'AI_PRE_ANALYSIS_ENABLED' => ['value' => 'false', 'type' => 'boolean', 'description' => 'Enable background AI pre-analysis (costly at scale)'],
+        'AI_PRE_ANALYSIS_MAX_CANDIDATES' => ['value' => '3', 'type' => 'number', 'description' => 'Max markets per cycle/user for AI pre-analysis'],
+        'AI_MUSCLES_CACHE_TTL_SECONDS' => ['value' => '900', 'type' => 'number', 'description' => 'Cache lifetime for Muscles results per user/market'],
+        'AI_MUSCLES_FAILURE_COOLDOWN_SECONDS' => ['value' => '300', 'type' => 'number', 'description' => 'Cooldown after failed Muscles response before retry'],
+        'AI_MUSCLES_MAX_PROMPT_TOKENS_HARD_CAP' => ['value' => '1500', 'type' => 'number', 'description' => 'Hard cap on Muscles prompt tokens per request'],
+        'AI_MUSCLES_MAX_COMPLETION_TOKENS' => ['value' => '256', 'type' => 'number', 'description' => 'Hard cap on Muscles completion tokens per request'],
+        'AI_MUSCLES_ENFORCE_CHEAP_MODEL' => ['value' => 'true', 'type' => 'boolean', 'description' => 'Force Muscles tier to Haiku-like cheap model to control cost'],
+    ];
+
+    $output = [];
+    $output[] = '[ai:low-burn] Applying strict low-burn profile...';
+
+    foreach ($profile as $key => $meta) {
+        PlatformSetting::updateOrCreate(
+            ['key' => $key],
+            [
+                'value' => $meta['value'],
+                'type' => $meta['type'],
+                'group' => 'ai',
+                'description' => $meta['description'],
+            ]
+        );
+
+        // Ensure settings cache is refreshed for runtime reads.
+        $settings->set($key, $meta['value']);
+        $output[] = "{$key}={$meta['value']}";
+    }
+
+    $output[] = '';
+    $output[] = 'Profile applied successfully.';
+    $output[] = 'Note: AI_MONTHLY_BUDGET was not changed.';
+    $output[] = 'Delete this route after use.';
+
+    return response('<pre>' . e(implode("\n", $output)) . '</pre>');
 }); // delete after one-time maintenance
 
 // Temporary Telegram diagnostics helper (token only).

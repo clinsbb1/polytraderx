@@ -62,7 +62,7 @@ class BrainService
                     'user_id' => $userId,
                     'trade_id' => $trade->id,
                 ]);
-                $trade->update(['audited' => true]);
+                // Keep audited=false so the system can retry later (e.g. temporary provider issues).
                 return null;
             }
 
@@ -96,7 +96,7 @@ class BrainService
                 'trade_id' => $trade->id,
                 'message' => $e->getMessage(),
             ]);
-            $trade->update(['audited' => true]);
+            // Keep audited=false so failed audits can retry on later runs.
             return null;
         }
     }

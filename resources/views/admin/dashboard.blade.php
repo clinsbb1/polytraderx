@@ -82,6 +82,10 @@
             <div class="progress-bar {{ $aiBudgetUsedPct >= 100 ? 'bg-danger' : ($aiBudgetUsedPct >= 80 ? 'bg-warning' : 'bg-success') }}" style="width: {{ number_format((float) $aiBudgetUsedPct, 2) }}%"></div>
         </div>
 
+        <div class="small text-muted mb-3">
+            This guardrail is your platform-side AI budget (from <code>AI_MONTHLY_BUDGET</code>), not Anthropic account credit balance.
+        </div>
+
         <div class="small text-muted mb-2">Top users by monthly AI token usage</div>
         <div class="table-responsive">
             <table class="table table-sm mb-0">
