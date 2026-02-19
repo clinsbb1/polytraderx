@@ -30,19 +30,19 @@
                 </h6>
                 <ul style="color: var(--text-secondary); font-size: 0.9rem;">
                     <li class="mb-2">
-                        <strong>MAX_BET_AMOUNT:</strong> Maximum $ to risk on a single trade. Start with $5-10 for testing.
+                        <strong>MAX_BET_AMOUNT:</strong> Hard cap in USDC for one simulation trade.
                     </li>
                     <li class="mb-2">
-                        <strong>MAX_BET_PERCENTAGE:</strong> Max % of your balance per trade (e.g., 10% of $100 = $10 max bet).
+                        <strong>MAX_BET_PERCENTAGE:</strong> % cap based on current balance. The final bet size uses the stricter of this and <code>MAX_BET_AMOUNT</code>.
                     </li>
                     <li class="mb-2">
-                        <strong>MAX_DAILY_LOSS:</strong> Stop trading for the day after losing this amount. Protects against bad streaks.
+                        <strong>MAX_DAILY_LOSS:</strong> Stops opening new trades after this daily loss level is reached.
                     </li>
                     <li class="mb-2">
-                        <strong>MAX_DAILY_TRADES:</strong> Limit total trades per day. Prevents overtrading.
+                        <strong>MAX_DAILY_TRADES:</strong> Daily cap on total trades opened.
                     </li>
                     <li>
-                        <strong>MAX_CONCURRENT_POSITIONS:</strong> How many open trades allowed at once. Keep low (2-3) initially.
+                        <strong>MAX_CONCURRENT_POSITIONS:</strong> Maximum open positions at the same time.
                     </li>
                 </ul>
 
@@ -51,25 +51,28 @@
                 </h6>
                 <ul style="color: var(--text-secondary); font-size: 0.9rem;">
                     <li class="mb-2">
-                        <strong>SIMULATOR_ENABLED:</strong> Master on/off switch. Set to <span class="ptx-badge ptx-badge-success">true</span> to start.
+                        <strong>SIMULATOR_ENABLED:</strong> Master on/off switch. You can only turn this on after linking Telegram.
                     </li>
                     <li class="mb-2">
-                        <strong>MIN_CONFIDENCE_SCORE:</strong> AI must be this confident (0.0-1.0) to place a trade. Higher = fewer but safer trades.
+                        <strong>MIN_CONFIDENCE_SCORE:</strong> Minimum confidence score (0.0-1.0) required before a simulated entry is allowed.
                     </li>
                     <li class="mb-2">
-                        <strong>MIN_ENTRY_PRICE_THRESHOLD:</strong> Only buy the "likely winner" side if price is ≥ 0.92 (92% probability).
+                        <strong>MIN_ENTRY_PRICE_THRESHOLD:</strong> Minimum price to allow momentum-style entries (e.g., only when winner side is already strong).
                     </li>
                     <li class="mb-2">
-                        <strong>ENTRY_WINDOW_MIN_SECONDS / ENTRY_WINDOW_MAX_SECONDS:</strong> Enter only when seconds remaining falls within your chosen range before market close.
+                        <strong>MAX_ENTRY_PRICE_THRESHOLD:</strong> Maximum price to allow contrarian-style entries (e.g., only when a side is still cheap).
                     </li>
                     <li class="mb-2">
-                        <strong>PRICE_FEED_SOURCE:</strong> Select where simulation price context comes from. Default is Binance.
+                        <strong>ENTRY_WINDOW_MIN_SECONDS / ENTRY_WINDOW_MAX_SECONDS:</strong> Entry is allowed only when seconds-to-close is within this range (5-900s).
                     </li>
                     <li class="mb-2">
-                        <strong>MONITORED_ASSETS:</strong> Which cryptos to trade (BTC, ETH, SOL, XRP). Select from checkboxes.
+                        <strong>PRICE_FEED_SOURCE:</strong> Select pricing context source for simulation checks (Binance default, plus CoinGecko/Coinbase/Kraken).
+                    </li>
+                    <li class="mb-2">
+                        <strong>MONITORED_ASSETS:</strong> Select assets to scan (BTC, ETH, SOL, XRP).
                     </li>
                     <li>
-                        <strong>MARKET_DURATIONS:</strong> Trade 5-minute markets, 15-minute markets, or both.
+                        <strong>MARKET_DURATIONS:</strong> Choose 5-minute markets, 15-minute markets, or both.
                     </li>
                 </ul>
             </div>
@@ -80,16 +83,25 @@
                 </h6>
                 <ul style="color: var(--text-secondary); font-size: 0.9rem;">
                     <li class="mb-2">
-                        <strong>NOTIFY_DAILY_PNL:</strong> Get a daily summary via Telegram (requires <a href="/settings/telegram">Telegram link</a>).
+                        <strong>NOTIFY_DAILY_PNL:</strong> Daily summary via Telegram (requires <a href="/settings/telegram">Telegram link</a>).
                     </li>
                     <li class="mb-2">
-                        <strong>NOTIFY_EACH_TRADE:</strong> Real-time notifications for every trade (can be noisy).
+                        <strong>NOTIFY_EACH_TRADE:</strong> Telegram alert for each trade event (entry/close).
                     </li>
                     <li class="mb-2">
-                        <strong>LOW_BALANCE_THRESHOLD:</strong> Alert when simulated balance drops below this amount.
+                        <strong>NOTIFY_BALANCE_ALERTS + LOW_BALANCE_THRESHOLD:</strong> Low-balance alerts when balance drops below your threshold.
+                    </li>
+                    <li class="mb-2">
+                        <strong>NOTIFY_ERRORS:</strong> Sends simulator/runtime issue alerts to Telegram when enabled.
+                    </li>
+                    <li class="mb-2">
+                        <strong>NOTIFY_AI_AUDITS:</strong> Notifies you when AI audit events are produced.
+                    </li>
+                    <li class="mb-2">
+                        <strong>NOTIFY_WEEKLY_REPORT:</strong> Sends weekly performance summaries.
                     </li>
                     <li>
-                        <strong>DRAWDOWN_ALERT_PERCENTAGE:</strong> Alert when daily loss exceeds this % of starting balance.
+                        <strong>DRAWDOWN_ALERT_PERCENTAGE:</strong> Drawdown alert when daily loss crosses this percentage.
                     </li>
                 </ul>
 
@@ -99,10 +111,14 @@
                         <strong style="color: var(--text-primary); font-size: 1rem;">Recommended Starting Settings:</strong>
                     </div>
                     <ul class="mb-0" style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.8;">
-                        <li><strong>SIMULATOR_ENABLED:</strong> true</li>
+                        <li><strong>Step 1:</strong> Link Telegram in Settings.</li>
                         <li><strong>MAX_BET_AMOUNT:</strong> $5-10</li>
+                        <li><strong>MAX_BET_PERCENTAGE:</strong> 5-10%</li>
                         <li><strong>MIN_CONFIDENCE_SCORE:</strong> 0.92-0.95</li>
-                        <li><strong>MARKET_DURATIONS:</strong> Both checked</li>
+                        <li><strong>ENTRY_WINDOW_MIN/MAX:</strong> 5-60 seconds</li>
+                        <li><strong>PRICE_FEED_SOURCE:</strong> Binance (default)</li>
+                        <li><strong>MARKET_DURATIONS:</strong> 5min + 15min</li>
+                        <li><strong>Step 2:</strong> Set <code>SIMULATOR_ENABLED=true</code>.</li>
                     </ul>
                 </div>
             </div>
@@ -112,8 +128,7 @@
             <div style="display: flex; align-items: start; gap: 0.75rem;">
                 <i class="bi bi-exclamation-triangle-fill" style="color: #ffc107; font-size: 1.25rem; margin-top: 2px;"></i>
                 <div style="color: var(--text-primary); font-size: 0.95rem; line-height: 1.6;">
-                    <strong style="font-size: 1rem;">Important:</strong> After changing parameters, the simulator will use the new values on the next run (every minute).
-                    Monitor the <a href="{{ route('logs.index') }}" style="color: #ffc107; font-weight: 600; text-decoration: underline;">Logs</a> to see when changes take effect.
+                    <strong style="font-size: 1rem;">Important:</strong> Changes are applied on the next scheduler cycle (about every minute). If no market is near your entry window, no trade will be opened yet. Monitor <a href="{{ route('logs.index') }}" style="color: #ffc107; font-weight: 600; text-decoration: underline;">Market Scans / Logs</a> to confirm checks and matches.
                 </div>
             </div>
         </div>
