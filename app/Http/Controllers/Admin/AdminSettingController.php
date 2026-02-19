@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSetting;
+use App\Services\Polymarket\MarketService;
 use App\Services\Settings\PlatformSettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -73,10 +74,10 @@ class AdminSettingController extends Controller
         return view('admin.settings.telegram-diagnostics', compact('report'));
     }
 
-    public function serviceDiagnostics(): View
+    public function serviceDiagnostics(MarketService $marketService): View
     {
         $telegram = $this->runTelegramDiagnostics();
-        $polymarket = $this->runPolymarketPublicDiagnostics();
+        $polymarket = $this->runPolymarketPublicDiagnostics($marketService);
         $anthropic = $this->runAnthropicDiagnostics();
         $turnstile = $this->runTurnstileDiagnostics();
 
@@ -147,19 +148,35 @@ class AdminSettingController extends Controller
         return $report;
     }
 
-    private function runPolymarketPublicDiagnostics(): array
+    private function runPolymarketPublicDiagnostics(MarketService $marketService): array
     {
         $report = [
             'base_url' => config('services.polymarket.base_url', 'https://clob.polymarket.com'),
+            'gamma_url' => config('services.polymarket.gamma_url', 'https://gamma-api.polymarket.com'),
             'time_ok' => null,
             'time_payload' => null,
             'markets_ok' => null,
             'markets_count' => null,
+            'gamma_markets_ok' => null,
+            'gamma_markets_count' => null,
+            'strict_source' => null,
+            'strict_raw_count' => null,
+            'strict_normalized_count' => null,
+            'strict_rejected_count' => null,
+            'strict_duration_breakdown' => [],
+            'strict_asset_breakdown' => [],
+            'strict_rejection_breakdown' => [],
+            'strict_accepted_samples' => [],
+            'strict_rejected_samples' => [],
+            'strict_gamma_status' => null,
+            'strict_clob_status' => null,
+            'strict_http_error' => null,
             'http_error' => null,
         ];
 
         try {
             $base = rtrim((string) $report['base_url'], '/');
+            $gammaBase = rtrim((string) $report['gamma_url'], '/');
             $timeResponse = Http::timeout(10)->get($base . '/time');
             $report['time_ok'] = $timeResponse->successful();
             $report['time_payload'] = $timeResponse->successful() ? $timeResponse->json() : $timeResponse->body();
@@ -171,9 +188,36 @@ class AdminSettingController extends Controller
                 $markets = $payload['data'] ?? $payload;
                 $report['markets_count'] = is_array($markets) ? count($markets) : 0;
             }
+
+            $gammaMarketsResponse = Http::timeout(10)->get($gammaBase . '/markets', [
+                'active' => true,
+                'closed' => false,
+                'archived' => false,
+                'limit' => 1000,
+            ]);
+            $report['gamma_markets_ok'] = $gammaMarketsResponse->successful();
+            if ($gammaMarketsResponse->successful()) {
+                $payload = $gammaMarketsResponse->json();
+                $markets = $payload['data'] ?? $payload;
+                $report['gamma_markets_count'] = is_array($markets) ? count($markets) : 0;
+            }
         } catch (\Throwable $e) {
             $report['http_error'] = $e->getMessage();
         }
+
+        $strict = $marketService->diagnoseActiveCryptoMarkets(sampleLimit: 5);
+        $report['strict_source'] = $strict['source'] ?? null;
+        $report['strict_raw_count'] = $strict['raw_count'] ?? null;
+        $report['strict_normalized_count'] = $strict['normalized_count'] ?? null;
+        $report['strict_rejected_count'] = $strict['rejected_count'] ?? null;
+        $report['strict_duration_breakdown'] = $strict['duration_breakdown'] ?? [];
+        $report['strict_asset_breakdown'] = $strict['asset_breakdown'] ?? [];
+        $report['strict_rejection_breakdown'] = $strict['rejection_breakdown'] ?? [];
+        $report['strict_accepted_samples'] = $strict['accepted_samples'] ?? [];
+        $report['strict_rejected_samples'] = $strict['rejected_samples'] ?? [];
+        $report['strict_gamma_status'] = $strict['gamma_status'] ?? null;
+        $report['strict_clob_status'] = $strict['clob_status'] ?? null;
+        $report['strict_http_error'] = $strict['http_error'] ?? null;
 
         return $report;
     }

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class MarketService
 {
     private const CRYPTO_ASSETS = ['BTC', 'ETH', 'SOL', 'XRP'];
-    private const SHARED_MARKETS_CACHE_KEY = 'polymarket:active_crypto_markets:shared:v1';
+    private const SHARED_MARKETS_CACHE_KEY = 'polymarket:active_crypto_markets:shared:v2';
     private const SHARED_MARKETS_CACHE_TTL_SECONDS = 10;
     private const MAX_RETRIES = 3;
     private const RETRY_BACKOFF_SECONDS = [1, 2, 4];
@@ -87,6 +87,80 @@ class MarketService
             ->filter(fn(array $market) => $market['seconds_remaining'] <= $withinSeconds && $market['seconds_remaining'] > 0)
             ->sortBy('seconds_remaining')
             ->values();
+    }
+
+    public function diagnoseActiveCryptoMarkets(int $sampleLimit = 5): array
+    {
+        $sampleLimit = max(1, min(20, $sampleLimit));
+
+        $result = $this->fetchRawActiveMarketsForDiagnostics();
+        $markets = $result['markets'];
+
+        $report = [
+            'source' => $result['source'],
+            'raw_count' => count($markets),
+            'normalized_count' => 0,
+            'rejected_count' => 0,
+            'duration_breakdown' => ['5min' => 0, '15min' => 0],
+            'asset_breakdown' => ['BTC' => 0, 'ETH' => 0, 'SOL' => 0, 'XRP' => 0],
+            'rejection_breakdown' => [],
+            'accepted_samples' => [],
+            'rejected_samples' => [],
+            'gamma_status' => $result['gamma_status'],
+            'clob_status' => $result['clob_status'],
+            'http_error' => $result['http_error'],
+        ];
+
+        foreach ($markets as $market) {
+            if (!is_array($market)) {
+                $report['rejected_count']++;
+                $report['rejection_breakdown']['non_array'] = ($report['rejection_breakdown']['non_array'] ?? 0) + 1;
+                continue;
+            }
+
+            [$normalized, $reason] = $this->normalizeMarketWithReason($market);
+
+            if ($normalized === null) {
+                $reason = $reason ?? 'rejected_unknown';
+                $report['rejected_count']++;
+                $report['rejection_breakdown'][$reason] = ($report['rejection_breakdown'][$reason] ?? 0) + 1;
+
+                if (count($report['rejected_samples']) < $sampleLimit) {
+                    $report['rejected_samples'][] = [
+                        'reason' => $reason,
+                        'slug' => (string) ($market['slug'] ?? $market['market_slug'] ?? ''),
+                        'question' => (string) ($market['question'] ?? $market['title'] ?? $market['name'] ?? ''),
+                    ];
+                }
+
+                continue;
+            }
+
+            $report['normalized_count']++;
+            $duration = (string) ($normalized['duration'] ?? '');
+            if (isset($report['duration_breakdown'][$duration])) {
+                $report['duration_breakdown'][$duration]++;
+            }
+
+            $asset = (string) ($normalized['asset'] ?? '');
+            if (isset($report['asset_breakdown'][$asset])) {
+                $report['asset_breakdown'][$asset]++;
+            }
+
+            if (count($report['accepted_samples']) < $sampleLimit) {
+                $report['accepted_samples'][] = [
+                    'asset' => $asset,
+                    'duration' => $duration,
+                    'slug' => (string) ($normalized['slug'] ?? ''),
+                    'question' => (string) ($normalized['question'] ?? ''),
+                    'seconds_remaining' => (int) ($normalized['seconds_remaining'] ?? 0),
+                ];
+            }
+        }
+
+        arsort($report['rejection_breakdown']);
+
+        return $report;
     }
 
     public function getMarketDetails(PolymarketClient $client, string $conditionId): array
@@ -376,6 +450,7 @@ class MarketService
     {
         $gammaBaseUrl = rtrim((string) config('services.polymarket.gamma_url', 'https://gamma-api.polymarket.com'), '/');
         $clobBaseUrl = rtrim((string) config('services.polymarket.base_url', 'https://clob.polymarket.com'), '/');
+        $gammaEventsUrl = $gammaBaseUrl . '/events';
         $gammaUrl = $gammaBaseUrl . '/markets';
         $clobUrl = $clobBaseUrl . '/markets';
         $lastException = null;
@@ -383,21 +458,23 @@ class MarketService
         // Prefer Gamma API because it carries richer market metadata (question/title/duration cues).
         for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
             try {
-                $response = Http::timeout(15)->get($gammaUrl, [
+                $response = Http::timeout(15)->get($gammaEventsUrl, [
                     'active' => true,
                     'closed' => false,
                     'archived' => false,
+                    'tag_slug' => 'crypto',
                     'limit' => 1000,
                 ]);
 
                 if ($response->successful()) {
                     $payload = $response->json();
-                    $markets = $payload['data'] ?? $payload;
+                    $events = $payload['data'] ?? $payload;
 
-                    if (!is_array($markets)) {
+                    if (!is_array($events)) {
                         return collect();
                     }
 
+                    $markets = $this->flattenGammaEventsToMarkets($events);
                     $normalized = collect($markets)
                         ->filter(fn($market) => is_array($market))
                         ->map(fn(array $market) => $this->normalizeMarket($market))
@@ -413,7 +490,7 @@ class MarketService
                         })->values()->toArray();
                         $dropReasons = $this->summarizeNormalizationDropReasons($markets);
 
-                        Log::channel('simulator')->warning('Polymarket gamma fetch returned markets but none normalized', [
+                        Log::channel('simulator')->warning('Polymarket gamma events fetch returned markets but none normalized', [
                             'raw_count' => count($markets),
                             'normalized_count' => 0,
                             'sample_titles' => $samples,
@@ -428,7 +505,7 @@ class MarketService
 
                 if ($status === 429 || $status >= 500) {
                     $sleepFor = (int) ($response->header('Retry-After') ?: (self::RETRY_BACKOFF_SECONDS[$attempt] ?? 2));
-                    Log::channel('simulator')->warning('Shared Polymarket market fetch throttled or failed', [
+                    Log::channel('simulator')->warning('Shared Polymarket gamma events fetch throttled or failed', [
                         'status' => $status,
                         'attempt' => $attempt + 1,
                         'retry_after' => $sleepFor,
@@ -440,10 +517,33 @@ class MarketService
                     }
                 }
 
-                Log::channel('simulator')->warning('Shared Polymarket market fetch returned non-success response', [
+                Log::channel('simulator')->warning('Shared Polymarket gamma events fetch returned non-success response', [
                     'status' => $status,
                     'body' => $response->body(),
                 ]);
+
+                // Try Gamma /markets fallback before falling through to CLOB.
+                $fallback = Http::timeout(15)->get($gammaUrl, [
+                    'active' => true,
+                    'closed' => false,
+                    'archived' => false,
+                    'tag_slug' => 'crypto',
+                    'limit' => 1000,
+                ]);
+
+                if ($fallback->successful()) {
+                    $payload = $fallback->json();
+                    $markets = $payload['data'] ?? $payload;
+                    if (!is_array($markets)) {
+                        return collect();
+                    }
+
+                    return collect($markets)
+                        ->filter(fn($market) => is_array($market))
+                        ->map(fn(array $market) => $this->normalizeMarket($market))
+                        ->filter(fn(?array $market) => $market !== null)
+                        ->values();
+                }
 
                 return collect();
             } catch (\Throwable $e) {
@@ -526,6 +626,13 @@ class MarketService
 
     private function normalizeMarket(array $market): ?array
     {
+        [$normalized, ] = $this->normalizeMarketWithReason($market);
+
+        return $normalized;
+    }
+
+    private function normalizeMarketWithReason(array $market): array
+    {
         $question = (string) ($market['question']
             ?? $market['market_question']
             ?? $market['title']
@@ -537,19 +644,25 @@ class MarketService
         $asset = $this->identifyAsset($textCorpus);
 
         if ($asset === null) {
-            return null;
+            return [null, 'asset_not_detected'];
+        }
+
+        // Hard requirement: only keep dedicated Crypto 5M/15M series markets.
+        // Do not infer eligibility from "time remaining" on unrelated markets.
+        if (!$this->isCryptoSpeedSeriesMarket($market, $textCorpus)) {
+            return [null, 'not_crypto_5m_15m_series'];
         }
 
         $duration = $this->resolveMarketDuration($market, $textCorpus);
 
         if ($duration === null) {
-            return null;
+            return [null, 'duration_not_detected'];
         }
 
         $endTime = $this->getMarketEndTime($market);
 
         if ($endTime === null) {
-            return null;
+            return [null, 'end_time_missing'];
         }
 
         $intervalSeconds = $this->resolveMarketIntervalSeconds($market, $textCorpus, $duration);
@@ -563,17 +676,17 @@ class MarketService
         $secondsRemaining = (int) now()->diffInSeconds($endTime, false);
 
         if ($secondsRemaining < 0) {
-            return null;
+            return [null, 'already_expired'];
         }
 
         // Guardrail: if remaining time is still very large, this is likely not an intraday 5/15m round.
         if ($secondsRemaining > 7200) {
-            return null;
+            return [null, 'outside_intraday_window'];
         }
 
         $prices = $this->parseMarketPrices($market);
 
-        return [
+        return [[
             'condition_id' => $market['condition_id'] ?? $market['conditionId'] ?? $market['id'] ?? '',
             'question' => $question,
             'slug' => $market['slug'] ?? $market['market_slug'] ?? '',
@@ -586,7 +699,7 @@ class MarketService
             'volume' => (float) ($market['volume'] ?? $market['volumeNum'] ?? 0),
             'end_time' => $endTime,
             'seconds_remaining' => $secondsRemaining,
-        ];
+        ], null];
     }
 
     private function buildDetectionText(array $market): string
@@ -604,6 +717,11 @@ class MarketService
             $market['marketType'] ?? null,
             $market['market_type'] ?? null,
         ];
+
+        // Include tags/topics metadata for stronger series detection.
+        $parts = array_merge($parts, $this->extractTagStrings($market['tags'] ?? null));
+        $parts = array_merge($parts, $this->extractTagStrings($market['topics'] ?? null));
+        $parts = array_merge($parts, $this->extractTagStrings($market['categories'] ?? null));
 
         // Include nested event metadata because Gamma often stores useful descriptors there.
         $events = $market['events'] ?? [];
@@ -635,6 +753,119 @@ class MarketService
         ))));
     }
 
+    private function extractTagStrings(mixed $raw): array
+    {
+        if ($raw === null) {
+            return [];
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $raw = $decoded;
+            } else {
+                return [$raw];
+            }
+        }
+
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $item) {
+            if (is_scalar($item)) {
+                $out[] = (string) $item;
+                continue;
+            }
+            if (!is_array($item)) {
+                continue;
+            }
+            $out[] = (string) ($item['name'] ?? '');
+            $out[] = (string) ($item['slug'] ?? '');
+            $out[] = (string) ($item['label'] ?? '');
+            $out[] = (string) ($item['title'] ?? '');
+        }
+
+        return array_values(array_filter($out, fn(string $v) => trim($v) !== ''));
+    }
+
+    private function isCryptoSpeedSeriesMarket(array $market, string $textCorpus): bool
+    {
+        $hasExplicitCryptoSpeedMarker = false;
+
+        $directCandidates = [
+            strtoupper((string) ($market['slug'] ?? '')),
+            strtoupper((string) ($market['market_slug'] ?? '')),
+            strtoupper((string) ($market['seriesSlug'] ?? '')),
+            strtoupper((string) ($market['series_slug'] ?? '')),
+            strtoupper((string) ($market['category'] ?? '')),
+            strtoupper((string) ($market['marketType'] ?? '')),
+            strtoupper((string) ($market['market_type'] ?? '')),
+        ];
+
+        foreach ($this->extractTagStrings($market['tags'] ?? null) as $tag) {
+            $directCandidates[] = strtoupper($tag);
+        }
+        foreach ($this->extractTagStrings($market['topics'] ?? null) as $tag) {
+            $directCandidates[] = strtoupper($tag);
+        }
+        foreach ($this->extractTagStrings($market['categories'] ?? null) as $tag) {
+            $directCandidates[] = strtoupper($tag);
+        }
+
+        $events = $market['events'] ?? [];
+        if (is_array($events)) {
+            foreach ($events as $event) {
+                if (!is_array($event)) {
+                    continue;
+                }
+                $directCandidates[] = strtoupper((string) ($event['slug'] ?? ''));
+                $directCandidates[] = strtoupper((string) ($event['title'] ?? ''));
+                $directCandidates[] = strtoupper((string) ($event['category'] ?? ''));
+                $directCandidates[] = strtoupper((string) ($event['ticker'] ?? ''));
+                $directCandidates[] = strtoupper((string) ($event['seriesSlug'] ?? ''));
+                $directCandidates[] = strtoupper((string) ($event['series_slug'] ?? ''));
+            }
+        }
+
+        $patterns = [
+            '/\/CRYPTO\/(?:5M|15M)\b/',
+            '/\bCRYPTO[\s_\-\/]*(?:5M|15M|5\s*MIN(?:UTE)?S?|15\s*MIN(?:UTE)?S?)\b/',
+            '/\b(?:5M|15M|5\s*MIN(?:UTE)?S?|15\s*MIN(?:UTE)?S?)[\s_\-\/]*CRYPTO\b/',
+            '/\b(?:BTC|ETH|SOL|XRP)[\s_\-]+UP[\s_\-]+OR[\s_\-]+DOWN[\s_\-]+(?:5M|15M)\b/',
+            '/\b(?:BTC|ETH|SOL|XRP)[\s_\-]*UPDOWN[\s_\-]*(?:5M|15M)\b/',
+            '/\b(?:BTC|ETH|SOL|XRP)-UP-OR-DOWN-(?:5M|15M)\b/',
+            '/\b(?:BTC|ETH|SOL|XRP)-UPDOWN-(?:5M|15M)\b/',
+        ];
+
+        foreach ($directCandidates as $candidate) {
+            if (!is_string($candidate) || trim($candidate) === '') {
+                continue;
+            }
+
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $candidate) === 1) {
+                    $hasExplicitCryptoSpeedMarker = true;
+                    break 2;
+                }
+            }
+        }
+
+        // Secondary fallback only if metadata is sparse.
+        // Keep strict by requiring both "crypto" and 5M/15M in close proximity.
+        if (!$hasExplicitCryptoSpeedMarker && trim($textCorpus) !== '') {
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $textCorpus) === 1) {
+                    $hasExplicitCryptoSpeedMarker = true;
+                    break;
+                }
+            }
+        }
+
+        return $hasExplicitCryptoSpeedMarker;
+    }
+
     private function resolveMarketDuration(array $market, string $textCorpus): ?string
     {
         foreach ($this->collectDurationHints($market) as $candidate) {
@@ -649,34 +880,8 @@ class MarketService
             return $fromText;
         }
 
-        // If text is ambiguous, infer using market times when available.
-        $start = $this->getMarketStartTime($market);
-        $end = $this->getMarketEndTime($market);
-        if ($start !== null && $end !== null) {
-            $spanSeconds = abs($end->diffInSeconds($start, false));
-
-            // Wide tolerances to absorb API clock/rounding drift.
-            if ($spanSeconds >= 150 && $spanSeconds <= 540) {
-                return '5min';
-            }
-            if ($spanSeconds >= 600 && $spanSeconds <= 1500) {
-                return '15min';
-            }
-        }
-
-        // Last fallback: near-term windows only.
-        if ($end !== null) {
-            $remaining = (int) now()->diffInSeconds($end, false);
-            if ($remaining > 0 && $remaining <= 600) {
-                return '5min';
-            }
-            if ($remaining > 600 && $remaining <= 1800) {
-                return '15min';
-            }
-        }
-
-        // Final fallback so scanning never deadlocks when upstream labels drift.
-        return '15min';
+        // No time-based fallback: we only accept explicit 5M/15M series markers.
+        return null;
     }
 
     private function resolveMarketIntervalSeconds(array $market, string $textCorpus, ?string $resolvedDuration = null): ?int
@@ -867,10 +1072,6 @@ class MarketService
     {
         $stats = [
             'non_array' => 0,
-            'asset_not_detected' => 0,
-            'duration_not_detected' => 0,
-            'end_time_missing' => 0,
-            'already_expired' => 0,
             'ok' => 0,
         ];
 
@@ -880,26 +1081,10 @@ class MarketService
                 continue;
             }
 
-            $text = $this->buildDetectionText($market);
-
-            if ($this->identifyAsset($text) === null) {
-                $stats['asset_not_detected']++;
-                continue;
-            }
-
-            if ($this->resolveMarketDuration($market, $text) === null) {
-                $stats['duration_not_detected']++;
-                continue;
-            }
-
-            $endTime = $this->getMarketEndTime($market);
-            if ($endTime === null) {
-                $stats['end_time_missing']++;
-                continue;
-            }
-
-            if ((int) now()->diffInSeconds($endTime, false) < 0) {
-                $stats['already_expired']++;
+            [$normalized, $reason] = $this->normalizeMarketWithReason($market);
+            if ($normalized === null) {
+                $key = $reason ?? 'rejected_unknown';
+                $stats[$key] = ($stats[$key] ?? 0) + 1;
                 continue;
             }
 
@@ -907,5 +1092,152 @@ class MarketService
         }
 
         return $stats;
+    }
+
+    private function fetchRawActiveMarketsForDiagnostics(): array
+    {
+        $gammaBaseUrl = rtrim((string) config('services.polymarket.gamma_url', 'https://gamma-api.polymarket.com'), '/');
+        $clobBaseUrl = rtrim((string) config('services.polymarket.base_url', 'https://clob.polymarket.com'), '/');
+
+        $gammaStatus = null;
+        $clobStatus = null;
+        $lastError = null;
+
+        try {
+            $response = Http::timeout(15)->get($gammaBaseUrl . '/events', [
+                'active' => true,
+                'closed' => false,
+                'archived' => false,
+                'tag_slug' => 'crypto',
+                'limit' => 1000,
+            ]);
+
+            $gammaStatus = $response->status();
+            if ($response->successful()) {
+                $payload = $response->json();
+                $events = $payload['data'] ?? $payload;
+                $markets = is_array($events) ? $this->flattenGammaEventsToMarkets($events) : [];
+
+                return [
+                    'source' => 'gamma_events',
+                    'markets' => $markets,
+                    'gamma_status' => $gammaStatus,
+                    'clob_status' => $clobStatus,
+                    'http_error' => null,
+                ];
+            }
+        } catch (\Throwable $e) {
+            $lastError = $e->getMessage();
+        }
+
+        try {
+            $response = Http::timeout(15)->get($clobBaseUrl . '/markets', [
+                'active' => 'true',
+            ]);
+
+            $clobStatus = $response->status();
+            if ($response->successful()) {
+                $payload = $response->json();
+                $markets = $payload['data'] ?? $payload;
+
+                return [
+                    'source' => 'clob',
+                    'markets' => is_array($markets) ? $markets : [],
+                    'gamma_status' => $gammaStatus,
+                    'clob_status' => $clobStatus,
+                    'http_error' => null,
+                ];
+            }
+        } catch (\Throwable $e) {
+            $lastError = $e->getMessage();
+        }
+
+        return [
+            'source' => null,
+            'markets' => [],
+            'gamma_status' => $gammaStatus,
+            'clob_status' => $clobStatus,
+            'http_error' => $lastError,
+        ];
+    }
+
+    private function flattenGammaEventsToMarkets(array $events): array
+    {
+        $flattened = [];
+        $seen = [];
+
+        foreach ($events as $event) {
+            if (!is_array($event)) {
+                continue;
+            }
+
+            $eventMeta = $event;
+            unset($eventMeta['markets']);
+            $eventMeta = $this->stripNestedDepth($eventMeta);
+
+            $eventMarkets = $event['markets'] ?? [];
+            if (!is_array($eventMarkets)) {
+                continue;
+            }
+
+            foreach ($eventMarkets as $market) {
+                if (!is_array($market)) {
+                    continue;
+                }
+
+                $marketWithEvent = $market;
+                $marketWithEvent['events'] = [$eventMeta];
+
+                // Carry event-level hints into market-level fields if missing.
+                $marketWithEvent['groupItemTitle'] = $marketWithEvent['groupItemTitle'] ?? ($event['title'] ?? null);
+                $marketWithEvent['seriesSlug'] = $marketWithEvent['seriesSlug'] ?? ($event['seriesSlug'] ?? null);
+                $marketWithEvent['ticker'] = $marketWithEvent['ticker'] ?? ($event['ticker'] ?? null);
+                $marketWithEvent['category'] = $marketWithEvent['category'] ?? ($event['category'] ?? null);
+
+                $dedupeKey = (string) ($marketWithEvent['conditionId']
+                    ?? $marketWithEvent['condition_id']
+                    ?? $marketWithEvent['id']
+                    ?? $marketWithEvent['slug']
+                    ?? spl_object_hash((object) $marketWithEvent));
+
+                if ($dedupeKey !== '' && isset($seen[$dedupeKey])) {
+                    continue;
+                }
+                if ($dedupeKey !== '') {
+                    $seen[$dedupeKey] = true;
+                }
+
+                $flattened[] = $marketWithEvent;
+            }
+        }
+
+        return $flattened;
+    }
+
+    private function stripNestedDepth(array $event): array
+    {
+        // Keep event metadata lightweight when embedding back into each market.
+        unset($event['markets']);
+
+        if (isset($event['series']) && is_array($event['series'])) {
+            $event['series'] = array_map(function ($item) {
+                if (!is_array($item)) {
+                    return $item;
+                }
+
+                return [
+                    'slug' => $item['slug'] ?? null,
+                    'title' => $item['title'] ?? null,
+                    'interval' => $item['interval'] ?? null,
+                    'duration' => $item['duration'] ?? null,
+                    'recurrence' => $item['recurrence'] ?? null,
+                    'seriesType' => $item['seriesType'] ?? null,
+                    'secondsDelay' => $item['secondsDelay'] ?? null,
+                    'seconds_delay' => $item['seconds_delay'] ?? null,
+                ];
+            }, $event['series']);
+        }
+
+        return $event;
     }
 }
