@@ -25,7 +25,7 @@
             </form>
         @else
             <div class="alert alert-info mb-3">
-                Add Google Authenticator to secure your account and admin access.
+                Add Google Authenticator to secure your account.
             </div>
 
             @if($pendingSecret === '')
