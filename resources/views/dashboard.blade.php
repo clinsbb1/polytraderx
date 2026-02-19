@@ -158,9 +158,9 @@
     </div>
     <div class="col-md-3 col-6">
         <div class="ptx-stat-card">
-            <div class="stat-label">Current Balance</div>
-            <div class="stat-value text-accent">${{ $latestBalance ? number_format((float)$latestBalance->total_equity, 2) : '0.00' }}</div>
-            <div style="color: var(--text-secondary); font-size: 0.75rem;">Simulated Balance</div>
+            <div class="stat-label">Current Balance (Simulated)</div>
+            <div class="stat-value text-accent">${{ $latestBalance ? number_format((float)$latestBalance->balance_usdc, 2) : '0.00' }}</div>
+            <div style="color: var(--text-secondary); font-size: 0.75rem;">Available cash (open exposure tracked separately)</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
