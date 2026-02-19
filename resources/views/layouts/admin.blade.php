@@ -33,6 +33,8 @@
     @php
         $settings = app(\App\Services\Settings\SettingsService::class);
         $simulatorEnabled = $settings->getBool('SIMULATOR_ENABLED', false);
+        $telegramLinked = auth()->user()?->hasTelegramLinked() ?? false;
+        $simulatorToggleLocked = !$telegramLinked && !$simulatorEnabled;
     @endphp
 
     {{-- Impersonate Bar --}}
@@ -136,10 +138,17 @@
                         name="simulator_enabled"
                         value="1"
                         {{ $simulatorEnabled ? 'checked' : '' }}
+                        {{ $simulatorToggleLocked ? 'disabled' : '' }}
+                        title="{{ $simulatorToggleLocked ? 'Link Telegram in Settings to enable simulator.' : 'Toggle simulator' }}"
                         onchange="this.form.submit()"
                     >
                     <label class="visually-hidden" for="simulatorToggleFooter">Toggle simulator</label>
                 </div>
+                @if($simulatorToggleLocked)
+                    <div class="w-100" style="font-size: 0.75rem; color: #ffc107;">
+                        Link Telegram to enable simulator.
+                    </div>
+                @endif
             </form>
         </div>
     </aside>

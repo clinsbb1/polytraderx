@@ -7,6 +7,13 @@
     <i class="bi bi-info-circle"></i> All parameters control simulation behavior. No live trades are executed.
 </div>
 
+@if(!($telegramLinked ?? false))
+<div class="alert alert-warning mb-4">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    Link Telegram in <a href="{{ url('/settings/telegram') }}">Settings</a> before enabling the simulator.
+</div>
+@endif
+
 {{-- Getting Started Guide --}}
 <div class="ptx-card mb-4">
     <div class="ptx-card-header" style="cursor: pointer;" onclick="document.getElementById('strategyGuideContent').classList.toggle('d-none')">
@@ -192,6 +199,22 @@
                                         <option value="coinbase" {{ $currentSource === 'coinbase' ? 'selected' : '' }}>Coinbase</option>
                                         <option value="kraken" {{ $currentSource === 'kraken' ? 'selected' : '' }}>Kraken</option>
                                     </select>
+                                @elseif($param->key === 'SIMULATOR_ENABLED')
+                                    <select name="params[{{ $param->key }}]" class="ptx-input ptx-input-sm" style="width:140px">
+                                        <option
+                                            value="true"
+                                            {{ $param->value === 'true' ? 'selected' : '' }}
+                                            {{ !($telegramLinked ?? false) ? 'disabled' : '' }}
+                                        >
+                                            true
+                                        </option>
+                                        <option value="false" {{ $param->value === 'false' ? 'selected' : '' }}>false</option>
+                                    </select>
+                                    @if(!($telegramLinked ?? false))
+                                        <div class="mt-1" style="font-size: 0.75rem; color: #ffc107;">
+                                            Telegram required to enable simulator.
+                                        </div>
+                                    @endif
                                 @elseif($param->type === 'boolean')
                                     <select name="params[{{ $param->key }}]" class="ptx-input ptx-input-sm" style="width:100px">
                                         <option value="true" {{ $param->value === 'true' ? 'selected' : '' }}>true</option>

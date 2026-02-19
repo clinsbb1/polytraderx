@@ -60,6 +60,42 @@ Route::middleware(['throttle:3,1'])->get('/admin/run-migration', function (Reque
     return response('<pre>' . e(implode("\n\n", $output)) . '</pre>');
 }); // delete after one-time deployment
 
+// Temporary maintenance helper: disable simulator + cancel open/pending trades for users without Telegram (token only).
+Route::middleware(['throttle:3,1'])->get('/admin/run-telegram-enforcement', function (Request $request) {
+    $expectedToken = (string) env('MAINTENANCE_ROUTE_TOKEN', '');
+    $providedToken = (string) $request->query('token', '');
+
+    if ($expectedToken === '' || ! hash_equals($expectedToken, $providedToken)) {
+        abort(404);
+    }
+
+    $dryRun = in_array(strtolower((string) $request->query('dry', '1')), ['1', 'true', 'yes', 'on'], true);
+    $output = [];
+    $output[] = '[sim:disable-without-telegram] mode=' . ($dryRun ? 'DRY-RUN' : 'LIVE');
+
+    try {
+        $params = [];
+        if ($dryRun) {
+            $params['--dry-run'] = true;
+        }
+
+        Artisan::call('sim:disable-without-telegram', $params);
+        $output[] = '[sim:disable-without-telegram] OK';
+
+        $artisanOutput = trim(Artisan::output());
+        if ($artisanOutput !== '') {
+            $output[] = $artisanOutput;
+        }
+    } catch (\Throwable $e) {
+        $output[] = '[sim:disable-without-telegram] ERROR: ' . $e->getMessage();
+    }
+
+    $output[] = '';
+    $output[] = 'Tip: use ?dry=0 to run live changes.';
+
+    return response('<pre>' . e(implode("\n\n", $output)) . '</pre>');
+}); // delete after one-time maintenance
+
 // Temporary Telegram diagnostics helper (token only).
 Route::middleware(['throttle:5,1'])->get('/admin/telegram-diagnostics', function (Request $request) {
     $expectedToken = (string) env('MAINTENANCE_ROUTE_TOKEN', '');
