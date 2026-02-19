@@ -14,10 +14,36 @@ class MarketTimingService
     public function isInEntryWindow(array $market, int $userId): bool
     {
         $secondsRemaining = $this->getSecondsRemaining($market);
-        $entryWindow = $this->settings->getInt('ENTRY_WINDOW_SECONDS', 60, $userId);
+        $window = $this->getEntryWindowRange($userId);
 
-        return $secondsRemaining <= $entryWindow
-            && $secondsRemaining > 5;
+        return $secondsRemaining >= $window['min']
+            && $secondsRemaining <= $window['max'];
+    }
+
+    /**
+     * Resolve and normalize user-configured entry window range.
+     *
+     * Backward compatibility:
+     * - If new min/max keys are missing, legacy ENTRY_WINDOW_SECONDS remains the max bound.
+     */
+    public function getEntryWindowRange(int $userId): array
+    {
+        $legacyMax = $this->settings->getInt('ENTRY_WINDOW_SECONDS', 60, $userId);
+
+        $min = $this->settings->getInt('ENTRY_WINDOW_MIN_SECONDS', 5, $userId);
+        $max = $this->settings->getInt('ENTRY_WINDOW_MAX_SECONDS', max(5, $legacyMax), $userId);
+
+        $min = max(5, min(900, $min));
+        $max = max(5, min(900, $max));
+
+        if ($min > $max) {
+            [$min, $max] = [$max, $min];
+        }
+
+        return [
+            'min' => $min,
+            'max' => $max,
+        ];
     }
 
     public function getSecondsRemaining(array $market): int

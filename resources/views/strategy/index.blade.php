@@ -60,7 +60,7 @@
                         <strong>MIN_ENTRY_PRICE_THRESHOLD:</strong> Only buy the "likely winner" side if price is ≥ 0.92 (92% probability).
                     </li>
                     <li class="mb-2">
-                        <strong>ENTRY_WINDOW_SECONDS:</strong> Only enter trades in the final X seconds before market close. Default: 60s.
+                        <strong>ENTRY_WINDOW_MIN_SECONDS / ENTRY_WINDOW_MAX_SECONDS:</strong> Enter only when seconds remaining falls within your chosen range before market close.
                     </li>
                     <li class="mb-2">
                         <strong>PRICE_FEED_SOURCE:</strong> Select where simulation price context comes from. Default is Binance.
@@ -215,6 +215,20 @@
                                             Telegram required to enable simulator.
                                         </div>
                                     @endif
+                                @elseif(in_array($param->key, ['ENTRY_WINDOW_MIN_SECONDS', 'ENTRY_WINDOW_MAX_SECONDS'], true))
+                                    <input
+                                        type="number"
+                                        min="5"
+                                        max="900"
+                                        step="1"
+                                        name="params[{{ $param->key }}]"
+                                        value="{{ (int) $param->value }}"
+                                        class="ptx-input ptx-input-sm"
+                                        style="width:130px"
+                                    >
+                                    <div class="mt-1" style="font-size: 0.75rem; color: var(--text-secondary);">
+                                        seconds before close
+                                    </div>
                                 @elseif($param->type === 'boolean')
                                     <select name="params[{{ $param->key }}]" class="ptx-input ptx-input-sm" style="width:100px">
                                         <option value="true" {{ $param->value === 'true' ? 'selected' : '' }}>true</option>

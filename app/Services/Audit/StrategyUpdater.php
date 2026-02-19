@@ -19,7 +19,9 @@ class StrategyUpdater
         'MIN_CONFIDENCE_SCORE' => ['min' => 0.5, 'max' => 1.0, 'type' => 'float'],
         'MIN_ENTRY_PRICE_THRESHOLD' => ['min' => 0.5, 'max' => 1.0, 'type' => 'float'],
         'MAX_ENTRY_PRICE_THRESHOLD' => ['min' => 0.01, 'max' => 0.5, 'type' => 'float'],
-        'ENTRY_WINDOW_SECONDS' => ['min' => 5, 'max' => 300, 'type' => 'int'],
+        'ENTRY_WINDOW_MIN_SECONDS' => ['min' => 5, 'max' => 900, 'type' => 'int'],
+        'ENTRY_WINDOW_MAX_SECONDS' => ['min' => 5, 'max' => 900, 'type' => 'int'],
+        'ENTRY_WINDOW_SECONDS' => ['min' => 5, 'max' => 900, 'type' => 'int'],
         'SIMULATOR_ENABLED' => ['type' => 'bool'],
         'DRY_RUN' => ['type' => 'bool'],
     ];

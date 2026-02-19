@@ -79,10 +79,24 @@ class StrategyParamsSeeder extends Seeder
                 'group' => 'trading',
             ],
             [
+                'key' => 'ENTRY_WINDOW_MIN_SECONDS',
+                'value' => '5',
+                'type' => 'number',
+                'description' => 'Earliest seconds-before-close allowed for entry',
+                'group' => 'trading',
+            ],
+            [
+                'key' => 'ENTRY_WINDOW_MAX_SECONDS',
+                'value' => '60',
+                'type' => 'number',
+                'description' => 'Latest seconds-before-close allowed for entry',
+                'group' => 'trading',
+            ],
+            [
                 'key' => 'ENTRY_WINDOW_SECONDS',
                 'value' => '60',
                 'type' => 'number',
-                'description' => 'Only enter within this many seconds of market close',
+                'description' => '[Legacy fallback] single entry window max seconds',
                 'group' => 'trading',
             ],
             [

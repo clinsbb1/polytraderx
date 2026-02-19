@@ -35,9 +35,11 @@ class ReflexesService
 
         // 2. Entry window?
         $inWindow = $this->timingService->isInEntryWindow($market, $userId);
+        $entryWindow = $this->timingService->getEntryWindowRange($userId);
         $details['in_entry_window'] = $inWindow;
         $details['seconds_remaining'] = $market['seconds_remaining'] ?? 0;
-        $details['entry_window_seconds'] = $this->settings->getInt('ENTRY_WINDOW_SECONDS', 60, $userId);
+        $details['entry_window_min_seconds'] = $entryWindow['min'];
+        $details['entry_window_max_seconds'] = $entryWindow['max'];
         if (!$inWindow) {
             $rulesFailed[] = 'outside_entry_window';
             return $this->skipResult($rulesPassed, $rulesFailed, 'Market not in entry window', $details);

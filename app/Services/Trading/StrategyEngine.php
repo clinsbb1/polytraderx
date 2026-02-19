@@ -77,7 +77,9 @@ class StrategyEngine
             ->filter(fn(array $market) => ((int) ($market['seconds_remaining'] ?? 0)) > 0)
             ->filter(fn(array $market) => ((int) ($market['seconds_remaining'] ?? 0)) <= 300)
             ->count();
-        $entryWindowSeconds = $this->settings->getInt('ENTRY_WINDOW_SECONDS', 60, $user->id);
+        $entryWindow = $this->timingService->getEntryWindowRange($user->id);
+        $entryWindowMin = $entryWindow['min'];
+        $entryWindowMax = $entryWindow['max'];
 
         // Filter to entry window
         $entryMarkets = $this->timingService->getActiveEntryWindows($markets, $user->id);
@@ -87,14 +89,15 @@ class StrategyEngine
             $user->id,
             $cycleId,
             'cycle_scanned',
-            "Scanned {$summary['markets_scanned']} market(s) [5min: {$scanned5Min}, 15min: {$scanned15Min}] [BTC: {$assetBreakdown['BTC']}, ETH: {$assetBreakdown['ETH']}, SOL: {$assetBreakdown['SOL']}, XRP: {$assetBreakdown['XRP']}], {$summary['in_entry_window']} in entry window (window={$entryWindowSeconds}s, nearest_close=" . ($nearestCloseSeconds ?? 'n/a') . "s).",
+            "Scanned {$summary['markets_scanned']} market(s) [5min: {$scanned5Min}, 15min: {$scanned15Min}] [BTC: {$assetBreakdown['BTC']}, ETH: {$assetBreakdown['ETH']}, SOL: {$assetBreakdown['SOL']}, XRP: {$assetBreakdown['XRP']}], {$summary['in_entry_window']} in entry window (window={$entryWindowMin}-{$entryWindowMax}s, nearest_close=" . ($nearestCloseSeconds ?? 'n/a') . "s).",
             context: [
                 'markets_scanned' => $summary['markets_scanned'],
                 'markets_scanned_5min' => $scanned5Min,
                 'markets_scanned_15min' => $scanned15Min,
                 'markets_scanned_by_asset' => $assetBreakdown,
                 'in_entry_window' => $summary['in_entry_window'],
-                'entry_window_seconds' => $entryWindowSeconds,
+                'entry_window_min_seconds' => $entryWindowMin,
+                'entry_window_max_seconds' => $entryWindowMax,
                 'nearest_close_seconds' => $nearestCloseSeconds,
                 'markets_within_5m' => $withinFiveMinutes,
             ]
@@ -116,7 +119,8 @@ class StrategyEngine
                     action: 'SKIP_NOT_IN_ENTRY_WINDOW',
                     message: "Scanned market outside entry window ({$secondsRemaining}s remaining).",
                     context: [
-                        'entry_window_seconds' => $entryWindowSeconds,
+                        'entry_window_min_seconds' => $entryWindowMin,
+                        'entry_window_max_seconds' => $entryWindowMax,
                         'seconds_remaining' => $secondsRemaining,
                         'duration' => $market['duration'] ?? null,
                     ]

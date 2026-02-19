@@ -17,7 +17,8 @@ class StrategyController extends Controller
         $telegramLinked = auth()->user()?->hasTelegramLinked() ?? false;
         $groups = [
             'risk' => $settings->getGroup('risk', $userId),
-            'trading' => $settings->getGroup('trading', $userId)->reject(fn($param) => $param->key === 'DRY_RUN'),
+            'trading' => $settings->getGroup('trading', $userId)
+                ->reject(fn($param) => in_array($param->key, ['DRY_RUN', 'ENTRY_WINDOW_SECONDS'], true)),
             'notifications' => $settings->getGroup('notifications', $userId),
         ];
 
@@ -30,8 +31,27 @@ class StrategyController extends Controller
         $simulatorEnabled = false;
         $blockedSimulatorEnable = false;
         $telegramLinked = $request->user()?->hasTelegramLinked() ?? false;
+        $pendingWindowMin = null;
+        $pendingWindowMax = null;
 
         foreach ($params as $key => $value) {
+            if ($key === 'ENTRY_WINDOW_MIN_SECONDS') {
+                $pendingWindowMin = (int) $value;
+                continue;
+            }
+
+            if ($key === 'ENTRY_WINDOW_MAX_SECONDS') {
+                $pendingWindowMax = (int) $value;
+                continue;
+            }
+
+            // Backward compatibility for older clients still submitting one value.
+            if ($key === 'ENTRY_WINDOW_SECONDS') {
+                $pendingWindowMin = 5;
+                $pendingWindowMax = (int) $value;
+                continue;
+            }
+
             if ($key === 'SIMULATOR_ENABLED') {
                 $wantsEnable = in_array(strtolower((string) $value), ['1', 'true', 'yes', 'on'], true);
 
@@ -45,6 +65,22 @@ class StrategyController extends Controller
             }
 
             $settings->set($key, $value, 'admin', auth()->id());
+        }
+
+        if ($pendingWindowMin !== null || $pendingWindowMax !== null) {
+            $currentMin = $settings->getInt('ENTRY_WINDOW_MIN_SECONDS', 5, auth()->id());
+            $legacyMax = $settings->getInt('ENTRY_WINDOW_SECONDS', 60, auth()->id());
+            $currentMax = $settings->getInt('ENTRY_WINDOW_MAX_SECONDS', $legacyMax, auth()->id());
+
+            $windowMin = $pendingWindowMin ?? $currentMin;
+            $windowMax = $pendingWindowMax ?? $currentMax;
+            [$windowMin, $windowMax] = $this->normalizeEntryWindowRange($windowMin, $windowMax);
+
+            $settings->set('ENTRY_WINDOW_MIN_SECONDS', (string) $windowMin, 'admin', auth()->id());
+            $settings->set('ENTRY_WINDOW_MAX_SECONDS', (string) $windowMax, 'admin', auth()->id());
+
+            // Keep legacy key aligned as max-bound fallback.
+            $settings->set('ENTRY_WINDOW_SECONDS', (string) $windowMax, 'admin', auth()->id());
         }
 
         if ($simulatorEnabled) {
@@ -81,5 +117,17 @@ class StrategyController extends Controller
         }
 
         return back()->with('toast', $enabled ? 'Simulator turned on.' : 'Simulator turned off.');
+    }
+
+    private function normalizeEntryWindowRange(int $minSeconds, int $maxSeconds): array
+    {
+        $minSeconds = max(5, min(900, $minSeconds));
+        $maxSeconds = max(5, min(900, $maxSeconds));
+
+        if ($minSeconds > $maxSeconds) {
+            [$minSeconds, $maxSeconds] = [$maxSeconds, $minSeconds];
+        }
+
+        return [$minSeconds, $maxSeconds];
     }
 }
