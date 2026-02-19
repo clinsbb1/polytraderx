@@ -11,6 +11,7 @@ use App\Services\Settings\PlatformSettingsService;
 use App\Services\Settings\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -23,7 +24,24 @@ class GoogleAuthController extends Controller
 
     public function callback(): RedirectResponse
     {
-        $googleUser = Socialite::driver('google')->user();
+        try {
+            $googleUser = Socialite::driver('google')->user();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->route('login')->with(
+                'status',
+                'Google sign-in failed. Please try again or sign in with email/password.'
+            );
+        }
+
+        $email = strtolower(trim((string) $googleUser->getEmail()));
+        if ($email === '') {
+            return redirect()->route('login')->with(
+                'status',
+                'Google did not provide an email for this account. Please sign in with email/password.'
+            );
+        }
 
         // Find by google_id first
         $user = User::where('google_id', $googleUser->getId())->first();
@@ -33,30 +51,39 @@ class GoogleAuthController extends Controller
             return $this->completeLogin($user, true);
         }
 
-        // Link by email if existing account
-        $user = User::where('email', $googleUser->getEmail())->first();
+        // Existing email account without Google linkage: do not auto-link.
+        $user = User::where('email', $email)->first();
 
         if ($user) {
-            $user->update([
-                'google_id' => $googleUser->getId(),
-                'avatar_url' => $googleUser->getAvatar(),
-            ]);
-            return $this->completeLogin($user, true);
+            return redirect()->route('login')->with(
+                'status',
+                'This email already has an account, but Google is not linked to it. Sign in with email/password.'
+            );
         }
 
         // Create new user
         $trialDays = app(PlatformSettingsService::class)->getInt('DEFAULT_TRIAL_DAYS', 7);
 
-        $user = User::create([
-            'name' => $googleUser->getName(),
-            'email' => $googleUser->getEmail(),
-            'password' => bcrypt(Str::random(32)),
-            'google_id' => $googleUser->getId(),
-            'avatar_url' => $googleUser->getAvatar(),
-            'email_verified_at' => now(),
-            'subscription_plan' => 'free',
-            'trial_ends_at' => now()->addDays($trialDays),
-        ]);
+        try {
+            $user = User::create([
+                'name' => $googleUser->getName() ?: 'Google User',
+                'email' => $email,
+                'password' => bcrypt(Str::random(32)),
+                'google_id' => $googleUser->getId(),
+                'avatar_url' => $googleUser->getAvatar(),
+                'email_verified_at' => now(),
+                'subscription_plan' => 'free',
+                'trial_ends_at' => now()->addDays($trialDays),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+            Log::warning('Google OAuth user creation failed', ['email' => $email, 'error' => $e->getMessage()]);
+
+            return redirect()->route('login')->with(
+                'status',
+                'Could not complete Google sign-in right now. Please try again or sign in with email/password.'
+            );
+        }
 
         UserCredential::create(['user_id' => $user->id]);
 
