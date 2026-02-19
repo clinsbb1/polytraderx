@@ -413,9 +413,9 @@ class MarketService
 
         foreach ($tokens as $token) {
             $outcome = strtoupper($token['outcome'] ?? '');
-            if ($outcome === 'YES') {
+            if ($outcome === 'YES' || $outcome === 'UP') {
                 $yesToken = $token;
-            } elseif ($outcome === 'NO') {
+            } elseif ($outcome === 'NO' || $outcome === 'DOWN') {
                 $noToken = $token;
             }
         }
@@ -449,49 +449,55 @@ class MarketService
     private function fetchSharedActiveCryptoMarkets(): Collection
     {
         $gammaBaseUrl = rtrim((string) config('services.polymarket.gamma_url', 'https://gamma-api.polymarket.com'), '/');
-        $clobBaseUrl = rtrim((string) config('services.polymarket.base_url', 'https://clob.polymarket.com'), '/');
-        $gammaEventsUrl = $gammaBaseUrl . '/events';
-        $gammaUrl = $gammaBaseUrl . '/markets';
-        $clobUrl = $clobBaseUrl . '/markets';
+        $gammaMarketsUrl = $gammaBaseUrl . '/markets';
         $lastException = null;
 
-        // Prefer Gamma API because it carries richer market metadata (question/title/duration cues).
+        // Speed-series crypto markets (5M/15M) are NOT returned by tag_slug=crypto.
+        // They are only available via the /markets endpoint with question_contains filter,
+        // and their slugs follow: {asset}-updown-{5m|15m}-{timestamp}
+        $slugPattern = '/^(btc|eth|sol|xrp)-updown-(5m|15m)-\d+$/';
+
         for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
             try {
-                $response = Http::timeout(15)->get($gammaEventsUrl, [
+                $response = Http::timeout(15)->get($gammaMarketsUrl, [
                     'active' => true,
                     'closed' => false,
-                    'archived' => false,
-                    'tag_slug' => 'crypto',
-                    'limit' => 1000,
+                    'order' => 'startDate',
+                    'ascending' => false,
+                    'question_contains' => 'Up or Down',
+                    'limit' => 200,
                 ]);
 
                 if ($response->successful()) {
                     $payload = $response->json();
-                    $events = $payload['data'] ?? $payload;
+                    $markets = $payload['data'] ?? $payload;
 
-                    if (!is_array($events)) {
+                    if (!is_array($markets)) {
                         return collect();
                     }
 
-                    $markets = $this->flattenGammaEventsToMarkets($events);
-                    $normalized = collect($markets)
+                    // Pre-filter by slug to ensure only crypto speed-series markets pass.
+                    $speedSeries = collect($markets)
                         ->filter(fn($market) => is_array($market))
+                        ->filter(fn(array $market) => preg_match(
+                            $slugPattern,
+                            (string) ($market['slug'] ?? $market['market_slug'] ?? '')
+                        ) === 1);
+
+                    $normalized = $speedSeries
                         ->map(fn(array $market) => $this->normalizeMarket($market))
                         ->filter(fn(?array $market) => $market !== null)
                         ->values();
 
-                    if (count($markets) > 0 && $normalized->isEmpty()) {
-                        $samples = collect($markets)->take(3)->map(function ($m) {
-                            if (!is_array($m)) {
-                                return '';
-                            }
-                            return (string) ($m['question'] ?? $m['title'] ?? $m['name'] ?? $m['slug'] ?? '');
+                    if ($speedSeries->isNotEmpty() && $normalized->isEmpty()) {
+                        $samples = $speedSeries->take(3)->map(function (array $m) {
+                            return (string) ($m['question'] ?? $m['title'] ?? $m['slug'] ?? '');
                         })->values()->toArray();
-                        $dropReasons = $this->summarizeNormalizationDropReasons($markets);
+                        $dropReasons = $this->summarizeNormalizationDropReasons($speedSeries->values()->toArray());
 
-                        Log::channel('simulator')->warning('Polymarket gamma events fetch returned markets but none normalized', [
+                        Log::channel('simulator')->warning('Polymarket speed-series fetch: markets found but none normalized', [
                             'raw_count' => count($markets),
+                            'slug_matched' => $speedSeries->count(),
                             'normalized_count' => 0,
                             'sample_titles' => $samples,
                             'drop_reasons' => $dropReasons,
@@ -505,7 +511,7 @@ class MarketService
 
                 if ($status === 429 || $status >= 500) {
                     $sleepFor = (int) ($response->header('Retry-After') ?: (self::RETRY_BACKOFF_SECONDS[$attempt] ?? 2));
-                    Log::channel('simulator')->warning('Shared Polymarket gamma events fetch throttled or failed', [
+                    Log::channel('simulator')->warning('Polymarket speed-series fetch throttled or failed', [
                         'status' => $status,
                         'attempt' => $attempt + 1,
                         'retry_after' => $sleepFor,
@@ -517,93 +523,10 @@ class MarketService
                     }
                 }
 
-                Log::channel('simulator')->warning('Shared Polymarket gamma events fetch returned non-success response', [
+                Log::channel('simulator')->warning('Polymarket speed-series fetch returned non-success response', [
                     'status' => $status,
                     'body' => $response->body(),
                 ]);
-
-                // Try Gamma /markets fallback before falling through to CLOB.
-                $fallback = Http::timeout(15)->get($gammaUrl, [
-                    'active' => true,
-                    'closed' => false,
-                    'archived' => false,
-                    'tag_slug' => 'crypto',
-                    'limit' => 1000,
-                ]);
-
-                if ($fallback->successful()) {
-                    $payload = $fallback->json();
-                    $markets = $payload['data'] ?? $payload;
-                    if (!is_array($markets)) {
-                        return collect();
-                    }
-
-                    return collect($markets)
-                        ->filter(fn($market) => is_array($market))
-                        ->map(fn(array $market) => $this->normalizeMarket($market))
-                        ->filter(fn(?array $market) => $market !== null)
-                        ->values();
-                }
-
-                return collect();
-            } catch (\Throwable $e) {
-                $lastException = $e;
-
-                if ($attempt < self::MAX_RETRIES - 1) {
-                    $sleepFor = self::RETRY_BACKOFF_SECONDS[$attempt] ?? 2;
-                    sleep(max(1, $sleepFor));
-                    continue;
-                }
-            }
-        }
-
-        // Fallback to CLOB API if Gamma is unavailable.
-        for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
-            try {
-                $response = Http::timeout(15)->get($clobUrl, [
-                    'active' => 'true',
-                ]);
-
-                if ($response->successful()) {
-                    $payload = $response->json();
-                    $markets = $payload['data'] ?? $payload;
-
-                    if (!is_array($markets)) {
-                        return collect();
-                    }
-
-                    $normalized = collect($markets)
-                        ->filter(fn($market) => is_array($market))
-                        ->map(fn(array $market) => $this->normalizeMarket($market))
-                        ->filter(fn(?array $market) => $market !== null)
-                        ->values();
-
-                    if (count($markets) > 0 && $normalized->isEmpty()) {
-                        $samples = collect($markets)->take(3)->map(function ($m) {
-                            if (!is_array($m)) {
-                                return '';
-                            }
-                            return (string) ($m['question'] ?? $m['title'] ?? $m['name'] ?? $m['slug'] ?? '');
-                        })->values()->toArray();
-                        $dropReasons = $this->summarizeNormalizationDropReasons($markets);
-
-                        Log::channel('simulator')->warning('Polymarket clob fetch returned markets but none normalized', [
-                            'raw_count' => count($markets),
-                            'normalized_count' => 0,
-                            'sample_titles' => $samples,
-                            'drop_reasons' => $dropReasons,
-                        ]);
-                    }
-
-                    return $normalized;
-                }
-
-                $status = $response->status();
-                if (($status === 429 || $status >= 500) && $attempt < self::MAX_RETRIES - 1) {
-                    $sleepFor = (int) ($response->header('Retry-After') ?: (self::RETRY_BACKOFF_SECONDS[$attempt] ?? 2));
-                    sleep(max(1, $sleepFor));
-                    continue;
-                }
 
                 return collect();
             } catch (\Throwable $e) {
@@ -1097,54 +1020,30 @@ class MarketService
     private function fetchRawActiveMarketsForDiagnostics(): array
     {
         $gammaBaseUrl = rtrim((string) config('services.polymarket.gamma_url', 'https://gamma-api.polymarket.com'), '/');
-        $clobBaseUrl = rtrim((string) config('services.polymarket.base_url', 'https://clob.polymarket.com'), '/');
 
         $gammaStatus = null;
-        $clobStatus = null;
         $lastError = null;
 
         try {
-            $response = Http::timeout(15)->get($gammaBaseUrl . '/events', [
+            $response = Http::timeout(15)->get($gammaBaseUrl . '/markets', [
                 'active' => true,
                 'closed' => false,
-                'archived' => false,
-                'tag_slug' => 'crypto',
-                'limit' => 1000,
+                'order' => 'startDate',
+                'ascending' => false,
+                'question_contains' => 'Up or Down',
+                'limit' => 200,
             ]);
 
             $gammaStatus = $response->status();
             if ($response->successful()) {
                 $payload = $response->json();
-                $events = $payload['data'] ?? $payload;
-                $markets = is_array($events) ? $this->flattenGammaEventsToMarkets($events) : [];
-
-                return [
-                    'source' => 'gamma_events',
-                    'markets' => $markets,
-                    'gamma_status' => $gammaStatus,
-                    'clob_status' => $clobStatus,
-                    'http_error' => null,
-                ];
-            }
-        } catch (\Throwable $e) {
-            $lastError = $e->getMessage();
-        }
-
-        try {
-            $response = Http::timeout(15)->get($clobBaseUrl . '/markets', [
-                'active' => 'true',
-            ]);
-
-            $clobStatus = $response->status();
-            if ($response->successful()) {
-                $payload = $response->json();
                 $markets = $payload['data'] ?? $payload;
 
                 return [
-                    'source' => 'clob',
+                    'source' => 'gamma_markets',
                     'markets' => is_array($markets) ? $markets : [],
                     'gamma_status' => $gammaStatus,
-                    'clob_status' => $clobStatus,
+                    'clob_status' => null,
                     'http_error' => null,
                 ];
             }
@@ -1156,7 +1055,7 @@ class MarketService
             'source' => null,
             'markets' => [],
             'gamma_status' => $gammaStatus,
-            'clob_status' => $clobStatus,
+            'clob_status' => null,
             'http_error' => $lastError,
         ];
     }
