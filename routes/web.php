@@ -20,6 +20,7 @@ use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\Admin\AdminAiCostController;
 use App\Http\Controllers\Admin\AdminAnnouncementController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminEmailMessageController;
 use App\Http\Controllers\Admin\AdminLogController;
 use App\Http\Controllers\Admin\AdminPaymentController;
 use App\Http\Controllers\Admin\AdminPlanController;
@@ -370,6 +371,7 @@ Route::middleware(['auth', 'superadmin', 'simulation_acknowledged'])->prefix('ad
     Route::get('/settings/diagnostics', [AdminSettingController::class, 'serviceDiagnostics']);
     Route::get('/telegram/messages', [AdminTelegramMessageController::class, 'index']);
     Route::post('/telegram/messages/send', [AdminTelegramMessageController::class, 'send'])->name('admin.telegram.messages.send');
+    Route::get('/email/messages', [AdminEmailMessageController::class, 'index'])->name('admin.email.messages.index');
 
     Route::get('/logs', [AdminLogController::class, 'index']);
 

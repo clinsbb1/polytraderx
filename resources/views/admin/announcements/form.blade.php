@@ -85,6 +85,7 @@
             </div>
 
             <div class="mb-3">
+                <input type="hidden" name="is_active" value="0">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="is_active" value="1" id="isActive"
                         {{ old('is_active', $announcement->is_active ?? true) ? 'checked' : '' }}>
@@ -94,6 +95,7 @@
             </div>
 
             <div class="mb-4">
+                <input type="hidden" name="show_on_dashboard" value="0">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="show_on_dashboard" value="1" id="showOnDashboard"
                         {{ old('show_on_dashboard', $announcement->show_on_dashboard ?? true) ? 'checked' : '' }}>
@@ -116,6 +118,7 @@
             </div>
 
             <div class="mb-4">
+                <input type="hidden" name="send_email" value="0">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="send_email" value="1" id="sendEmail"
                         {{ old('send_email', false) ? 'checked' : '' }}>

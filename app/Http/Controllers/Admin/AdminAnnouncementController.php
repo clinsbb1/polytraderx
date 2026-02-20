@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendAdminEmailMessageJob;
 use App\Mail\BrandedNotificationMail;
+use App\Models\AdminEmailMessage;
 use App\Models\AdminTelegramMessage;
 use App\Models\Announcement;
 use App\Models\User;
@@ -16,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -55,8 +58,8 @@ class AdminAnnouncementController extends Controller
             'send_email' => ['boolean'],
         ]);
 
-        $validated['is_active'] = $request->boolean('is_active', true);
-        $validated['show_on_dashboard'] = $request->boolean('show_on_dashboard', true);
+        $validated['is_active'] = $request->boolean('is_active');
+        $validated['show_on_dashboard'] = $request->boolean('show_on_dashboard');
         $validated['dashboard_until_at'] = $validated['show_on_dashboard']
             ? Carbon::parse((string) $request->input('dashboard_until_date'))->endOfDay()
             : null;
@@ -72,7 +75,7 @@ class AdminAnnouncementController extends Controller
             $queuedCount = $this->queueTelegramBroadcast($announcement, (int) auth()->id());
         }
         $emailQueuedCount = $request->boolean('send_email')
-            ? $this->queueEmailBroadcast($announcement)
+            ? $this->queueEmailBroadcast($announcement, (int) auth()->id())
             : 0;
 
         $message = 'Announcement created.';
@@ -124,7 +127,7 @@ class AdminAnnouncementController extends Controller
             $queuedCount = $this->queueTelegramBroadcast($announcement, (int) auth()->id());
         }
         $emailQueuedCount = $request->boolean('send_email')
-            ? $this->queueEmailBroadcast($announcement)
+            ? $this->queueEmailBroadcast($announcement, (int) auth()->id())
             : 0;
 
         $message = 'Announcement updated.';
@@ -202,17 +205,21 @@ class AdminAnnouncementController extends Controller
         }
     }
 
-    private function queueEmailBroadcast(Announcement $announcement): int
+    private function queueEmailBroadcast(Announcement $announcement, int $adminId): int
     {
         $count = 0;
         $headline = 'Platform Announcement';
+        $batchId = (string) Str::uuid();
+        $emailQueue = (string) config('services.queues.email', 'emails');
+        $isBroadcast = ($announcement->audience_type ?? 'all') !== 'single';
+        $trackingEnabled = Schema::hasTable('admin_email_messages');
 
         $this->recipientUsersQuery($announcement)
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->select('id', 'name', 'email', 'account_id', 'subscription_plan', 'subscription_ends_at')
             ->orderBy('id')
-            ->chunkById(500, function ($users) use (&$count, $headline, $announcement) {
+            ->chunkById(500, function ($users) use (&$count, $headline, $announcement, $adminId, $batchId, $emailQueue, $isBroadcast) {
                 foreach ($users as $user) {
                     $subject = 'Platform Announcement: '
                         . trim(strip_tags(AnnouncementTemplate::render((string) $announcement->title, $user)));
@@ -223,23 +230,59 @@ class AdminAnnouncementController extends Controller
                         $safeBody,
                     ]));
 
+                    if ($trackingEnabled) {
+                        try {
+                            $message = AdminEmailMessage::create([
+                                'admin_id' => $adminId,
+                                'recipient_user_id' => $user->id,
+                                'announcement_id' => $announcement->id,
+                                'recipient_email' => (string) $user->email,
+                                'batch_id' => $batchId,
+                                'is_broadcast' => $isBroadcast,
+                                'subject' => $subject,
+                                'headline' => $headline,
+                                'lines' => $lines,
+                                'action_text' => 'Open Dashboard',
+                                'action_url' => url('/dashboard'),
+                                'small_print' => 'This announcement was sent by PolyTraderX admin.',
+                                'status' => 'pending',
+                                'attempts' => 0,
+                                'last_attempt_at' => null,
+                                'success' => false,
+                                'error_message' => null,
+                                'sent_at' => null,
+                            ]);
+                            SendAdminEmailMessageJob::dispatch($message->id)
+                                ->onQueue($emailQueue);
+                            $count++;
+                            continue;
+                        } catch (\Throwable $e) {
+                            Log::channel('simulator')->warning('Failed to queue tracked announcement email, falling back to direct queue', [
+                                'announcement_id' => $announcement->id,
+                                'admin_id' => $adminId,
+                                'user_id' => $user->id,
+                                'email' => $user->email,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+
                     try {
-                        Mail::to($user->email)->queue(
-                            (new BrandedNotificationMail(
-                                subjectLine: $subject,
-                                headline: $headline,
-                                lines: $lines,
-                                actionText: 'Open Dashboard',
-                                actionUrl: url('/dashboard'),
-                                smallPrint: 'This announcement was sent by PolyTraderX admin.'
-                            ))->onQueue((string) config('services.queues.email', 'emails'))
+                        $this->queueDirectAnnouncementEmail(
+                            toEmail: (string) $user->email,
+                            subject: $subject,
+                            headline: $headline,
+                            lines: $lines,
+                            emailQueue: $emailQueue
                         );
                         $count++;
                     } catch (\Throwable $e) {
-                        Log::channel('simulator')->warning('Failed to queue announcement email', [
+                        Log::channel('simulator')->warning('Failed to queue fallback announcement email', [
                             'announcement_id' => $announcement->id,
+                            'admin_id' => $adminId,
                             'user_id' => $user->id,
                             'email' => $user->email,
+                            'tracking_enabled' => $trackingEnabled,
                             'error' => $e->getMessage(),
                         ]);
                     }
@@ -247,6 +290,28 @@ class AdminAnnouncementController extends Controller
             });
 
         return $count;
+    }
+
+    /**
+     * @param array<int,string> $lines
+     */
+    private function queueDirectAnnouncementEmail(
+        string $toEmail,
+        string $subject,
+        string $headline,
+        array $lines,
+        string $emailQueue
+    ): void {
+        Mail::to($toEmail)->queue(
+            (new BrandedNotificationMail(
+                subjectLine: $subject,
+                headline: $headline,
+                lines: $lines,
+                actionText: 'Open Dashboard',
+                actionUrl: url('/dashboard'),
+                smallPrint: 'This announcement was sent by PolyTraderX admin.'
+            ))->onQueue($emailQueue)
+        );
     }
 
     /**

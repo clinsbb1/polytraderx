@@ -63,6 +63,9 @@
             <a class="nav-link {{ request()->is('admin/telegram/messages*') ? 'active' : '' }}" href="/admin/telegram/messages">
                 <i class="bi bi-telegram me-2"></i>Telegram Messages
             </a>
+            <a class="nav-link {{ request()->is('admin/email/messages*') ? 'active' : '' }}" href="/admin/email/messages">
+                <i class="bi bi-envelope me-2"></i>Email Messages
+            </a>
             <a class="nav-link {{ request()->is('admin/logs*') ? 'active' : '' }}" href="/admin/logs">
                 <i class="bi bi-journal-text me-2"></i>Trade Logs
             </a>
