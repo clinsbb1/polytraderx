@@ -17,6 +17,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Title</th>
+                        <th>Audience</th>
                         <th>Type</th>
                         <th class="text-center">Active</th>
                         <th class="text-center">Dashboard</th>
@@ -30,6 +31,22 @@
                     @forelse($announcements as $a)
                     <tr>
                         <td class="fw-semibold">{{ $a->title }}</td>
+                        <td>
+                            @if(($a->audience_type ?? 'all') === 'single')
+                                <span class="badge bg-primary">Single User</span>
+                                <div class="small text-muted mt-1">
+                                    @if($a->targetUser)
+                                        #{{ $a->targetUser->id }} — {{ $a->targetUser->account_id ?? 'N/A' }} — {{ $a->targetUser->email ?? 'N/A' }}
+                                    @elseif($a->target_user_id)
+                                        #{{ $a->target_user_id }}
+                                    @else
+                                        Not set
+                                    @endif
+                                </div>
+                            @else
+                                <span class="badge bg-secondary">All Users</span>
+                            @endif
+                        </td>
                         <td>
                             @php
                                 $typeColors = ['info' => 'info', 'warning' => 'warning', 'success' => 'success', 'danger' => 'danger'];
@@ -80,7 +97,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
+                        <td colspan="9" class="text-center text-muted py-4">
                             <i class="bi bi-megaphone fs-3 d-block mb-2"></i>
                             No announcements yet. Create your first one.
                         </td>

@@ -11,6 +11,7 @@ use App\Models\Announcement;
 use App\Models\User;
 use App\Support\AnnouncementTemplate;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -22,14 +23,22 @@ class AdminAnnouncementController extends Controller
 {
     public function index(): View
     {
-        $announcements = Announcement::latest()->paginate(20)->withQueryString();
+        $announcements = Announcement::with('targetUser:id,name,email,account_id')
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.announcements.index', compact('announcements'));
     }
 
     public function create(): View
     {
-        return view('admin.announcements.form', ['announcement' => null]);
+        $targetUserOptions = $this->buildTargetUserOptions();
+
+        return view('admin.announcements.form', [
+            'announcement' => null,
+            'targetUserOptions' => $targetUserOptions,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -41,6 +50,8 @@ class AdminAnnouncementController extends Controller
             'is_active' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
             'dashboard_until_date' => ['required_if:show_on_dashboard,1', 'nullable', 'date'],
+            'audience_type' => ['required', 'in:all,single'],
+            'target_user_id' => ['nullable', 'required_if:audience_type,single', 'integer', 'exists:users,id'],
             'send_email' => ['boolean'],
         ]);
 
@@ -48,6 +59,9 @@ class AdminAnnouncementController extends Controller
         $validated['show_on_dashboard'] = $request->boolean('show_on_dashboard', true);
         $validated['dashboard_until_at'] = $validated['show_on_dashboard']
             ? Carbon::parse((string) $request->input('dashboard_until_date'))->endOfDay()
+            : null;
+        $validated['target_user_id'] = $validated['audience_type'] === 'single'
+            ? (int) $request->input('target_user_id')
             : null;
         unset($validated['dashboard_until_date']);
 
@@ -74,7 +88,9 @@ class AdminAnnouncementController extends Controller
 
     public function edit(Announcement $announcement): View
     {
-        return view('admin.announcements.form', compact('announcement'));
+        $targetUserOptions = $this->buildTargetUserOptions($announcement);
+
+        return view('admin.announcements.form', compact('announcement', 'targetUserOptions'));
     }
 
     public function update(Request $request, Announcement $announcement): RedirectResponse
@@ -86,6 +102,8 @@ class AdminAnnouncementController extends Controller
             'is_active' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
             'dashboard_until_date' => ['required_if:show_on_dashboard,1', 'nullable', 'date'],
+            'audience_type' => ['required', 'in:all,single'],
+            'target_user_id' => ['nullable', 'required_if:audience_type,single', 'integer', 'exists:users,id'],
             'send_email' => ['boolean'],
         ]);
 
@@ -93,6 +111,9 @@ class AdminAnnouncementController extends Controller
         $validated['show_on_dashboard'] = $request->boolean('show_on_dashboard');
         $validated['dashboard_until_at'] = $validated['show_on_dashboard']
             ? Carbon::parse((string) $request->input('dashboard_until_date'))->endOfDay()
+            : null;
+        $validated['target_user_id'] = $validated['audience_type'] === 'single'
+            ? (int) $request->input('target_user_id')
             : null;
         unset($validated['dashboard_until_date']);
 
@@ -126,7 +147,7 @@ class AdminAnnouncementController extends Controller
 
     private function queueTelegramBroadcast(Announcement $announcement, int $adminId): int
     {
-        $recipients = User::query()
+        $recipients = $this->recipientUsersQuery($announcement)
             ->whereNotNull('telegram_chat_id')
             ->get(['id', 'name', 'email', 'account_id', 'subscription_plan', 'subscription_ends_at', 'telegram_chat_id']);
 
@@ -154,7 +175,7 @@ class AdminAnnouncementController extends Controller
                 'recipient_user_id' => $recipient->id,
                 'recipient_chat_id' => $recipient->telegram_chat_id,
                 'batch_id' => $batchId,
-                'is_broadcast' => true,
+                'is_broadcast' => ($announcement->audience_type ?? 'all') !== 'single',
                 'message' => $message,
                 'image_path' => null,
                 'status' => 'pending',
@@ -186,7 +207,7 @@ class AdminAnnouncementController extends Controller
         $count = 0;
         $headline = 'Platform Announcement';
 
-        User::query()
+        $this->recipientUsersQuery($announcement)
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->select('id', 'name', 'email', 'account_id', 'subscription_plan', 'subscription_ends_at')
@@ -226,5 +247,45 @@ class AdminAnnouncementController extends Controller
             });
 
         return $count;
+    }
+
+    /**
+     * Base recipient query based on announcement audience targeting.
+     */
+    private function recipientUsersQuery(Announcement $announcement): Builder
+    {
+        $query = User::query();
+
+        if (($announcement->audience_type ?? 'all') === 'single' && $announcement->target_user_id !== null) {
+            $query->whereKey((int) $announcement->target_user_id);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Provide a recent user list for quick target selection in admin UI.
+     */
+    private function buildTargetUserOptions(?Announcement $announcement = null)
+    {
+        $users = User::query()
+            ->select('id', 'name', 'email', 'account_id')
+            ->orderByDesc('id')
+            ->limit(300)
+            ->get();
+
+        $targetId = (int) ($announcement?->target_user_id ?? 0);
+        if ($targetId > 0 && !$users->contains('id', $targetId)) {
+            $targetUser = User::query()
+                ->select('id', 'name', 'email', 'account_id')
+                ->whereKey($targetId)
+                ->first();
+
+            if ($targetUser) {
+                $users->prepend($targetUser);
+            }
+        }
+
+        return $users;
     }
 }

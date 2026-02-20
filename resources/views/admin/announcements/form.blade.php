@@ -46,6 +46,44 @@
                 @error('type') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
 
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Audience <span class="text-danger">*</span></label>
+                @php
+                    $audienceType = old('audience_type', $announcement->audience_type ?? 'all');
+                @endphp
+                <select name="audience_type" id="audienceType" class="form-select @error('audience_type') is-invalid @enderror" required>
+                    <option value="all" {{ $audienceType === 'all' ? 'selected' : '' }}>All Users</option>
+                    <option value="single" {{ $audienceType === 'single' ? 'selected' : '' }}>Single User</option>
+                </select>
+                @error('audience_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <div class="form-text">Choose whether this announcement should go to everyone or only one user.</div>
+            </div>
+
+            <div class="mb-4" id="singleUserTargetWrap">
+                <label class="form-label fw-semibold">Target User ID <span class="text-danger">*</span></label>
+                <input
+                    type="number"
+                    min="1"
+                    name="target_user_id"
+                    id="targetUserId"
+                    class="form-control @error('target_user_id') is-invalid @enderror"
+                    value="{{ old('target_user_id', $announcement->target_user_id ?? '') }}"
+                    placeholder="Enter user ID"
+                >
+                @error('target_user_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <div class="form-text">
+                    Quick pick (recent users):
+                    <select id="targetUserQuickPick" class="form-select form-select-sm mt-2">
+                        <option value="">Select a user (optional)</option>
+                        @foreach($targetUserOptions as $u)
+                            <option value="{{ $u->id }}">
+                                #{{ $u->id }} — {{ $u->account_id ?? 'N/A' }} — {{ $u->name ?? 'N/A' }} — {{ $u->email ?? 'N/A' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="is_active" value="1" id="isActive"
@@ -83,7 +121,7 @@
                         {{ old('send_email', false) ? 'checked' : '' }}>
                     <label class="form-check-label" for="sendEmail">Send Email</label>
                 </div>
-                <div class="form-text">If checked, this announcement is queued to all users with an email address.</div>
+                <div class="form-text">If checked, this announcement is queued by the selected audience target.</div>
             </div>
 
             <div class="d-flex justify-content-between">
@@ -100,8 +138,12 @@
     (function () {
         var showOnDashboard = document.getElementById('showOnDashboard');
         var dashboardUntilDate = document.getElementById('dashboardUntilDate');
+        var audienceType = document.getElementById('audienceType');
+        var singleUserTargetWrap = document.getElementById('singleUserTargetWrap');
+        var targetUserId = document.getElementById('targetUserId');
+        var targetUserQuickPick = document.getElementById('targetUserQuickPick');
 
-        if (!showOnDashboard || !dashboardUntilDate) {
+        if (!showOnDashboard || !dashboardUntilDate || !audienceType || !singleUserTargetWrap || !targetUserId || !targetUserQuickPick) {
             return;
         }
 
@@ -112,8 +154,26 @@
             }
         }
 
+        function syncAudienceState() {
+            var isSingle = audienceType.value === 'single';
+            singleUserTargetWrap.style.display = isSingle ? '' : 'none';
+            targetUserId.required = isSingle;
+            if (!isSingle) {
+                targetUserId.value = '';
+                targetUserQuickPick.value = '';
+            }
+        }
+
+        targetUserQuickPick.addEventListener('change', function () {
+            if (targetUserQuickPick.value) {
+                targetUserId.value = targetUserQuickPick.value;
+            }
+        });
+
         showOnDashboard.addEventListener('change', syncRequiredState);
+        audienceType.addEventListener('change', syncAudienceState);
         syncRequiredState();
+        syncAudienceState();
     })();
 </script>
 @endsection

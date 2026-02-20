@@ -142,7 +142,11 @@ class DashboardController extends Controller
     {
         $userId = (int) $request->user()->id;
 
-        if (! $announcement->is_active || ! $announcement->show_on_dashboard || $announcement->isClosed()) {
+        $isVisibleToUser = Announcement::forDashboard($userId)
+            ->whereKey($announcement->id)
+            ->exists();
+
+        if (! $isVisibleToUser) {
             abort(404);
         }
 
