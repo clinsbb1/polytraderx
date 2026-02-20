@@ -219,7 +219,7 @@ class AdminAnnouncementController extends Controller
             ->where('email', '!=', '')
             ->select('id', 'name', 'email', 'account_id', 'subscription_plan', 'subscription_ends_at')
             ->orderBy('id')
-            ->chunkById(500, function ($users) use (&$count, $headline, $announcement, $adminId, $batchId, $emailQueue, $isBroadcast) {
+            ->chunkById(500, function ($users) use (&$count, $headline, $announcement, $adminId, $batchId, $emailQueue, $isBroadcast, $trackingEnabled) {
                 foreach ($users as $user) {
                     $subject = 'Platform Announcement: '
                         . trim(strip_tags(AnnouncementTemplate::render((string) $announcement->title, $user)));
