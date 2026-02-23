@@ -28,6 +28,7 @@ class StrategyEngine
         private TradeExecutor $tradeExecutor,
         private SettingsService $settings,
         private SubscriptionService $subscriptionService,
+        private SimulationBalanceService $simulationBalanceService,
     ) {}
 
     public function runForUser(User $user): array
@@ -47,6 +48,40 @@ class StrategyEngine
             $summary['skipped'][] = 'Simulator disabled';
             $this->logBotActivity($user->id, $cycleId, 'cycle_skipped', 'Simulator is disabled for this user.');
             return $summary;
+        }
+
+        // Hard guard: never run simulator cycles when simulated cash balance is depleted.
+        try {
+            $state = $this->simulationBalanceService->calculateForUser($user->id);
+            $balance = (float) ($state['balance'] ?? 0.0);
+
+            if (!is_finite($balance) || $balance <= 0.0) {
+                $this->settings->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
+                $summary['skipped'][] = 'Simulator auto-disabled: balance is $0.00 or below';
+                $this->logBotActivity(
+                    $user->id,
+                    $cycleId,
+                    'cycle_skipped',
+                    'Simulator auto-disabled: simulated balance is $0.00 or below.',
+                    context: ['balance' => $balance]
+                );
+
+                try {
+                    app(\App\Services\Telegram\NotificationService::class)->notifyBotPaused(
+                        'Balance is $0.00 or below. Simulator has been turned off. Reset your balance in your account, then re-enable the simulator.',
+                        $user
+                    );
+                } catch (\Throwable) {
+                    // Notification failure must never break simulator safety guard.
+                }
+
+                return $summary;
+            }
+        } catch (\Throwable $e) {
+            Log::channel('simulator')->warning('Failed to evaluate simulated balance before cycle', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
         }
 
         // Check signal limit

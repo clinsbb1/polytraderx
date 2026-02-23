@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Services\Settings\SettingsService;
+use App\Services\Trading\SimulationBalanceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class StrategyController extends Controller
@@ -25,11 +27,18 @@ class StrategyController extends Controller
         return view('strategy.index', compact('groups', 'telegramLinked'));
     }
 
-    public function update(Request $request, string $group, SettingsService $settings): RedirectResponse
+    public function update(
+        Request $request,
+        string $group,
+        SettingsService $settings,
+        SimulationBalanceService $balanceService
+    ): RedirectResponse
     {
         $params = $request->input('params', []);
+        $userId = (int) $request->user()->id;
         $simulatorEnabled = false;
         $blockedSimulatorEnable = false;
+        $blockedForLowBalance = false;
         $telegramLinked = $request->user()?->hasTelegramLinked() ?? false;
         $pendingWindowMin = null;
         $pendingWindowMax = null;
@@ -57,30 +66,36 @@ class StrategyController extends Controller
 
                 if ($wantsEnable && !$telegramLinked) {
                     $blockedSimulatorEnable = true;
-                    $settings->set('SIMULATOR_ENABLED', 'false', 'system', auth()->id());
+                    $settings->set('SIMULATOR_ENABLED', 'false', 'system', $userId);
+                    continue;
+                }
+
+                if ($wantsEnable && !$this->hasPositiveSimulatedBalance($userId, $balanceService)) {
+                    $blockedForLowBalance = true;
+                    $settings->set('SIMULATOR_ENABLED', 'false', 'system', $userId);
                     continue;
                 }
 
                 $simulatorEnabled = $wantsEnable;
             }
 
-            $settings->set($key, $value, 'admin', auth()->id());
+            $settings->set($key, $value, 'admin', $userId);
         }
 
         if ($pendingWindowMin !== null || $pendingWindowMax !== null) {
-            $currentMin = $settings->getInt('ENTRY_WINDOW_MIN_SECONDS', 5, auth()->id());
-            $legacyMax = $settings->getInt('ENTRY_WINDOW_SECONDS', 60, auth()->id());
-            $currentMax = $settings->getInt('ENTRY_WINDOW_MAX_SECONDS', $legacyMax, auth()->id());
+            $currentMin = $settings->getInt('ENTRY_WINDOW_MIN_SECONDS', 5, $userId);
+            $legacyMax = $settings->getInt('ENTRY_WINDOW_SECONDS', 60, $userId);
+            $currentMax = $settings->getInt('ENTRY_WINDOW_MAX_SECONDS', $legacyMax, $userId);
 
             $windowMin = $pendingWindowMin ?? $currentMin;
             $windowMax = $pendingWindowMax ?? $currentMax;
             [$windowMin, $windowMax] = $this->normalizeEntryWindowRange($windowMin, $windowMax);
 
-            $settings->set('ENTRY_WINDOW_MIN_SECONDS', (string) $windowMin, 'admin', auth()->id());
-            $settings->set('ENTRY_WINDOW_MAX_SECONDS', (string) $windowMax, 'admin', auth()->id());
+            $settings->set('ENTRY_WINDOW_MIN_SECONDS', (string) $windowMin, 'admin', $userId);
+            $settings->set('ENTRY_WINDOW_MAX_SECONDS', (string) $windowMax, 'admin', $userId);
 
             // Keep legacy key aligned as max-bound fallback.
-            $settings->set('ENTRY_WINDOW_SECONDS', (string) $windowMax, 'admin', auth()->id());
+            $settings->set('ENTRY_WINDOW_SECONDS', (string) $windowMax, 'admin', $userId);
         }
 
         if ($simulatorEnabled) {
@@ -93,22 +108,36 @@ class StrategyController extends Controller
         if ($blockedSimulatorEnable) {
             $message .= ' Simulator remains off until Telegram is linked.';
         }
+        if ($blockedForLowBalance) {
+            $message .= ' Simulator remains off because your simulated balance is $0.00 or below. Reset your balance in the Balance page first.';
+        }
 
         return redirect()->route('strategy.index')->with('success', $message);
     }
 
-    public function toggleSimulator(Request $request, SettingsService $settings): RedirectResponse
+    public function toggleSimulator(
+        Request $request,
+        SettingsService $settings,
+        SimulationBalanceService $balanceService
+    ): RedirectResponse
     {
+        $userId = (int) $request->user()->id;
         $enabled = $request->boolean('simulator_enabled');
         $telegramLinked = $request->user()?->hasTelegramLinked() ?? false;
 
         if ($enabled && !$telegramLinked) {
-            $settings->set('SIMULATOR_ENABLED', 'false', 'system', auth()->id());
+            $settings->set('SIMULATOR_ENABLED', 'false', 'system', $userId);
 
             return back()->with('toast', 'Link Telegram first to turn on simulator. Simulator remains off.');
         }
 
-        $settings->set('SIMULATOR_ENABLED', $enabled ? 'true' : 'false', 'admin', auth()->id());
+        if ($enabled && !$this->hasPositiveSimulatedBalance($userId, $balanceService)) {
+            $settings->set('SIMULATOR_ENABLED', 'false', 'system', $userId);
+
+            return back()->with('toast', 'Simulator remains off because your simulated balance is $0.00 or below. Reset your balance first.');
+        }
+
+        $settings->set('SIMULATOR_ENABLED', $enabled ? 'true' : 'false', 'admin', $userId);
 
         if ($enabled) {
             session()->flash('analytics_events', [
@@ -129,5 +158,22 @@ class StrategyController extends Controller
         }
 
         return [$minSeconds, $maxSeconds];
+    }
+
+    private function hasPositiveSimulatedBalance(int $userId, SimulationBalanceService $balanceService): bool
+    {
+        try {
+            $state = $balanceService->calculateForUser($userId);
+            $balance = (float) ($state['balance'] ?? 0.0);
+
+            return is_finite($balance) && $balance > 0.0;
+        } catch (\Throwable $e) {
+            Log::channel('simulator')->warning('Failed to validate simulated balance before simulator toggle', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 }

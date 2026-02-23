@@ -138,6 +138,21 @@ class NotificationFormatterTest extends TestCase
         $this->assertStringContainsString('20.00', $result);
     }
 
+    public function test_format_invalid_entry_price(): void
+    {
+        $user = new User(['name' => 'Test']);
+        $market = [
+            'asset' => 'BTC',
+            'question' => 'Will BTC be above $100k in 15 minutes?',
+        ];
+        $result = $this->formatter->formatInvalidEntryPrice(0.0, $market, $user);
+
+        $this->assertStringContainsString('Trade Skipped', $result);
+        $this->assertStringContainsString('invalid entry price', strtolower($result));
+        $this->assertStringContainsString('BTC', $result);
+        $this->assertStringContainsString('/balance', $result);
+    }
+
     public function test_format_error_alert(): void
     {
         $user = new User(['name' => 'Test']);
@@ -182,6 +197,7 @@ class NotificationFormatterTest extends TestCase
 
         $results = [
             $this->formatter->formatBalanceAlert(10, 20, $user),
+            $this->formatter->formatInvalidEntryPrice(0.0, ['asset' => 'BTC'], $user),
             $this->formatter->formatDrawdownAlert(-15, 30, 25, $user),
             $this->formatter->formatErrorAlert(str_repeat('x', 600), 'ctx', $user),
             $this->formatter->formatSubscriptionActivated($user, 'Pro', now()->addMonth()),

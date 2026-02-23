@@ -137,6 +137,20 @@ class NotificationFormatter
             . "Consider pausing or reducing bet sizes.";
     }
 
+    public function formatInvalidEntryPrice(float $entryPrice, array $market, User $user): string
+    {
+        $appUrl = config('app.url', 'https://polytraderx.xyz');
+        $asset = (string) ($market['asset'] ?? 'Market');
+        $marketLabel = trim((string) ($market['question'] ?? ''));
+        $entryPriceFormatted = number_format($entryPrice, 4);
+
+        return "⚠️ Trade Skipped\n\n"
+            . "An invalid entry price (\${$entryPriceFormatted}) was detected for {$asset}.\n"
+            . ($marketLabel !== '' ? "Market: {$marketLabel}\n" : '')
+            . "\nPlease update/reset your simulated balance in your account before continuing.\n"
+            . "Balance: {$appUrl}/balance";
+    }
+
     public function formatDrawdownAlert(float $dailyPnl, float $drawdownPct, float $threshold, User $user): string
     {
         return "🔴 Drawdown Alert\n\n"

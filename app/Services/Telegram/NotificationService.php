@@ -86,6 +86,22 @@ class NotificationService
         Cache::put($cacheKey, true, 3600);
     }
 
+    public function notifyInvalidEntryPrice(float $entryPrice, array $market, User $user): void
+    {
+        if (!$user->hasTelegramLinked()) {
+            return;
+        }
+
+        // Throttle: max once per hour
+        $cacheKey = "invalid_entry_price:{$user->id}";
+        if (Cache::has($cacheKey)) {
+            return;
+        }
+
+        $this->send($user, $this->formatter->formatInvalidEntryPrice($entryPrice, $market, $user));
+        Cache::put($cacheKey, true, 3600);
+    }
+
     public function notifyDrawdownAlert(float $dailyPnl, float $drawdownPct, User $user): void
     {
         if (!$this->shouldNotify($user, 'NOTIFY_BALANCE_ALERTS')) {

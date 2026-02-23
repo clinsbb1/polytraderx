@@ -37,7 +37,29 @@ class TradeExecutor
 
             return null;
         }
-        $potentialPayout = $entryPrice > 0 ? round($amount / $entryPrice, 2) : 0.0;
+
+        if (!is_finite($entryPrice) || $entryPrice <= 0.0) {
+            Log::channel('simulator')->warning('Trade execution skipped due to invalid entry price', [
+                'user_id' => $user->id,
+                'market_id' => $market['condition_id'] ?? null,
+                'asset' => $market['asset'] ?? null,
+                'side' => $side,
+                'entry_price' => $entryPrice,
+                'yes_price' => $market['yes_price'] ?? null,
+                'no_price' => $market['no_price'] ?? null,
+            ]);
+
+            try {
+                app(\App\Services\Telegram\NotificationService::class)
+                    ->notifyInvalidEntryPrice($entryPrice, $market, $user);
+            } catch (\Throwable) {
+                // Notification failure must never crash trading
+            }
+
+            return null;
+        }
+
+        $potentialPayout = round($amount / $entryPrice, 2);
 
         // 1. Create trade record as pending
         $trade = Trade::create([

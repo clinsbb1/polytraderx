@@ -10,7 +10,7 @@
         $seoCanonical = trim($__env->yieldContent('canonical_url', url()->current()));
         $seoRobots = trim($__env->yieldContent('meta_robots', 'index, follow'));
         $seoOgType = trim($__env->yieldContent('og_type', 'website'));
-        $seoImage = trim($__env->yieldContent('og_image', url('/favicon.ico')));
+        $seoImage = trim($__env->yieldContent('og_image', url('/og-image.png')));
     @endphp
 
     <link rel="icon" href="/icon.png" type="image/x-icon">
