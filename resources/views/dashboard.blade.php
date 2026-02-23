@@ -81,7 +81,10 @@
                         <i class="bi bi-3-circle-fill me-2"></i>Start the Simulator
                     </h6>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
-                        In <a href="{{ route('strategy.index') }}">Strategy Parameters</a>, set <code>Simulator Enabled</code> to <span class="ptx-badge ptx-badge-success">true</span>
+                        First, link Telegram in <a href="/settings/telegram">Settings → Telegram</a>. You cannot turn on the simulator until Telegram is linked.
+                    </p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                        Then in <a href="{{ route('strategy.index') }}">Strategy Parameters</a>, set <code>Simulator Enabled</code> to <span class="ptx-badge ptx-badge-success">true</span>.
                     </p>
                     <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0;">
                         The bot runs automatically every minute and scans markets based on your configured entry timing and strategy thresholds.
