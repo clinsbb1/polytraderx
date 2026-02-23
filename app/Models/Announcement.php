@@ -20,6 +20,7 @@ class Announcement extends Model
         'dashboard_until_at',
         'audience_type',
         'target_user_id',
+        'send_email',
     ];
 
     protected function casts(): array
@@ -29,6 +30,7 @@ class Announcement extends Model
             'show_on_dashboard' => 'boolean',
             'dashboard_until_at' => 'datetime',
             'target_user_id' => 'integer',
+            'send_email' => 'boolean',
         ];
     }
 

@@ -60,6 +60,7 @@ class AdminAnnouncementController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['show_on_dashboard'] = $request->boolean('show_on_dashboard');
+        $validated['send_email'] = $request->boolean('send_email');
         $validated['dashboard_until_at'] = $validated['show_on_dashboard']
             ? Carbon::parse((string) $request->input('dashboard_until_date'))->endOfDay()
             : null;
@@ -74,7 +75,7 @@ class AdminAnnouncementController extends Controller
         if ($announcement->is_active) {
             $queuedCount = $this->queueTelegramBroadcast($announcement, (int) auth()->id());
         }
-        $emailQueuedCount = $request->boolean('send_email')
+        $emailQueuedCount = $announcement->send_email
             ? $this->queueEmailBroadcast($announcement, (int) auth()->id())
             : 0;
 
@@ -112,6 +113,7 @@ class AdminAnnouncementController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['show_on_dashboard'] = $request->boolean('show_on_dashboard');
+        $validated['send_email'] = $request->boolean('send_email');
         $validated['dashboard_until_at'] = $validated['show_on_dashboard']
             ? Carbon::parse((string) $request->input('dashboard_until_date'))->endOfDay()
             : null;
@@ -126,7 +128,7 @@ class AdminAnnouncementController extends Controller
         if ($announcement->is_active) {
             $queuedCount = $this->queueTelegramBroadcast($announcement, (int) auth()->id());
         }
-        $emailQueuedCount = $request->boolean('send_email')
+        $emailQueuedCount = $announcement->send_email
             ? $this->queueEmailBroadcast($announcement, (int) auth()->id())
             : 0;
 

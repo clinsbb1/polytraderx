@@ -121,7 +121,7 @@
                 <input type="hidden" name="send_email" value="0">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="send_email" value="1" id="sendEmail"
-                        {{ old('send_email', false) ? 'checked' : '' }}>
+                        {{ old('send_email', $announcement->send_email ?? false) ? 'checked' : '' }}>
                     <label class="form-check-label" for="sendEmail">Send Email</label>
                 </div>
                 <div class="form-text">If checked, this announcement is queued by the selected audience target.</div>

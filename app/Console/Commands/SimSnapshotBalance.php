@@ -34,7 +34,7 @@ class SimSnapshotBalance extends Command
             if ($simulatorEnabled && $balance <= 0.0) {
                 $settings->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
                 $notifications->notifyBotPaused(
-                    'Balance reached $0.00. Simulator has been turned off to prevent further simulated entries.',
+                    'Balance reached $0.00. Simulator has been turned off to prevent further simulated entries. You can restart by resetting your balance in your account.',
                     $user
                 );
             }
