@@ -50,6 +50,7 @@
                         <th>Account ID</th>
                         <th>Plan</th>
                         <th>Telegram</th>
+                        <th>Google</th>
                         <th>Status</th>
                         <th class="text-center">Trades</th>
                         <th>Registered</th>
@@ -84,6 +85,13 @@
                             @endif
                         </td>
                         <td>
+                            @if($user->google_id)
+                                <span class="badge bg-success">Linked</span>
+                            @else
+                                <span class="badge bg-secondary">Not Linked</span>
+                            @endif
+                        </td>
+                        <td>
                             @if($user->is_active)
                                 <span class="badge bg-success">Active</span>
                             @else
@@ -102,7 +110,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">
+                        <td colspan="10" class="text-center text-muted py-4">
                             <i class="bi bi-people fs-3 d-block mb-2"></i>
                             No users found matching your criteria.
                         </td>
