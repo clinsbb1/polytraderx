@@ -53,10 +53,12 @@
                 @endphp
                 <select name="audience_type" id="audienceType" class="form-select @error('audience_type') is-invalid @enderror" required>
                     <option value="all" {{ $audienceType === 'all' ? 'selected' : '' }}>All Users</option>
+                    <option value="paid_active" {{ $audienceType === 'paid_active' ? 'selected' : '' }}>Active Subscribers</option>
+                    <option value="free_plan" {{ $audienceType === 'free_plan' ? 'selected' : '' }}>Free Plan Users</option>
                     <option value="single" {{ $audienceType === 'single' ? 'selected' : '' }}>Single User</option>
                 </select>
                 @error('audience_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                <div class="form-text">Choose whether this announcement should go to everyone or only one user.</div>
+                <div class="form-text">Choose whether this announcement should go to all users, active subscribers, free plan users, or one specific user.</div>
             </div>
 
             <div class="mb-4" id="singleUserTargetWrap">

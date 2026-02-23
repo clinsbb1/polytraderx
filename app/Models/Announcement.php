@@ -49,13 +49,23 @@ class Announcement extends Model
         return $query->where('is_active', true);
     }
 
-    public function scopeForDashboard(Builder $query, ?int $userId = null): Builder
+    public function scopeForDashboard(Builder $query, ?User $user = null): Builder
     {
+        $userId = $user?->id;
+        $isFreePlanUser = $user !== null && (string) $user->subscription_plan === 'free';
+        $isActivePaidSubscriber = $user !== null
+            && (string) $user->subscription_plan !== 'free'
+            && (
+                (bool) $user->is_lifetime
+                || (string) $user->subscription_plan === 'lifetime'
+                || ($user->subscription_ends_at !== null && $user->subscription_ends_at->isFuture())
+            );
+
         $query = $query->where('is_active', true)
             ->where('show_on_dashboard', true)
             ->whereNotNull('dashboard_until_at')
             ->where('dashboard_until_at', '>=', now())
-            ->where(function (Builder $audience) use ($userId) {
+            ->where(function (Builder $audience) use ($userId, $isFreePlanUser, $isActivePaidSubscriber) {
                 $audience->whereNull('audience_type')
                     ->orWhere('audience_type', 'all');
 
@@ -64,6 +74,14 @@ class Announcement extends Model
                         $single->where('audience_type', 'single')
                             ->where('target_user_id', $userId);
                     });
+
+                    if ($isActivePaidSubscriber) {
+                        $audience->orWhere('audience_type', 'paid_active');
+                    }
+
+                    if ($isFreePlanUser) {
+                        $audience->orWhere('audience_type', 'free_plan');
+                    }
                 }
             });
 

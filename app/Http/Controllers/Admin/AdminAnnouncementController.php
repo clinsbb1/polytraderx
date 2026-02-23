@@ -53,7 +53,7 @@ class AdminAnnouncementController extends Controller
             'is_active' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
             'dashboard_until_date' => ['required_if:show_on_dashboard,1', 'nullable', 'date'],
-            'audience_type' => ['required', 'in:all,single'],
+            'audience_type' => ['required', 'in:all,single,paid_active,free_plan'],
             'target_user_id' => ['nullable', 'required_if:audience_type,single', 'integer', 'exists:users,id'],
             'send_email' => ['boolean'],
         ]);
@@ -106,7 +106,7 @@ class AdminAnnouncementController extends Controller
             'is_active' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
             'dashboard_until_date' => ['required_if:show_on_dashboard,1', 'nullable', 'date'],
-            'audience_type' => ['required', 'in:all,single'],
+            'audience_type' => ['required', 'in:all,single,paid_active,free_plan'],
             'target_user_id' => ['nullable', 'required_if:audience_type,single', 'integer', 'exists:users,id'],
             'send_email' => ['boolean'],
         ]);
@@ -322,9 +322,26 @@ class AdminAnnouncementController extends Controller
     private function recipientUsersQuery(Announcement $announcement): Builder
     {
         $query = User::query();
+        $audienceType = (string) ($announcement->audience_type ?? 'all');
 
-        if (($announcement->audience_type ?? 'all') === 'single' && $announcement->target_user_id !== null) {
+        if ($audienceType === 'single' && $announcement->target_user_id !== null) {
             $query->whereKey((int) $announcement->target_user_id);
+        }
+
+        if ($audienceType === 'paid_active') {
+            $query->where('subscription_plan', '!=', 'free')
+                ->where(function (Builder $paid) {
+                    $paid->where('is_lifetime', true)
+                        ->orWhere('subscription_plan', 'lifetime')
+                        ->orWhere(function (Builder $expiring) {
+                            $expiring->whereNotNull('subscription_ends_at')
+                                ->where('subscription_ends_at', '>', now());
+                        });
+                });
+        }
+
+        if ($audienceType === 'free_plan') {
+            $query->where('subscription_plan', 'free');
         }
 
         return $query;

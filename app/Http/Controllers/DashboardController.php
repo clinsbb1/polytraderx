@@ -39,7 +39,7 @@ class DashboardController extends Controller
         $winRateToday = $this->calculateWinRate($userId, 0);
 
         $recentTrades = Trade::forUser($userId)->latest('created_at')->take(10)->get();
-        $announcements = Announcement::forDashboard($userId)
+        $announcements = Announcement::forDashboard($user)
             ->latest()
             ->take(3)
             ->get()
@@ -140,9 +140,10 @@ class DashboardController extends Controller
 
     public function dismissAnnouncement(Request $request, Announcement $announcement): JsonResponse
     {
-        $userId = (int) $request->user()->id;
+        $user = $request->user();
+        $userId = (int) $user->id;
 
-        $isVisibleToUser = Announcement::forDashboard($userId)
+        $isVisibleToUser = Announcement::forDashboard($user)
             ->whereKey($announcement->id)
             ->exists();
 

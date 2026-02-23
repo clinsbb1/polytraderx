@@ -32,8 +32,25 @@
                     <tr>
                         <td class="fw-semibold">{{ $a->title }}</td>
                         <td>
-                            @if(($a->audience_type ?? 'all') === 'single')
-                                <span class="badge bg-primary">Single User</span>
+                            @php
+                                $audienceType = $a->audience_type ?? 'all';
+                                $audienceLabels = [
+                                    'all' => 'All Users',
+                                    'single' => 'Single User',
+                                    'paid_active' => 'Active Subscribers',
+                                    'free_plan' => 'Free Plan Users',
+                                ];
+                                $audienceColors = [
+                                    'all' => 'secondary',
+                                    'single' => 'primary',
+                                    'paid_active' => 'success',
+                                    'free_plan' => 'info',
+                                ];
+                            @endphp
+                            <span class="badge bg-{{ $audienceColors[$audienceType] ?? 'secondary' }}">
+                                {{ $audienceLabels[$audienceType] ?? 'All Users' }}
+                            </span>
+                            @if($audienceType === 'single')
                                 <div class="small text-muted mt-1">
                                     @if($a->targetUser)
                                         #{{ $a->targetUser->id }} — {{ $a->targetUser->account_id ?? 'N/A' }} — {{ $a->targetUser->email ?? 'N/A' }}
@@ -43,8 +60,6 @@
                                         Not set
                                     @endif
                                 </div>
-                            @else
-                                <span class="badge bg-secondary">All Users</span>
                             @endif
                         </td>
                         <td>
