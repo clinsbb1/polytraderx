@@ -16,7 +16,8 @@ class SignalGeneratorTest extends TestCase
         bool $riskAllowed = true,
         string $reflexAction = 'BUY_YES',
         float $reversalProb = 0.03,
-        float $betAmount = 5.0
+        float $betAmount = 5.0,
+        float $minConfidence = 0.92
     ): SignalGenerator
     {
         $riskManager = $this->createMock(RiskManager::class);
@@ -38,7 +39,9 @@ class SignalGeneratorTest extends TestCase
         ]);
 
         $settings = $this->createMock(SettingsService::class);
-        $settings->method('getFloat')->willReturn(0.92);
+        $settings->method('getFloat')->willReturnCallback(
+            fn(string $key) => $key === 'MIN_CONFIDENCE_SCORE' ? $minConfidence : 0.92
+        );
 
         return new SignalGenerator($reflexes, $riskManager, $settings);
     }
@@ -96,6 +99,22 @@ class SignalGeneratorTest extends TestCase
 
         $this->assertEquals('SKIP', $signal['action']);
         $this->assertStringContainsString('Confidence', $signal['reasoning']);
+    }
+
+    public function test_percent_style_confidence_threshold_is_normalized(): void
+    {
+        // 70 should be interpreted as 70% (0.70), not literal 70.0
+        $generator = $this->makeGenerator(
+            riskAllowed: true,
+            reflexAction: 'BUY_YES',
+            reversalProb: 0.15,
+            minConfidence: 70.0
+        );
+
+        $signal = $generator->generateSignal($this->makeMarket(), $this->makeSpotData(), 1, 100.0);
+
+        $this->assertEquals('EXECUTE', $signal['action']);
+        $this->assertEquals('YES', $signal['side']);
     }
 
     public function test_muscles_result_overrides_confidence(): void

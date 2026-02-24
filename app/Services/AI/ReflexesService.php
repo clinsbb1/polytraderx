@@ -72,8 +72,12 @@ class ReflexesService
         $rulesPassed[] = 'no_desync';
 
         // 5. Price threshold — determine direction and check
-        $minEntry = $this->settings->getFloat('MIN_ENTRY_PRICE_THRESHOLD', 0.92, $userId);
-        $maxEntry = $this->settings->getFloat('MAX_ENTRY_PRICE_THRESHOLD', 0.08, $userId);
+        $minEntry = $this->normalizeUnitInterval(
+            $this->settings->getFloat('MIN_ENTRY_PRICE_THRESHOLD', 0.92, $userId)
+        );
+        $maxEntry = $this->normalizeUnitInterval(
+            $this->settings->getFloat('MAX_ENTRY_PRICE_THRESHOLD', 0.08, $userId)
+        );
         $yesPrice = (float) ($market['yes_price'] ?? 0);
         $noPrice = (float) ($market['no_price'] ?? 0);
         $changePct = (float) ($spotData['change_since_open_pct'] ?? 0);
@@ -132,6 +136,20 @@ class ReflexesService
             'reason' => "All rules passed — {$action} on {$asset}",
             'details' => $details,
         ];
+    }
+
+    private function normalizeUnitInterval(float $value): float
+    {
+        if (!is_finite($value)) {
+            return 0.0;
+        }
+
+        // Accept both ratio style (0.92) and percent style (92).
+        if ($value > 1.0 && $value <= 100.0) {
+            $value /= 100.0;
+        }
+
+        return max(0.0, min(1.0, $value));
     }
 
     private function skipResult(array $passed, array $failed, string $reason, array $details): array

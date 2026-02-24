@@ -54,13 +54,13 @@
                         <strong>SIMULATOR_ENABLED:</strong> Master on/off switch. You can only turn this on after linking Telegram.
                     </li>
                     <li class="mb-2">
-                        <strong>MIN_CONFIDENCE_SCORE:</strong> Minimum confidence score (0.0-1.0) required before a simulated entry is allowed.
+                        <strong>MIN_CONFIDENCE_SCORE:</strong> Minimum confidence required before entry. Accepts ratio (0.0-1.0) or percent-style input (0-100).
                     </li>
                     <li class="mb-2">
-                        <strong>MIN_ENTRY_PRICE_THRESHOLD:</strong> Minimum price to allow momentum-style entries (e.g., only when winner side is already strong).
+                        <strong>MIN_ENTRY_PRICE_THRESHOLD:</strong> Minimum price to allow momentum-style entries (accepts 0.0-1.0 or 0-100).
                     </li>
                     <li class="mb-2">
-                        <strong>MAX_ENTRY_PRICE_THRESHOLD:</strong> Maximum price to allow contrarian-style entries (e.g., only when a side is still cheap).
+                        <strong>MAX_ENTRY_PRICE_THRESHOLD:</strong> Maximum price to allow contrarian-style entries (accepts 0.0-1.0 or 0-100).
                     </li>
                     <li class="mb-2">
                         <strong>ENTRY_WINDOW_MIN_SECONDS / ENTRY_WINDOW_MAX_SECONDS:</strong> Entry is allowed only when seconds-to-close is within this range (5-900s).

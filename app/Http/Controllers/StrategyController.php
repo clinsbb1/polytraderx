@@ -79,6 +79,10 @@ class StrategyController extends Controller
                 $simulatorEnabled = $wantsEnable;
             }
 
+            if (in_array($key, ['MIN_CONFIDENCE_SCORE', 'MIN_ENTRY_PRICE_THRESHOLD', 'MAX_ENTRY_PRICE_THRESHOLD'], true)) {
+                $value = $this->normalizeUnitIntervalInput($value);
+            }
+
             $settings->set($key, $value, 'admin', $userId);
         }
 
@@ -175,5 +179,25 @@ class StrategyController extends Controller
 
             return false;
         }
+    }
+
+    private function normalizeUnitIntervalInput(mixed $value): string
+    {
+        if (!is_numeric($value)) {
+            return (string) $value;
+        }
+
+        $numeric = (float) $value;
+
+        // Accept both ratio style (0.92) and percent style (92).
+        if ($numeric > 1.0 && $numeric <= 100.0) {
+            $numeric /= 100.0;
+        }
+
+        $numeric = max(0.0, min(1.0, $numeric));
+
+        $formatted = rtrim(rtrim(number_format($numeric, 4, '.', ''), '0'), '.');
+
+        return $formatted === '' ? '0' : $formatted;
     }
 }

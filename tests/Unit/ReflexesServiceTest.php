@@ -19,6 +19,8 @@ class ReflexesServiceTest extends TestCase
     {
         $defaults = [
             'SIMULATOR_ENABLED' => true,
+            'ENTRY_WINDOW_MIN_SECONDS' => 5,
+            'ENTRY_WINDOW_MAX_SECONDS' => 60,
             'ENTRY_WINDOW_SECONDS' => 60,
             'MONITORED_ASSETS' => 'BTC,ETH,SOL',
             'MIN_ENTRY_PRICE_THRESHOLD' => 0.92,
@@ -103,7 +105,20 @@ class ReflexesServiceTest extends TestCase
     {
         $settings = $this->createMock(SettingsService::class);
         $settings->method('getBool')->willReturn(true);
-        $settings->method('getInt')->willReturn(60);
+        $settings->method('getInt')->willReturnCallback(function (string $key): int {
+            return match ($key) {
+                'ENTRY_WINDOW_MIN_SECONDS' => 5,
+                'ENTRY_WINDOW_MAX_SECONDS', 'ENTRY_WINDOW_SECONDS' => 60,
+                default => 0,
+            };
+        });
+        $settings->method('getFloat')->willReturnCallback(function (string $key): float {
+            return match ($key) {
+                'MIN_ENTRY_PRICE_THRESHOLD' => 0.92,
+                'MAX_ENTRY_PRICE_THRESHOLD' => 0.08,
+                default => 0.0,
+            };
+        });
         $settings->method('get')->willReturn('BTC,ETH,SOL');
 
         $priceAggregator = $this->createMock(PriceAggregator::class);
@@ -141,6 +156,20 @@ class ReflexesServiceTest extends TestCase
 
         $this->assertEquals('SKIP', $result['action']);
         $this->assertContains('price_threshold_not_met', $result['rules_failed']);
+    }
+
+    public function test_percent_style_entry_thresholds_are_normalized(): void
+    {
+        $reflexes = $this->makeReflexes([
+            'MIN_ENTRY_PRICE_THRESHOLD' => 92,
+            'MAX_ENTRY_PRICE_THRESHOLD' => 8,
+        ]);
+
+        $market = $this->makeMarket('BTC', 0.96, 0.04, 30);
+        $result = $reflexes->evaluate($market, $this->makeSpotData(2.0), 1);
+
+        $this->assertEquals('BUY_YES', $result['action']);
+        $this->assertEquals('YES', $result['side']);
     }
 
     public function test_high_reversal_probability_skip(): void

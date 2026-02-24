@@ -84,7 +84,9 @@ class SignalGenerator
         }
 
         // 4. Check minimum confidence
-        $minConfidence = $this->settings->getFloat('MIN_CONFIDENCE_SCORE', 0.92, $userId);
+        $minConfidence = $this->normalizeUnitInterval(
+            $this->settings->getFloat('MIN_CONFIDENCE_SCORE', 0.92, $userId)
+        );
         if ($confidence < $minConfidence) {
             return [
                 'action' => 'SKIP',
@@ -126,5 +128,19 @@ class SignalGenerator
             'muscles_result' => $musclesResult,
             'risk_check' => $riskCheck,
         ];
+    }
+
+    private function normalizeUnitInterval(float $value): float
+    {
+        if (!is_finite($value)) {
+            return 0.0;
+        }
+
+        // Accept both ratio style (0.92) and percent style (92).
+        if ($value > 1.0 && $value <= 100.0) {
+            $value /= 100.0;
+        }
+
+        return max(0.0, min(1.0, $value));
     }
 }
