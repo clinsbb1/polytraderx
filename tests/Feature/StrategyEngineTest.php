@@ -88,6 +88,40 @@ class StrategyEngineTest extends TestCase
         $this->assertEquals(1, $tradeCount);
     }
 
+    public function test_check_resolutions_uses_fallback_when_market_end_time_is_far_future(): void
+    {
+        Http::fake([
+            '*/ticker/price*' => Http::response(['symbol' => 'BTCUSDT', 'price' => '101000.00'], 200),
+            '*' => Http::response([], 200),
+        ]);
+
+        $user = $this->makeUser();
+
+        $trade = Trade::factory()->create([
+            'user_id' => $user->id,
+            'asset' => 'BTC',
+            'side' => 'YES',
+            'status' => 'open',
+            'external_spot_at_entry' => 95000.0,
+            'amount' => 5.0,
+            'potential_payout' => 5.2,
+            'market_slug' => 'btc-updown-15m-123456',
+            'market_question' => 'Will BTC be higher in 15 minutes?',
+            'entry_at' => now()->subMinutes(25),
+            'market_end_time' => now()->addHours(3),
+        ]);
+
+        $engine = app(StrategyEngine::class);
+        $summary = $engine->checkResolutions($user);
+
+        $trade->refresh();
+
+        $this->assertEquals(1, $summary['checked']);
+        $this->assertEquals(1, $summary['resolved']);
+        $this->assertEquals('won', $trade->status);
+        $this->assertNotNull($trade->resolved_at);
+    }
+
     private function fakeKlines(float $startPrice, float $endPrice): array
     {
         $klines = [];

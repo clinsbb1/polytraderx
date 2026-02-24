@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Polymarket\OrderService;
 use App\Services\Polymarket\PolymarketClient;
 use App\Services\Settings\SettingsService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class TradeExecutor
@@ -77,7 +78,7 @@ class TradeExecutor
             'decision_tier' => $signal['decision_tier'],
             'decision_reasoning' => $signal,
             'external_spot_at_entry' => $spotData['spot_price'] ?? null,
-            'market_end_time' => $market['end_time'] ?? null,
+            'market_end_time' => $this->resolveMarketEndTime($market),
             'entry_at' => now(),
             'audited' => false,
         ]);
@@ -181,5 +182,36 @@ class TradeExecutor
 
             return null;
         }
+    }
+
+    private function resolveMarketEndTime(array $market): ?Carbon
+    {
+        $secondsRemaining = $market['seconds_remaining'] ?? null;
+        if (is_numeric($secondsRemaining)) {
+            $seconds = (int) round((float) $secondsRemaining);
+            if ($seconds > 0 && $seconds <= 7200) {
+                // Prefer countdown-based end time because it reflects the exact active round.
+                return now()->addSeconds($seconds);
+            }
+        }
+
+        $endTime = $market['end_time'] ?? null;
+
+        if ($endTime instanceof \DateTimeInterface) {
+            return Carbon::instance($endTime);
+        }
+
+        if (is_scalar($endTime)) {
+            $trimmed = trim((string) $endTime);
+            if ($trimmed !== '') {
+                try {
+                    return Carbon::parse($trimmed);
+                } catch (\Throwable) {
+                    return null;
+                }
+            }
+        }
+
+        return null;
     }
 }

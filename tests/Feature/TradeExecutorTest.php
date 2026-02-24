@@ -167,4 +167,31 @@ class TradeExecutorTest extends TestCase
         $this->assertNull($trade);
         $this->assertDatabaseCount('trades', 0);
     }
+
+    public function test_execute_prefers_seconds_remaining_for_market_end_time(): void
+    {
+        Http::fake([
+            '*/time' => Http::response(['time' => time()], 200),
+            '*' => Http::response([], 200),
+        ]);
+
+        $user = $this->makeUser();
+        $market = $this->makeMarket();
+        $market['seconds_remaining'] = 25;
+        $market['end_time'] = now()->addHours(3); // Deliberately wrong/far value.
+
+        $settings = $this->createMock(SettingsService::class);
+        $settings->method('getBool')->willReturn(true);
+
+        $executor = new TradeExecutor($settings);
+        $trade = $executor->execute($this->makeSignal(), $market, $this->makeSpotData(), $user);
+
+        $this->assertNotNull($trade);
+        $trade->refresh();
+        $this->assertNotNull($trade->market_end_time);
+        $this->assertTrue(
+            $trade->market_end_time->between(now()->addSeconds(10), now()->addSeconds(45)),
+            'Expected market_end_time to be based on seconds_remaining, not far-future end_time.'
+        );
+    }
 }

@@ -15,11 +15,16 @@ use App\Services\Polymarket\PolymarketClient;
 use App\Services\PriceFeed\PriceAggregator;
 use App\Services\Settings\SettingsService;
 use App\Services\Subscription\SubscriptionService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class StrategyEngine
 {
+    private const POLYMARKET_RESOLUTION_BUFFER_MINUTES = 1;
+    private const END_TIME_DRIFT_BUFFER_MINUTES = 2;
+    private const DURATION_GRACE_MINUTES = 2;
+
     public function __construct(
         private MarketService $marketService,
         private MarketTimingService $timingService,
@@ -347,14 +352,20 @@ class StrategyEngine
 
         foreach ($openTrades as $trade) {
             try {
-                if (!$trade->market_end_time || now()->lt($trade->market_end_time)) {
+                $resolutionGate = $this->evaluateResolutionGate($trade);
+                if (!$resolutionGate['ready']) {
                     continue;
                 }
 
                 $isDryRun = $this->settings->getBool('DRY_RUN', true, $user->id);
 
                 // Determine outcome
-                $outcome = $this->resolveTradeOutcome($trade, $user, $isDryRun);
+                $outcome = $this->resolveTradeOutcome(
+                    $trade,
+                    $user,
+                    $isDryRun,
+                    $resolutionGate['effective_end_time']
+                );
 
                 if ($outcome === null) {
                     continue;
@@ -393,6 +404,8 @@ class StrategyEngine
                         'spot_at_resolution' => $spotAtResolution,
                         'dry_run' => $isDryRun,
                         'resolution_method' => $outcome['method'],
+                        'resolution_trigger' => $resolutionGate['trigger'],
+                        'effective_market_end_time' => $resolutionGate['effective_end_time']?->toIso8601String(),
                         'timestamp' => now()->toIso8601String(),
                     ],
                     'created_at' => now(),
@@ -433,7 +446,12 @@ class StrategyEngine
         return $summary;
     }
 
-    private function resolveTradeOutcome(Trade $trade, User $user, bool $isDryRun): ?array
+    private function resolveTradeOutcome(
+        Trade $trade,
+        User $user,
+        bool $isDryRun,
+        ?Carbon $expectedEndTime = null
+    ): ?array
     {
         if ($isDryRun) {
             return $this->resolveDryRunTrade($trade);
@@ -447,7 +465,12 @@ class StrategyEngine
             $resolved = $marketData['resolved'] ?? $marketData['is_resolved'] ?? false;
             if (!$resolved) {
                 // Market may not have resolved yet — give it a buffer
-                if (now()->diffInMinutes($trade->market_end_time) < 5) {
+                $referenceEndTime = $expectedEndTime ?? $this->resolveEffectiveEndTime($trade);
+                $minutesSinceExpectedEnd = $referenceEndTime
+                    ? now()->diffInMinutes($referenceEndTime, false)
+                    : self::POLYMARKET_RESOLUTION_BUFFER_MINUTES;
+
+                if ($minutesSinceExpectedEnd < self::POLYMARKET_RESOLUTION_BUFFER_MINUTES) {
                     return null;
                 }
             }
@@ -529,6 +552,108 @@ class StrategyEngine
 
         // Safe simulation fallback to avoid zero-sized trades.
         return 100.0;
+    }
+
+    private function evaluateResolutionGate(Trade $trade): array
+    {
+        $effectiveEndTime = $this->resolveEffectiveEndTime($trade);
+        $now = now();
+
+        if ($effectiveEndTime !== null && $now->greaterThanOrEqualTo($effectiveEndTime)) {
+            return [
+                'ready' => true,
+                'trigger' => 'market_end_time',
+                'effective_end_time' => $effectiveEndTime,
+            ];
+        }
+
+        if ($this->isTradeStale($trade, $now)) {
+            return [
+                'ready' => true,
+                'trigger' => 'stale_open_fallback',
+                'effective_end_time' => $effectiveEndTime,
+            ];
+        }
+
+        return [
+            'ready' => false,
+            'trigger' => 'waiting_for_market_end',
+            'effective_end_time' => $effectiveEndTime,
+        ];
+    }
+
+    private function resolveEffectiveEndTime(Trade $trade): ?Carbon
+    {
+        $storedEndTime = $trade->market_end_time instanceof \DateTimeInterface
+            ? Carbon::instance($trade->market_end_time)
+            : null;
+        $fallbackEndTime = $this->inferFallbackEndTime($trade);
+
+        if ($storedEndTime === null) {
+            return $fallbackEndTime;
+        }
+
+        if ($fallbackEndTime === null) {
+            return $storedEndTime;
+        }
+
+        // If stored end-time drifts too far from the inferred 5m/15m schedule, trust inferred.
+        $maxExpected = $fallbackEndTime->copy()->addMinutes(self::END_TIME_DRIFT_BUFFER_MINUTES);
+
+        return $storedEndTime->greaterThan($maxExpected)
+            ? $fallbackEndTime
+            : $storedEndTime;
+    }
+
+    private function inferFallbackEndTime(Trade $trade): ?Carbon
+    {
+        $entryTime = $trade->entry_at ?? $trade->created_at;
+
+        if (!$entryTime instanceof \DateTimeInterface) {
+            return null;
+        }
+
+        $durationMinutes = $this->inferDurationMinutesFromTrade($trade);
+
+        return Carbon::instance($entryTime)->addMinutes($durationMinutes);
+    }
+
+    private function inferDurationMinutesFromTrade(Trade $trade): int
+    {
+        $marketSlug = strtoupper((string) $trade->market_slug);
+        $marketQuestion = strtoupper((string) $trade->market_question);
+
+        $is15MinuteMarket = preg_match('/(?:\b15\s*[- ]?M(?:IN(?:UTE)?S?)?\b|\bFIFTEEN\s+MIN(?:UTE)?S?\b)/i', $marketSlug) === 1
+            || preg_match('/(?:\b15\s*[- ]?M(?:IN(?:UTE)?S?)?\b|\bFIFTEEN\s+MIN(?:UTE)?S?\b)/i', $marketQuestion) === 1;
+
+        if ($is15MinuteMarket) {
+            return 15;
+        }
+
+        $is5MinuteMarket = preg_match('/(?:\b5\s*[- ]?M(?:IN(?:UTE)?S?)?\b|\bFIVE\s+MIN(?:UTE)?S?\b)/i', $marketSlug) === 1
+            || preg_match('/(?:\b5\s*[- ]?M(?:IN(?:UTE)?S?)?\b|\bFIVE\s+MIN(?:UTE)?S?\b)/i', $marketQuestion) === 1;
+
+        if ($is5MinuteMarket) {
+            return 5;
+        }
+
+        return 15;
+    }
+
+    private function isTradeStale(Trade $trade, Carbon $now): bool
+    {
+        $entryTime = $trade->entry_at ?? $trade->created_at;
+
+        if (!$entryTime instanceof \DateTimeInterface) {
+            return false;
+        }
+
+        $entryAt = Carbon::instance($entryTime);
+        $maxOpenAge = $this->inferDurationMinutesFromTrade($trade) + self::DURATION_GRACE_MINUTES;
+
+        return $now->greaterThanOrEqualTo(
+            $entryAt->addMinutes($maxOpenAge)
+        );
     }
 
     private function logBotActivity(
