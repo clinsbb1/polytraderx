@@ -258,6 +258,58 @@ class LifecycleEmailService
         );
     }
 
+    public function sendAdminPaymentNotification(Payment $payment): bool
+    {
+        $payment->loadMissing('user', 'subscriptionPlan');
+        $user = $payment->user;
+        $plan = $payment->subscriptionPlan;
+
+        if (!$user || !$plan) {
+            return false;
+        }
+
+        return $this->sendToAddress(
+            'support@polytraderx.xyz',
+            new BrandedNotificationMail(
+                subjectLine: "New payment: {$user->name} — {$plan->name}",
+                headline: 'New subscription payment received',
+                lines: [
+                    "{$user->name} has successfully paid for the {$plan->name} plan.",
+                ],
+                actionText: 'View User',
+                actionUrl: url('/admin/users/' . $user->id),
+                meta: [
+                    'Customer' => $user->name,
+                    'Email' => $user->email,
+                    'Plan' => $plan->name,
+                    'Amount (USD)' => '$' . number_format((float) $payment->amount_usd, 2),
+                    'NOWPayments ID' => (string) ($payment->nowpayments_id ?: '-'),
+                    'Expires' => $payment->expires_at ? $payment->expires_at->format('M j, Y g:i A T') : 'N/A',
+                ],
+            ),
+            'admin_payment_notification',
+            ['payment_id' => $payment->id, 'user_id' => $user->id]
+        );
+    }
+
+    private function sendToAddress(string $address, BrandedNotificationMail $mail, string $event, array $context = []): bool
+    {
+        try {
+            Mail::to($address)->queue(
+                $mail->onQueue((string) config('services.queues.email', 'emails'))
+            );
+            return true;
+        } catch (\Throwable $e) {
+            Log::channel('simulator')->warning('Lifecycle email failed', array_merge($context, [
+                'event' => $event,
+                'to' => $address,
+                'error' => $e->getMessage(),
+            ]));
+
+            return false;
+        }
+    }
+
     private function sendToUser(User $user, BrandedNotificationMail $mail, string $event, array $context = []): bool
     {
         if (empty($user->email)) {

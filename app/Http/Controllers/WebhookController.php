@@ -112,6 +112,7 @@ class WebhookController extends Controller
                         $payment->subscriptionPlan,
                         $payment->expires_at
                     );
+                    $this->emails->sendAdminPaymentNotification($payment);
                 }
             }
         }
