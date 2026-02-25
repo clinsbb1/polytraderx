@@ -34,7 +34,9 @@
         $settings = app(\App\Services\Settings\SettingsService::class);
         $simulatorEnabled = $settings->getBool('SIMULATOR_ENABLED', false);
         $telegramLinked = auth()->user()?->hasTelegramLinked() ?? false;
-        $simulatorToggleLocked = !$telegramLinked && !$simulatorEnabled;
+        $hasActiveSub = auth()->user()?->isSubscriptionActive() ?? false;
+        // Lock toggle when simulator is off and any required precondition is missing.
+        $simulatorToggleLocked = !$simulatorEnabled && (!$hasActiveSub || !$telegramLinked);
     @endphp
 
     {{-- Impersonate Bar --}}
@@ -139,14 +141,18 @@
                         value="1"
                         {{ $simulatorEnabled ? 'checked' : '' }}
                         {{ $simulatorToggleLocked ? 'disabled' : '' }}
-                        title="{{ $simulatorToggleLocked ? 'Link Telegram in Settings to enable simulator.' : 'Toggle simulator' }}"
+                        title="{{ $simulatorToggleLocked ? (!$hasActiveSub ? 'An active subscription is required to enable the simulator.' : 'Link Telegram in Settings to enable simulator.') : 'Toggle simulator' }}"
                         onchange="this.form.submit()"
                     >
                     <label class="visually-hidden" for="simulatorToggleFooter">Toggle simulator</label>
                 </div>
                 @if($simulatorToggleLocked)
                     <div class="w-100" style="font-size: 0.75rem; color: #ffc107;">
-                        Link Telegram to enable simulator.
+                        @if(!$hasActiveSub)
+                            Upgrade to a paid plan to enable simulator.
+                        @else
+                            Link Telegram to enable simulator.
+                        @endif
                     </div>
                 @endif
             </form>

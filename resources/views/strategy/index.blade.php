@@ -51,7 +51,7 @@
                 </h6>
                 <ul style="color: var(--text-secondary); font-size: 0.9rem;">
                     <li class="mb-2">
-                        <strong>SIMULATOR_ENABLED:</strong> Master on/off switch. You can only turn this on after linking Telegram.
+                        <strong>SIMULATOR_ENABLED:</strong> Master on/off switch. Requires an active paid subscription and Telegram linked.
                     </li>
                     <li class="mb-2">
                         <strong>MIN_CONFIDENCE_SCORE:</strong> Minimum confidence required before entry. Accepts ratio (0.0-1.0) or percent-style input (0-100).
@@ -215,17 +215,22 @@
                                         <option value="kraken" {{ $currentSource === 'kraken' ? 'selected' : '' }}>Kraken</option>
                                     </select>
                                 @elseif($param->key === 'SIMULATOR_ENABLED')
+                                    @php $canEnableSim = ($hasActiveSub ?? false) && ($telegramLinked ?? false); @endphp
                                     <select name="params[{{ $param->key }}]" class="ptx-input ptx-input-sm" style="width:140px">
                                         <option
                                             value="true"
                                             {{ $param->value === 'true' ? 'selected' : '' }}
-                                            {{ !($telegramLinked ?? false) ? 'disabled' : '' }}
+                                            {{ !$canEnableSim ? 'disabled' : '' }}
                                         >
                                             true
                                         </option>
                                         <option value="false" {{ $param->value === 'false' ? 'selected' : '' }}>false</option>
                                     </select>
-                                    @if(!($telegramLinked ?? false))
+                                    @if(!($hasActiveSub ?? false))
+                                        <div class="mt-1" style="font-size: 0.75rem; color: #ffc107;">
+                                            Active subscription required to enable simulator.
+                                        </div>
+                                    @elseif(!($telegramLinked ?? false))
                                         <div class="mt-1" style="font-size: 0.75rem; color: #ffc107;">
                                             Telegram required to enable simulator.
                                         </div>

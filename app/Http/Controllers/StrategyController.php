@@ -17,6 +17,7 @@ class StrategyController extends Controller
     {
         $userId = auth()->id();
         $telegramLinked = auth()->user()?->hasTelegramLinked() ?? false;
+        $hasActiveSub = auth()->user()?->isSubscriptionActive() ?? false;
         $groups = [
             'risk' => $settings->getGroup('risk', $userId),
             'trading' => $settings->getGroup('trading', $userId)
@@ -24,7 +25,7 @@ class StrategyController extends Controller
             'notifications' => $settings->getGroup('notifications', $userId),
         ];
 
-        return view('strategy.index', compact('groups', 'telegramLinked'));
+        return view('strategy.index', compact('groups', 'telegramLinked', 'hasActiveSub'));
     }
 
     public function update(
@@ -39,7 +40,9 @@ class StrategyController extends Controller
         $simulatorEnabled = false;
         $blockedSimulatorEnable = false;
         $blockedForLowBalance = false;
+        $blockedNoSubscription = false;
         $telegramLinked = $request->user()?->hasTelegramLinked() ?? false;
+        $hasActiveSub = $request->user()?->isSubscriptionActive() ?? false;
         $pendingWindowMin = null;
         $pendingWindowMax = null;
 
@@ -63,6 +66,12 @@ class StrategyController extends Controller
 
             if ($key === 'SIMULATOR_ENABLED') {
                 $wantsEnable = in_array(strtolower((string) $value), ['1', 'true', 'yes', 'on'], true);
+
+                if ($wantsEnable && !$hasActiveSub) {
+                    $blockedNoSubscription = true;
+                    $settings->set('SIMULATOR_ENABLED', 'false', 'system', $userId);
+                    continue;
+                }
 
                 if ($wantsEnable && !$telegramLinked) {
                     $blockedSimulatorEnable = true;
@@ -109,6 +118,9 @@ class StrategyController extends Controller
         }
 
         $message = 'Strategy parameters updated.';
+        if ($blockedNoSubscription) {
+            $message .= ' Simulator requires an active paid subscription.';
+        }
         if ($blockedSimulatorEnable) {
             $message .= ' Simulator remains off until Telegram is linked.';
         }
@@ -128,6 +140,13 @@ class StrategyController extends Controller
         $userId = (int) $request->user()->id;
         $enabled = $request->boolean('simulator_enabled');
         $telegramLinked = $request->user()?->hasTelegramLinked() ?? false;
+        $hasActiveSub = $request->user()?->isSubscriptionActive() ?? false;
+
+        if ($enabled && !$hasActiveSub) {
+            $settings->set('SIMULATOR_ENABLED', 'false', 'system', $userId);
+
+            return back()->with('toast', 'An active subscription is required to turn on the simulator.');
+        }
 
         if ($enabled && !$telegramLinked) {
             $settings->set('SIMULATOR_ENABLED', 'false', 'system', $userId);
