@@ -89,4 +89,44 @@
     </div>
     @endforeach
 </div>
+
+<!-- FAQ -->
+<h5 class="mb-3 mt-5" style="font-family: var(--font-display);">Frequently Asked Questions</h5>
+<div class="accordion ptx-accordion" id="subscriptionFaq">
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sfaq1">What cryptocurrencies do you accept?</button>
+        </h2>
+        <div id="sfaq1" class="accordion-collapse collapse" data-bs-parent="#subscriptionFaq">
+            <div class="accordion-body">We accept BTC, ETH, USDC, USDT, SOL, and many other cryptocurrencies via NOWPayments. Over 100 cryptocurrencies are supported.</div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sfaq2">Can I cancel anytime?</button>
+        </h2>
+        <div id="sfaq2" class="accordion-collapse collapse" data-bs-parent="#subscriptionFaq">
+            <div class="accordion-body">Yes. You can cancel your subscription at any time. Your access continues until the end of the current billing period. No refunds for partial periods.</div>
+        </div>
+    </div>
+    @if($freeModeEnabled)
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sfaq3">How does the Free plan work?</button>
+        </h2>
+        <div id="sfaq3" class="accordion-collapse collapse" data-bs-parent="#subscriptionFaq">
+            <div class="accordion-body">Sign up for free—no payment required, no credit card needed. You get immediate access to the simulator with 10 signals per day and basic features. All activity is simulated using real market data. Upgrade to a paid plan anytime for more signals, AI Brain analysis, and advanced features like Strategy Health Metrics and Telegram notifications.</div>
+        </div>
+    </div>
+    @endif
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sfaq4">Do I need a credit card?</button>
+        </h2>
+        <div id="sfaq4" class="accordion-collapse collapse" data-bs-parent="#subscriptionFaq">
+            <div class="accordion-body">No. We only accept cryptocurrency payments. No credit card, bank account, or traditional payment method is needed. This ensures privacy and global accessibility.</div>
+        </div>
+    </div>
+</div>
+<p class="mt-3 mb-0" style="color: var(--text-secondary); font-size: 0.9rem;">All plans are billed in cryptocurrency via NOWPayments. Prices shown in USD equivalent.</p>
 @endsection
