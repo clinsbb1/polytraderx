@@ -58,11 +58,20 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
+                        @php
+                            $isPaid = $user->is_lifetime ||
+                                (in_array($user->subscription_plan, ['pro', 'advanced', 'lifetime']) &&
+                                 $user->subscription_ends_at &&
+                                 $user->subscription_ends_at->isFuture());
+                        @endphp
                         <strong>Status:</strong>
-                        @if($user->is_active)
-                            <span class="badge bg-success">Active</span>
+                        @if($isPaid)
+                            <span class="badge bg-success">Paid User</span>
                         @else
-                            <span class="badge bg-danger">Inactive</span>
+                            <span class="badge bg-secondary">Unpaid User</span>
+                        @endif
+                        @if(!$user->is_active)
+                            <span class="badge bg-danger ms-1">Account Disabled</span>
                         @endif
                     </div>
                     <form method="POST" action="/admin/users/{{ $user->id }}/toggle-active" class="d-inline">

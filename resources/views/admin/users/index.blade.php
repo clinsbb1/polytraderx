@@ -25,10 +25,10 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted">Status</label>
-                <select name="active" class="form-select">
-                    <option value="">All Status</option>
-                    <option value="1" {{ request('active') === '1' ? 'selected' : '' }}>Active</option>
-                    <option value="0" {{ request('active') === '0' ? 'selected' : '' }}>Inactive</option>
+                <select name="paid" class="form-select">
+                    <option value="">All Users</option>
+                    <option value="1" {{ request('paid') === '1' ? 'selected' : '' }}>Paid Users</option>
+                    <option value="0" {{ request('paid') === '0' ? 'selected' : '' }}>Unpaid Users</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -94,10 +94,16 @@
                             @endif
                         </td>
                         <td>
-                            @if($user->is_active)
-                                <span class="badge bg-success">Active</span>
+                            @php
+                                $isPaid = $user->is_lifetime ||
+                                    (in_array($user->subscription_plan, ['pro', 'advanced', 'lifetime']) &&
+                                     $user->subscription_ends_at &&
+                                     $user->subscription_ends_at->isFuture());
+                            @endphp
+                            @if($isPaid)
+                                <span class="badge bg-success">Paid</span>
                             @else
-                                <span class="badge bg-danger">Inactive</span>
+                                <span class="badge bg-secondary">Unpaid</span>
                             @endif
                         </td>
                         <td class="text-center">{{ $user->trades_count ?? 0 }}</td>

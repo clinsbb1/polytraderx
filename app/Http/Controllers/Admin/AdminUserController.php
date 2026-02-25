@@ -37,8 +37,24 @@ class AdminUserController extends Controller
             $query->where('subscription_plan', $plan);
         }
 
-        if ($request->get('active') !== null && $request->get('active') !== '') {
-            $query->where('is_active', $request->boolean('active'));
+        if ($request->get('paid') !== null && $request->get('paid') !== '') {
+            $isPaidFilter = $request->boolean('paid');
+            if ($isPaidFilter) {
+                $query->where(function ($q) {
+                    $q->where('is_lifetime', true)
+                      ->orWhere(function ($sub) {
+                          $sub->whereIn('subscription_plan', ['pro', 'advanced', 'lifetime'])
+                              ->where('subscription_ends_at', '>', now());
+                      });
+                });
+            } else {
+                $query->where('is_lifetime', false)
+                      ->where(function ($q) {
+                          $q->whereNotIn('subscription_plan', ['pro', 'advanced', 'lifetime'])
+                            ->orWhereNull('subscription_ends_at')
+                            ->orWhere('subscription_ends_at', '<=', now());
+                      });
+            }
         }
 
         $users = $query
