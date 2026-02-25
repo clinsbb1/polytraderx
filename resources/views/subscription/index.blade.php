@@ -44,6 +44,7 @@
 <h5 class="mb-3" style="font-family: var(--font-display);">Upgrade Your Plan</h5>
 <div class="row g-4">
     @foreach($plans as $plan)
+    @if($plan->slug === 'free') @continue @endif
     <div class="col-md-4">
         <div class="ptx-plan-card {{ $user->subscription_plan === $plan->slug ? 'current' : '' }}">
             @if($user->subscription_plan === $plan->slug)
