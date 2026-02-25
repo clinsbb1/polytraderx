@@ -100,8 +100,8 @@
                                 <td>{{ $trade->exit_price !== null ? number_format((float) $trade->exit_price, 4) : '-' }}</td>
                                 <td>
                                     @if($trade->pnl !== null)
-                                        <strong style="color: {{ (float) $trade->pnl >= 0 ? 'var(--profit)' : 'var(--loss)' }};">
-                                            {{ (float) $trade->pnl >= 0 ? '+' : '' }}${{ number_format((float) $trade->pnl, 2) }}
+                                        <strong style="color: {{ $trade->status === 'won' ? 'var(--profit)' : ($trade->status === 'lost' ? 'var(--loss)' : 'var(--text-secondary)') }};">
+                                            {{ $trade->status === 'won' ? '+' : ($trade->status === 'lost' ? '-' : '') }}${{ number_format(abs((float) $trade->pnl), 2) }}
                                         </strong>
                                     @else
                                         <span style="color: var(--text-secondary);">-</span>

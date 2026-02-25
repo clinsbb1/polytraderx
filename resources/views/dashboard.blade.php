@@ -256,9 +256,9 @@
                             <td>{{ $trade->asset }}</td>
                             <td><span class="ptx-badge {{ $trade->side === 'YES' ? 'ptx-badge-success' : 'ptx-badge-danger' }}">{{ $trade->side }}</span></td>
                             <td>${{ number_format((float)$trade->amount, 2) }}</td>
-                            <td style="color: {{ (float)($trade->pnl ?? 0) >= 0 ? 'var(--profit)' : 'var(--loss)' }}; font-weight: 600;">
+                            <td style="color: {{ $trade->status === 'won' ? 'var(--profit)' : ($trade->status === 'lost' ? 'var(--loss)' : 'var(--text-secondary)') }}; font-weight: 600;">
                                 @if($trade->pnl !== null)
-                                    {{ (float)$trade->pnl >= 0 ? '+' : '' }}${{ number_format(abs((float)$trade->pnl), 2) }}
+                                    {{ $trade->status === 'won' ? '+' : ($trade->status === 'lost' ? '-' : '') }}${{ number_format(abs((float)$trade->pnl), 2) }}
                                 @else
                                     —
                                 @endif
