@@ -149,6 +149,7 @@ class TelegramBotService
         $chatId = (string) $message['chat']['id'];
         $text = trim($message['text']);
         $username = $message['from']['username'] ?? null;
+        $firstName = trim(($message['from']['first_name'] ?? '') . ' ' . ($message['from']['last_name'] ?? '')) ?: null;
         $normalizedCommand = $this->extractCommand($text);
 
         Log::channel('bot')->debug('Telegram command received', [
@@ -158,7 +159,7 @@ class TelegramBotService
         ]);
 
         if ($normalizedCommand === 'start') {
-            $this->handleStart($chatId, $text, $username);
+            $this->handleStart($chatId, $text, $username, $firstName);
         } elseif ($normalizedCommand === 'unlink') {
             $this->handleUnlink($chatId);
         } elseif ($normalizedCommand === 'status') {
@@ -210,7 +211,7 @@ class TelegramBotService
         }
     }
 
-    private function handleStart(string $chatId, string $text, ?string $username = null): void
+    private function handleStart(string $chatId, string $text, ?string $username = null, ?string $firstName = null): void
     {
         $parts = preg_split('/\s+/', ltrim($text, '/'), 2) ?: [];
         $accountId = $parts[1] ?? null;
@@ -234,7 +235,7 @@ class TelegramBotService
             return;
         }
 
-        $this->linkUser($user, $chatId, $username);
+        $this->linkUser($user, $chatId, $username, $firstName);
         $this->sendMessage($chatId, "Successfully linked to PolyTraderX account <b>{$user->account_id}</b>!\n\nYou will now receive simulator notifications here.\n\nCommands:\n/status - Simulator status & today's stats\n/today - Today's trades\n/balance - Current balance\n/unlink - Unlink this account\n/help - Show help");
     }
 
@@ -380,12 +381,13 @@ class TelegramBotService
         return User::where('account_id', $accountId)->first();
     }
 
-    private function linkUser(User $user, string $chatId, ?string $username = null): void
+    private function linkUser(User $user, string $chatId, ?string $username = null, ?string $firstName = null): void
     {
         $user->update([
-            'telegram_chat_id' => $chatId,
-            'telegram_username' => $username,
-            'telegram_linked_at' => now(),
+            'telegram_chat_id'    => $chatId,
+            'telegram_username'   => $username,
+            'telegram_first_name' => $firstName,
+            'telegram_linked_at'  => now(),
         ]);
     }
 }

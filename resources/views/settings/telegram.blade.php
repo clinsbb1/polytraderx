@@ -35,10 +35,10 @@
                 <i class="bi bi-check-circle me-1"></i>
                 Your Telegram account is linked. You will receive trading notifications.
             </p>
-            @if($user->telegram_username)
+            @if($user->telegram_username || $user->telegram_first_name)
                 <p style="color: var(--text-primary); font-size: 0.9rem;" class="mb-2">
                     <i class="bi bi-telegram me-1" style="color: var(--accent);"></i>
-                    <strong>{{ '@' . $user->telegram_username }}</strong>
+                    <strong>{{ $user->telegram_username ? '@' . $user->telegram_username : $user->telegram_first_name }}</strong>
                 </p>
             @endif
             <p style="color: var(--text-secondary); font-size: 0.85rem;" class="mb-3">

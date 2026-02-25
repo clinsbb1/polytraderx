@@ -81,6 +81,8 @@
                                 <span class="badge bg-success">Linked</span>
                                 @if($user->telegram_username)
                                     <div class="small text-muted mt-1">{{ '@' . $user->telegram_username }}</div>
+                                @elseif($user->telegram_first_name)
+                                    <div class="small text-muted mt-1">{{ $user->telegram_first_name }}</div>
                                 @endif
                             @else
                                 <span class="badge bg-secondary">Not Linked</span>

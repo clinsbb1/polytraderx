@@ -33,7 +33,7 @@
                         <option value="">Select connected user</option>
                         @foreach($connectedUsers as $u)
                             <option value="{{ $u->id }}" {{ (string) old('recipient_user_id') === (string) $u->id ? 'selected' : '' }}>
-                                {{ $u->name }} ({{ $u->account_id }}){{ $u->telegram_username ? ' @' . $u->telegram_username : '' }}
+                                {{ $u->name }} ({{ $u->account_id }}){{ $u->telegram_username ? ' @' . $u->telegram_username : ($u->telegram_first_name ? ' · ' . $u->telegram_first_name : '') }}
                             </option>
                         @endforeach
                     </select>

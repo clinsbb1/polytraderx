@@ -38,6 +38,7 @@ class User extends Authenticatable
         'avatar_url',
         'telegram_chat_id',
         'telegram_username',
+        'telegram_first_name',
         'telegram_linked_at',
         'google_id',
         'two_factor_enabled',
