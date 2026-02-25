@@ -609,6 +609,10 @@ class MarketService
 
         $prices = $this->parseMarketPrices($market);
 
+        if ($prices['yes_price'] <= 0.0 || $prices['no_price'] <= 0.0) {
+            return [null, 'invalid_prices'];
+        }
+
         return [[
             'condition_id' => $market['condition_id'] ?? $market['conditionId'] ?? $market['id'] ?? '',
             'question' => $question,

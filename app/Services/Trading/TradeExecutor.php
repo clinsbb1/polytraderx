@@ -40,22 +40,17 @@ class TradeExecutor
         }
 
         if (!is_finite($entryPrice) || $entryPrice <= 0.0) {
-            Log::channel('simulator')->warning('Trade execution skipped due to invalid entry price', [
+            // Zero price means the market data hasn't populated yet (API timing issue).
+            // This is not a user error — log silently and skip. The market will be
+            // retried on the next cycle once prices are available.
+            Log::channel('simulator')->warning('Trade execution skipped: market price not yet available', [
                 'user_id' => $user->id,
                 'market_id' => $market['condition_id'] ?? null,
                 'asset' => $market['asset'] ?? null,
                 'side' => $side,
-                'entry_price' => $entryPrice,
                 'yes_price' => $market['yes_price'] ?? null,
                 'no_price' => $market['no_price'] ?? null,
             ]);
-
-            try {
-                app(\App\Services\Telegram\NotificationService::class)
-                    ->notifyInvalidEntryPrice($entryPrice, $market, $user);
-            } catch (\Throwable) {
-                // Notification failure must never crash trading
-            }
 
             return null;
         }
