@@ -33,8 +33,10 @@ class UserBotRunner
                 if ($freeModeEnabled) {
                     $query->orWhere(function ($freeAccess) {
                         $freeAccess->where('subscription_plan', 'free')
-                            ->whereNotNull('trial_ends_at')
-                            ->where('trial_ends_at', '>', now());
+                            ->where(function ($q) {
+                                $q->whereNull('trial_ends_at') // null = indefinite free access
+                                  ->orWhere('trial_ends_at', '>', now()); // or active trial
+                            });
                     });
                 }
             })

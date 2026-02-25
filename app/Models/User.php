@@ -166,7 +166,7 @@ class User extends Authenticatable
     public function isTrialExpired(): bool
     {
         if (!$this->trial_ends_at) {
-            return true;
+            return false; // null = no trial limit (indefinite free access for downgraded users)
         }
 
         return $this->trial_ends_at->isPast();

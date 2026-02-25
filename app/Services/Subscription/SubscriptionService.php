@@ -10,6 +10,7 @@ use App\Models\SubscriptionPlan;
 use App\Models\Trade;
 use App\Models\User;
 use App\Services\Settings\PlatformSettingsService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -17,7 +18,10 @@ class SubscriptionService
 {
     private const CACHE_TTL = 3600; // 1 hour
 
-    public function __construct(private PlatformSettingsService $platformSettings) {}
+    public function __construct(
+        private PlatformSettingsService $platformSettings,
+        private SettingsService $settingsService,
+    ) {}
 
     // ──────────── Plan Resolution ────────────
 
@@ -316,20 +320,24 @@ class SubscriptionService
 
     public function expire(User $user): void
     {
+        // Stop the simulator immediately on expiry, regardless of path.
+        $this->settingsService->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
+
         if ($this->isFreeModeEnabled()) {
-            // Downgrade to free plan when free mode is available.
+            // Downgrade to free plan (indefinite free access — trial_ends_at stays null).
             $user->update([
                 'subscription_plan' => 'free',
                 'billing_interval' => 'free',
                 'is_lifetime' => false,
                 'is_active' => true,
                 'subscription_ends_at' => null,
+                'trial_ends_at' => null,
             ]);
 
             return;
         }
 
-        // Free mode disabled: keep account subscribed state inactive until renewal.
+        // Free mode disabled: deactivate until renewal.
         $user->update([
             'is_lifetime' => false,
             'billing_interval' => null,

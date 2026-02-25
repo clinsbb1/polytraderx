@@ -62,7 +62,7 @@ class EnsureActiveSubscription
                     ->with('warning', 'Please select a plan to activate your account and get started.');
             }
 
-            if ($user->trial_ends_at !== null && $user->trial_ends_at->isFuture()) {
+            if ($user->trial_ends_at === null || $user->trial_ends_at->isFuture()) {
                 return $next($request);
             }
 
