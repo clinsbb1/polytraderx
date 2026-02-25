@@ -11,6 +11,7 @@ use App\Models\AdminEmailMessage;
 use App\Models\AdminTelegramMessage;
 use App\Models\Announcement;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionService;
 use App\Support\AnnouncementTemplate;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminAnnouncementController extends Controller
@@ -46,6 +48,8 @@ class AdminAnnouncementController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $audienceTypes = $this->allowedAudienceTypes();
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string'],
@@ -53,7 +57,7 @@ class AdminAnnouncementController extends Controller
             'is_active' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
             'dashboard_until_date' => ['required_if:show_on_dashboard,1', 'nullable', 'date'],
-            'audience_type' => ['required', 'in:all,single,paid_active,free_plan'],
+            'audience_type' => ['required', Rule::in($audienceTypes)],
             'target_user_id' => ['nullable', 'required_if:audience_type,single', 'integer', 'exists:users,id'],
             'send_email' => ['boolean'],
         ]);
@@ -99,6 +103,8 @@ class AdminAnnouncementController extends Controller
 
     public function update(Request $request, Announcement $announcement): RedirectResponse
     {
+        $audienceTypes = $this->allowedAudienceTypes();
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string'],
@@ -106,7 +112,7 @@ class AdminAnnouncementController extends Controller
             'is_active' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
             'dashboard_until_date' => ['required_if:show_on_dashboard,1', 'nullable', 'date'],
-            'audience_type' => ['required', 'in:all,single,paid_active,free_plan'],
+            'audience_type' => ['required', Rule::in($audienceTypes)],
             'target_user_id' => ['nullable', 'required_if:audience_type,single', 'integer', 'exists:users,id'],
             'send_email' => ['boolean'],
         ]);
@@ -341,10 +347,26 @@ class AdminAnnouncementController extends Controller
         }
 
         if ($audienceType === 'free_plan') {
+            if (!app(SubscriptionService::class)->isFreeModeEnabled()) {
+                $query->whereRaw('1 = 0');
+                return $query;
+            }
+
             $query->where('subscription_plan', 'free');
         }
 
         return $query;
+    }
+
+    private function allowedAudienceTypes(): array
+    {
+        $types = ['all', 'single', 'paid_active'];
+
+        if (app(SubscriptionService::class)->isFreeModeEnabled()) {
+            $types[] = 'free_plan';
+        }
+
+        return $types;
     }
 
     /**

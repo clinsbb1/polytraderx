@@ -6,13 +6,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminTelegramMessage;
+use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Services\Email\LifecycleEmailService;
+use App\Services\Settings\PlatformSettingsService;
 use App\Services\Subscription\SubscriptionService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminUserController extends Controller
@@ -43,7 +47,11 @@ class AdminUserController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('admin.users.index', compact('users'));
+        $planOptions = SubscriptionPlan::query()
+            ->ordered()
+            ->get(['slug', 'name', 'is_active']);
+
+        return view('admin.users.index', compact('users', 'planOptions'));
     }
 
     public function show(User $user): View
@@ -59,7 +67,11 @@ class AdminUserController extends Controller
 
         $recentTrades = $user->trades()->latest()->take(20)->get();
 
-        return view('admin.users.show', compact('user', 'tradeStats', 'recentTrades'));
+        $availablePlans = SubscriptionPlan::query()
+            ->ordered()
+            ->get(['slug', 'name', 'billing_period', 'is_active']);
+
+        return view('admin.users.show', compact('user', 'tradeStats', 'recentTrades', 'availablePlans'));
     }
 
     public function toggleActive(User $user): RedirectResponse
@@ -72,28 +84,60 @@ class AdminUserController extends Controller
 
     public function changePlan(Request $request, User $user): RedirectResponse
     {
+        $planSlugs = SubscriptionPlan::query()->pluck('slug')->all();
+
         $request->validate([
-            'subscription_plan' => ['required', 'string', 'in:free,pro,advanced,lifetime'],
+            'subscription_plan' => ['required', 'string', Rule::in($planSlugs)],
+            'subscription_ends_at' => ['nullable', 'date'],
         ]);
+
+        $selectedPlan = SubscriptionPlan::query()
+            ->where('slug', (string) $request->subscription_plan)
+            ->firstOrFail();
+
+        $isFreeSelection = $selectedPlan->slug === 'free';
+        $freeModeEnabled = app(SubscriptionService::class)->isFreeModeEnabled();
+        $configuredTrialDays = (int) ($selectedPlan->trial_days ?? 0);
+        $freeTrialDays = $configuredTrialDays > 0
+            ? $configuredTrialDays
+            : app(PlatformSettingsService::class)->getInt('DEFAULT_TRIAL_DAYS', 7);
+
+        $manualEndsAt = $request->filled('subscription_ends_at')
+            ? Carbon::parse((string) $request->input('subscription_ends_at'))->endOfDay()
+            : null;
 
         $user->update([
-            'subscription_plan' => $request->subscription_plan,
-            'subscription_ends_at' => $request->subscription_plan !== 'free'
-                ? now()->addDays(30)
+            'subscription_plan' => $selectedPlan->slug,
+            'billing_interval' => $selectedPlan->billing_period === 'lifetime'
+                ? 'lifetime'
+                : ($isFreeSelection ? 'free' : 'monthly'),
+            'is_lifetime' => $selectedPlan->slug === 'lifetime',
+            'subscription_ends_at' => ($isFreeSelection || $selectedPlan->slug === 'lifetime')
+                ? null
+                : ($manualEndsAt ?? now()->addDays(30)),
+            'trial_ends_at' => $isFreeSelection && $freeModeEnabled
+                ? now()->addDays($freeTrialDays)
                 : null,
+            'is_active' => $isFreeSelection ? $freeModeEnabled : true,
         ]);
 
-        return back()->with('success', "User plan changed to {$request->subscription_plan}.");
+        return back()->with('success', "User plan changed to {$selectedPlan->name}.");
     }
 
     public function grantFreeSubscription(Request $request, User $user): RedirectResponse
     {
+        $planSlugs = SubscriptionPlan::query()->pluck('slug')->all();
+
         $request->validate([
-            'plan_slug' => ['required', 'string', 'in:free,pro,advanced,lifetime'],
+            'plan_slug' => ['required', 'string', Rule::in($planSlugs)],
             'duration_days' => ['required', 'integer', 'min:1', 'max:3650'],
         ]);
 
         $subscriptionService = app(SubscriptionService::class);
+
+        if ($request->plan_slug === 'free' && !$subscriptionService->isFreeModeEnabled()) {
+            return back()->with('error', 'Free mode is inactive. You cannot grant the free plan right now.');
+        }
 
         $subscriptionService->grantFreeSubscription(
             $user->id,
@@ -126,7 +170,7 @@ class AdminUserController extends Controller
                         'batch_id' => null,
                         'is_broadcast' => false,
                         'message' => "<b>Subscription Update</b>\n\n"
-                            . "Your free <b>{$plan->name}</b> plan has been granted by admin.\n"
+                            . "Your complimentary <b>{$plan->name}</b> plan has been granted by admin.\n"
                             . "Duration: <b>{$durationLabel}</b>\n\n"
                             . "Open your dashboard to continue.",
                         'image_path' => null,
@@ -150,7 +194,7 @@ class AdminUserController extends Controller
             ? 'lifetime access'
             : "{$request->duration_days} days";
 
-        return back()->with('success', "Free {$request->plan_slug} subscription granted to {$user->name} ({$durationLabel}).");
+        return back()->with('success', "Complimentary {$request->plan_slug} subscription granted to {$user->name} ({$durationLabel}).");
     }
 
     public function impersonate(User $user): RedirectResponse

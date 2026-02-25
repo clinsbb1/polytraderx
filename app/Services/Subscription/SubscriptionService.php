@@ -36,9 +36,18 @@ class SubscriptionService
 
     public function isActive(User $user): bool
     {
-        // Free plan: always active
-        if ($user->subscription_plan === 'free') {
+        if ($user->is_superadmin) {
             return true;
+        }
+
+        if (!$user->is_active) {
+            return false;
+        }
+
+        if ($user->subscription_plan === 'free') {
+            return $this->isFreeModeEnabled()
+                && $user->trial_ends_at !== null
+                && $user->trial_ends_at->isFuture();
         }
 
         // Lifetime: always active
@@ -52,6 +61,11 @@ class SubscriptionService
         }
 
         return false;
+    }
+
+    public function isFreeModeEnabled(): bool
+    {
+        return SubscriptionPlan::isFreeModeEnabled();
     }
 
     public function isPaid(User $user): bool
@@ -302,13 +316,26 @@ class SubscriptionService
 
     public function expire(User $user): void
     {
-        // Downgrade to free plan
+        if ($this->isFreeModeEnabled()) {
+            // Downgrade to free plan when free mode is available.
+            $user->update([
+                'subscription_plan' => 'free',
+                'billing_interval' => 'free',
+                'is_lifetime' => false,
+                'is_active' => true,
+                'subscription_ends_at' => null,
+            ]);
+
+            return;
+        }
+
+        // Free mode disabled: keep account subscribed state inactive until renewal.
         $user->update([
-            'subscription_plan' => 'free',
-            'billing_interval' => 'free',
             'is_lifetime' => false,
-            'is_active' => true, // Free users still active
+            'billing_interval' => null,
+            'is_active' => false,
             'subscription_ends_at' => null,
+            'trial_ends_at' => null,
         ]);
     }
 
@@ -358,7 +385,7 @@ class SubscriptionService
             'status' => 'finished',
             'paid_at' => now(),
             'expires_at' => $user->subscription_ends_at,
-            'notes' => 'Free subscription granted by admin (user #' . auth()->id() . ')',
+            'notes' => 'Complimentary subscription granted by admin (user #' . auth()->id() . ')',
         ]);
     }
 
@@ -401,7 +428,7 @@ class SubscriptionService
 
         if ($grantedByUserId !== null) {
             $payment->update([
-                'notes' => "Free subscription granted by admin (user #{$grantedByUserId})",
+                'notes' => "Complimentary subscription granted by admin (user #{$grantedByUserId})",
             ]);
         }
 

@@ -38,14 +38,19 @@
                                     'all' => 'All Users',
                                     'single' => 'Single User',
                                     'paid_active' => 'Active Subscribers',
-                                    'free_plan' => 'Free Plan Users',
                                 ];
                                 $audienceColors = [
                                     'all' => 'secondary',
                                     'single' => 'primary',
                                     'paid_active' => 'success',
-                                    'free_plan' => 'info',
                                 ];
+                                if ($freeModeEnabled) {
+                                    $audienceLabels['free_plan'] = 'Free Plan Users';
+                                    $audienceColors['free_plan'] = 'info';
+                                } else {
+                                    $audienceLabels['free_plan'] = 'Legacy Free Users';
+                                    $audienceColors['free_plan'] = 'secondary';
+                                }
                             @endphp
                             <span class="badge bg-{{ $audienceColors[$audienceType] ?? 'secondary' }}">
                                 {{ $audienceLabels[$audienceType] ?? 'All Users' }}

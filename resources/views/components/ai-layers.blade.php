@@ -8,7 +8,7 @@
         <div class="flex-grow-1">
             <div class="d-flex align-items-center gap-2 mb-1">
                 <h5 class="mb-0" style="font-size: 1.1rem;">Tier 1: Reflexes</h5>
-                <span class="ai-layer-badge ai-layer-badge--free">Free</span>
+                <span class="ai-layer-badge ai-layer-badge--free">{{ $freeModeEnabled ? 'Free' : 'Core' }}</span>
             </div>
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 4px;">
                 Rule-based logic running every minute. Market scanning, real-time price checks against Binance spot, pattern matching, and rule execution. Zero AI cost — pure algorithmic speed.

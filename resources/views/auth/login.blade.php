@@ -62,7 +62,7 @@
             </form>
 
             <p class="text-center mt-4" style="color: var(--text-secondary); font-size: 0.9rem;">
-                Don't have an account? <a href="{{ route('register') }}">Sign up free</a>
+                Don't have an account? <a href="{{ route('register') }}">{{ $freeModeEnabled ? 'Sign up free' : 'Create account' }}</a>
             </p>
         </div>
     </div>

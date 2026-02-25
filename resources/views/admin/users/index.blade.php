@@ -15,10 +15,12 @@
                 <label class="form-label small text-muted">Plan</label>
                 <select name="plan" class="form-select">
                     <option value="">All Plans</option>
-                    <option value="free" {{ request('plan') === 'free' ? 'selected' : '' }}>Free</option>
-                    <option value="pro" {{ request('plan') === 'pro' ? 'selected' : '' }}>Pro</option>
-                    <option value="advanced" {{ request('plan') === 'advanced' ? 'selected' : '' }}>Advanced</option>
-                    <option value="lifetime" {{ request('plan') === 'lifetime' ? 'selected' : '' }}>Lifetime</option>
+                    @foreach($planOptions as $planOption)
+                        @continue(!$planOption->is_active && request('plan') !== $planOption->slug)
+                        <option value="{{ $planOption->slug }}" {{ request('plan') === $planOption->slug ? 'selected' : '' }}>
+                            {{ $planOption->name }}{{ !$planOption->is_active ? ' (inactive)' : '' }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
             <div class="col-md-3">
@@ -69,8 +71,8 @@
                         <td><code class="small">{{ $user->account_id }}</code></td>
                         <td>
                             @php
-                                $planColors = ['free' => 'secondary', 'pro' => 'primary', 'advanced' => 'warning', 'lifetime' => 'success'];
-                                $planLabel = $user->subscription_plan ?? 'free';
+                                $planColors = ['pro' => 'primary', 'advanced' => 'warning', 'lifetime' => 'success'];
+                                $planLabel = $user->subscription_plan ?? 'n/a';
                             @endphp
                             <span class="badge bg-{{ $planColors[$planLabel] ?? 'secondary' }}">{{ str_replace('_', ' ', ucfirst($planLabel)) }}</span>
                         </td>

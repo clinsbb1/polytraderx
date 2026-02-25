@@ -52,7 +52,9 @@ class Announcement extends Model
     public function scopeForDashboard(Builder $query, ?User $user = null): Builder
     {
         $userId = $user?->id;
-        $isFreePlanUser = $user !== null && (string) $user->subscription_plan === 'free';
+        $isFreePlanUser = $user !== null
+            && SubscriptionPlan::isFreeModeEnabled()
+            && (string) $user->subscription_plan === 'free';
         $isActivePaidSubscriber = $user !== null
             && (string) $user->subscription_plan !== 'free'
             && (

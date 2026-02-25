@@ -137,7 +137,7 @@ class LifecycleEmailService
             : (($durationDays ?? 0) > 0 ? "{$durationDays} days" : 'Custom duration');
 
         $lines = [
-            "An admin has granted you free access to the {$plan->name} plan.",
+            "An admin has granted you complimentary access to the {$plan->name} plan.",
         ];
 
         if ($isLifetime) {
@@ -149,8 +149,8 @@ class LifecycleEmailService
         return $this->sendToUser(
             $user,
             new BrandedNotificationMail(
-                subjectLine: "Free {$plan->name} subscription granted",
-                headline: 'Free subscription applied',
+                subjectLine: "Complimentary {$plan->name} subscription granted",
+                headline: 'Complimentary subscription applied',
                 lines: $lines,
                 actionText: 'View Subscription',
                 actionUrl: url('/subscription'),
@@ -159,7 +159,7 @@ class LifecycleEmailService
                     'Duration' => $durationLabel,
                 ],
             ),
-            'free_subscription_granted_email'
+            'complimentary_subscription_granted_email'
         );
     }
 
@@ -215,6 +215,25 @@ class LifecycleEmailService
             ),
             'pending_payment_expired_email',
             ['payment_id' => $payment->id]
+        );
+    }
+
+    public function sendFreeAccessRevoked(User $user): bool
+    {
+        return $this->sendToUser(
+            $user,
+            new BrandedNotificationMail(
+                subjectLine: 'Your free access has been deactivated',
+                headline: 'Free plan deactivated',
+                lines: [
+                    "Hi {$user->name}, the free tier on PolyTraderX has been deactivated.",
+                    'Your account has been paused. All your data, trades, and strategy settings are safe.',
+                    'Choose a paid plan to resume simulating immediately.',
+                ],
+                actionText: 'View Plans',
+                actionUrl: url('/subscription'),
+            ),
+            'free_access_revoked_email'
         );
     }
 

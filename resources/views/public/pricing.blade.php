@@ -1,7 +1,12 @@
 @extends('layouts.public')
 
 @section('title', 'Pricing — PolyTraderX')
-@section('meta_description', 'Compare PolyTraderX plans for strategy simulation. Start free, upgrade to Pro or Advanced, and unlock AI analytics, priority support, and deeper performance tools.')
+@php
+    $pricingMetaDescription = $freeModeEnabled
+        ? 'Compare PolyTraderX plans for strategy simulation. Start free, upgrade to Pro or Advanced, and unlock AI analytics, priority support, and deeper performance tools.'
+        : 'Compare PolyTraderX plans for strategy simulation. Choose Pro, Advanced, or Lifetime to unlock AI analytics, priority support, and deeper performance tools.';
+@endphp
+@section('meta_description', $pricingMetaDescription)
 
 @section('content')
     {{-- Header --}}
@@ -11,7 +16,7 @@
                 <span class="ptx-gradient-text">Simple, Transparent</span> Pricing
             </h1>
             <p class="lead ptx-fade-in ptx-fade-in-delay-1">
-                Start simulating free. Upgrade when you're ready. Pay with crypto.
+                {{ $freeModeEnabled ? 'Start simulating free. Upgrade when you\'re ready. Pay with crypto.' : 'Choose a plan and start simulating today. Pay with crypto.' }}
             </p>
         </div>
     </section>
@@ -53,7 +58,7 @@
                                 <td><strong>Pricing</strong></td>
                                 @foreach($plans as $plan)
                                 <td>
-                                    @if((float)$plan->price_usd === 0.0)
+                                    @if((float)$plan->price_usd === 0.0 && $freeModeEnabled && $plan->slug === 'free')
                                         Free
                                     @else
                                         ${{ number_format((float)$plan->price_usd, 0) }}/mo
@@ -244,14 +249,16 @@
                         <div class="accordion-body">Yes. You can cancel your subscription at any time. Your access continues until the end of the current billing period. No refunds for partial periods.</div>
                     </div>
                 </div>
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bfaq3">How does the Free plan work?</button>
-                    </h2>
-                    <div id="bfaq3" class="accordion-collapse collapse" data-bs-parent="#billingFaq">
-                        <div class="accordion-body">Sign up for free—no payment required, no credit card needed. You get immediate access to the simulator with 10 signals per day and basic features. All activity is simulated using real market data. Upgrade to a paid plan anytime for more signals, AI Brain analysis, and advanced features like Strategy Health Metrics and Telegram notifications.</div>
+                @if($freeModeEnabled)
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bfaq3">How does the Free plan work?</button>
+                        </h2>
+                        <div id="bfaq3" class="accordion-collapse collapse" data-bs-parent="#billingFaq">
+                            <div class="accordion-body">Sign up for free—no payment required, no credit card needed. You get immediate access to the simulator with 10 signals per day and basic features. All activity is simulated using real market data. Upgrade to a paid plan anytime for more signals, AI Brain analysis, and advanced features like Strategy Health Metrics and Telegram notifications.</div>
+                        </div>
                     </div>
-                </div>
+                @endif
                 <div class="accordion-item">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bfaq4">Do I need a credit card?</button>

@@ -7,7 +7,7 @@
     <div class="ptx-auth-wrapper">
         <div class="ptx-auth-card">
             <h2>Create Account</h2>
-            <p class="auth-subtitle">Start your 7-day free trial</p>
+            <p class="auth-subtitle">{{ $freeModeEnabled ? 'Start your 7-day free trial' : 'Create your account to choose a plan' }}</p>
 
             <a href="/auth/google" class="btn-google">
                 <svg width="20" height="20" viewBox="0 0 24 24">

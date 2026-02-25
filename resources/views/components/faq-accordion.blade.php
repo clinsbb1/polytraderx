@@ -162,7 +162,7 @@
             </button>
         </h2>
         <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">Tier 1 (Reflexes) is free rule-based logic that scans markets every minute. Tier 2 (Muscles) uses Claude Haiku every 5 minutes for quick confidence scoring. Tier 3 (Brain) uses Claude Sonnet on-demand for deep forensic analysis after losing signals and daily/weekly strategy reviews. This tiered approach optimizes AI costs while maintaining intelligence.</div>
+            <div class="accordion-body">Tier 1 (Reflexes) is core rule-based logic that scans markets every minute. Tier 2 (Muscles) uses Claude Haiku every 5 minutes for quick confidence scoring. Tier 3 (Brain) uses Claude Sonnet on-demand for deep forensic analysis after losing signals and daily/weekly strategy reviews. This tiered approach optimizes AI costs while maintaining intelligence.</div>
         </div>
     </div>
     <div class="accordion-item">
@@ -192,7 +192,13 @@
             </button>
         </h2>
         <div id="faq9" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-            <div class="accordion-body">We accept cryptocurrency payments via NOWPayments. You can pay with BTC, ETH, USDC, USDT, SOL, and over 100 other cryptocurrencies. A 7-day free trial is available with no payment required. No credit card needed.</div>
+            <div class="accordion-body">
+                We accept cryptocurrency payments via NOWPayments. You can pay with BTC, ETH, USDC, USDT, SOL, and over 100 other cryptocurrencies.
+                @if($freeModeEnabled)
+                    A 7-day free trial is available with no payment required.
+                @endif
+                No credit card needed.
+            </div>
         </div>
     </div>
 </div>

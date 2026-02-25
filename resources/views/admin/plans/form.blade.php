@@ -67,7 +67,7 @@
                 <label class="form-label fw-semibold">Trial Days</label>
                 <input type="number" name="trial_days" class="form-control @error('trial_days') is-invalid @enderror" min="0" value="{{ old('trial_days', $plan->trial_days ?? '0') }}">
                 @error('trial_days') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                <div class="form-text">Number of free trial days for new subscribers.</div>
+                <div class="form-text">Number of trial days for new subscribers.</div>
             </div>
 
             <div class="row mb-3">
@@ -170,6 +170,7 @@
 
             <div class="mb-4">
                 <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
                     <input class="form-check-input" type="checkbox" name="is_active" value="1" id="isActive"
                         {{ old('is_active', $plan->is_active ?? true) ? 'checked' : '' }}>
                     <label class="form-check-label" for="isActive">Active</label>

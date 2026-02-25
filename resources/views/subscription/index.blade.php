@@ -20,7 +20,7 @@
     <div class="ptx-card-body">
         <div class="row">
             <div class="col-md-6">
-                <p class="mb-2"><span class="ptx-label d-inline">Plan:</span> <strong>{{ $currentPlan ? $currentPlan->name : ucfirst(str_replace('_', ' ', $user->subscription_plan ?? 'Free')) }}</strong></p>
+                <p class="mb-2"><span class="ptx-label d-inline">Plan:</span> <strong>{{ $currentPlan ? $currentPlan->name : ucfirst(str_replace('_', ' ', $user->subscription_plan ?? 'No plan')) }}</strong></p>
                 @if($user->is_lifetime)
                     <p class="mb-0"><span class="ptx-badge ptx-badge-success">Lifetime Access</span></p>
                 @elseif($user->subscription_ends_at)
@@ -52,7 +52,12 @@
             <div class="plan-name">{{ $plan->name }}</div>
             <div class="my-3">
                 @if((float)$plan->price_usd === 0.0)
-                    <span class="plan-price">Free</span>
+                    @if($freeModeEnabled && $plan->slug === 'free')
+                        <span class="plan-price">Free</span>
+                    @else
+                        <span class="plan-price">${{ number_format((float)$plan->price_usd, 0) }}</span>
+                        <div class="plan-period">/{{ $plan->billing_period }}</div>
+                    @endif
                 @else
                     <span class="plan-price">${{ number_format((float)$plan->price_usd, 0) }}</span>
                     <div class="plan-period">/{{ $plan->billing_period }}</div>

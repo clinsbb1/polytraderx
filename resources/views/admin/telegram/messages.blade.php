@@ -21,7 +21,9 @@
                     <select name="target" id="targetSelect" class="form-select" required>
                         <option value="all" {{ old('target') === 'all' ? 'selected' : '' }}>All connected users</option>
                         <option value="paid_active" {{ old('target') === 'paid_active' ? 'selected' : '' }}>Paid users (active)</option>
-                        <option value="free_plan" {{ old('target') === 'free_plan' ? 'selected' : '' }}>Unpaid users (free plan)</option>
+                        @if($freeModeEnabled)
+                            <option value="free_plan" {{ old('target') === 'free_plan' ? 'selected' : '' }}>Unpaid users (free plan)</option>
+                        @endif
                         <option value="single" {{ old('target') === 'single' ? 'selected' : '' }}>Single connected user</option>
                     </select>
                 </div>

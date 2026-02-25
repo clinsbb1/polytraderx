@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserCredential;
 use App\Services\Settings\PlatformSettingsService;
 use App\Services\Settings\SettingsService;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -63,6 +64,7 @@ class GoogleAuthController extends Controller
 
         // Create new user
         $trialDays = app(PlatformSettingsService::class)->getInt('DEFAULT_TRIAL_DAYS', 7);
+        $freeModeEnabled = app(SubscriptionService::class)->isFreeModeEnabled();
 
         try {
             $user = User::create([
@@ -73,7 +75,9 @@ class GoogleAuthController extends Controller
                 'avatar_url' => $googleUser->getAvatar(),
                 'email_verified_at' => now(),
                 'subscription_plan' => 'free',
-                'trial_ends_at' => now()->addDays($trialDays),
+                'billing_interval' => $freeModeEnabled ? 'free' : null,
+                'trial_ends_at' => $freeModeEnabled ? now()->addDays($trialDays) : null,
+                'is_active' => $freeModeEnabled,
             ]);
         } catch (\Throwable $e) {
             report($e);

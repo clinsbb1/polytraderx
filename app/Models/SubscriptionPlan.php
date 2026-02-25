@@ -7,9 +7,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class SubscriptionPlan extends Model
 {
+    private const FREE_MODE_CACHE_KEY = 'subscription_plans:free_mode_enabled';
+
     protected $fillable = [
         'slug',
         'name',
@@ -40,6 +44,17 @@ class SubscriptionPlan extends Model
         'lifetime_sold',
         'features_json',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (): void {
+            self::flushAvailabilityCache();
+        });
+
+        static::deleted(function (): void {
+            self::flushAvailabilityCache();
+        });
+    }
 
     protected function casts(): array
     {
@@ -85,5 +100,26 @@ class SubscriptionPlan extends Model
     public function scopeOrdered(Builder $query): Builder
     {
         return $query->orderBy('sort_order');
+    }
+
+    public static function isFreeModeEnabled(): bool
+    {
+        if (!Schema::hasTable((new self())->getTable())) {
+            return false;
+        }
+
+        return (bool) Cache::remember(
+            self::FREE_MODE_CACHE_KEY,
+            3600,
+            fn () => self::query()
+                ->where('slug', 'free')
+                ->where('is_active', true)
+                ->exists()
+        );
+    }
+
+    public static function flushAvailabilityCache(): void
+    {
+        Cache::forget(self::FREE_MODE_CACHE_KEY);
     }
 }

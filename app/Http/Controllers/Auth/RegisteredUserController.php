@@ -11,6 +11,7 @@ use App\Rules\TurnstileRule;
 use App\Services\Email\LifecycleEmailService;
 use App\Services\Settings\PlatformSettingsService;
 use App\Services\Settings\SettingsService;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,6 +41,7 @@ class RegisteredUserController extends Controller
         ]);
 
         $trialDays = app(PlatformSettingsService::class)->getInt('DEFAULT_TRIAL_DAYS', 7);
+        $freeModeEnabled = app(SubscriptionService::class)->isFreeModeEnabled();
 
         $user = User::create([
             'name' => $request->name,
@@ -47,7 +49,9 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
             'timezone' => $request->timezone,
             'subscription_plan' => 'free',
-            'trial_ends_at' => now()->addDays($trialDays),
+            'billing_interval' => $freeModeEnabled ? 'free' : null,
+            'trial_ends_at' => $freeModeEnabled ? now()->addDays($trialDays) : null,
+            'is_active' => $freeModeEnabled,
         ]);
 
         UserCredential::create(['user_id' => $user->id]);

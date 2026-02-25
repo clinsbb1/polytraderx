@@ -140,7 +140,19 @@ class User extends Authenticatable
             return true;
         }
 
-        if ($this->subscription_plan === 'free' && !$this->isTrialExpired()) {
+        if (!$this->is_active) {
+            return false;
+        }
+
+        if ($this->is_lifetime || $this->subscription_plan === 'lifetime') {
+            return true;
+        }
+
+        if (
+            $this->subscription_plan === 'free'
+            && SubscriptionPlan::isFreeModeEnabled()
+            && !$this->isTrialExpired()
+        ) {
             return true;
         }
 
@@ -217,11 +229,18 @@ class User extends Authenticatable
 
     public function scopeWithActiveSubscription(Builder $query): Builder
     {
-        return $query->where(function (Builder $q) {
-            $q->where(function (Builder $q2) {
-                $q2->where('subscription_plan', 'free')
-                   ->where('trial_ends_at', '>', now());
-            })->orWhere('subscription_ends_at', '>', now());
+        $freeModeEnabled = SubscriptionPlan::isFreeModeEnabled();
+
+        return $query->where(function (Builder $q) use ($freeModeEnabled) {
+            $q->where('subscription_ends_at', '>', now())
+                ->orWhere('is_lifetime', true);
+
+            if ($freeModeEnabled) {
+                $q->orWhere(function (Builder $q2) {
+                    $q2->where('subscription_plan', 'free')
+                        ->where('trial_ends_at', '>', now());
+                });
+            }
         });
     }
 }

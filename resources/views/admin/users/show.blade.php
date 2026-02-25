@@ -89,10 +89,12 @@
                     <label class="form-label small fw-semibold">Change Plan</label>
                     <div class="input-group input-group-sm">
                         <select name="subscription_plan" class="form-select form-select-sm">
-                            <option value="free" {{ $user->subscription_plan === 'free' ? 'selected' : '' }}>Free</option>
-                            <option value="pro" {{ $user->subscription_plan === 'pro' ? 'selected' : '' }}>Pro</option>
-                            <option value="advanced" {{ $user->subscription_plan === 'advanced' ? 'selected' : '' }}>Advanced</option>
-                            <option value="lifetime" {{ $user->subscription_plan === 'lifetime' ? 'selected' : '' }}>Lifetime</option>
+                            @foreach($availablePlans as $planOption)
+                                @continue(!$planOption->is_active && $user->subscription_plan !== $planOption->slug)
+                                <option value="{{ $planOption->slug }}" {{ $user->subscription_plan === $planOption->slug ? 'selected' : '' }}>
+                                    {{ $planOption->name }}{{ !$planOption->is_active ? ' (inactive)' : '' }}
+                                </option>
+                            @endforeach
                         </select>
                         <button type="submit" class="btn btn-sm btn-primary">Save</button>
                     </div>
@@ -101,7 +103,7 @@
                 <!-- Change Subscription End Date -->
                 <form method="POST" action="/admin/users/{{ $user->id }}/change-plan" class="mb-0">
                     @csrf
-                    <input type="hidden" name="subscription_plan" value="{{ $user->subscription_plan ?? 'free' }}">
+                    <input type="hidden" name="subscription_plan" value="{{ $user->subscription_plan }}">
                     <label class="form-label small fw-semibold">Subscription Ends At</label>
                     <div class="input-group input-group-sm">
                         <input type="date" name="subscription_ends_at" class="form-control form-control-sm" value="{{ $user->subscription_ends_at?->format('Y-m-d') }}">
@@ -126,11 +128,11 @@
             </div>
         </div>
 
-        <!-- Grant Free Subscription -->
+        <!-- Grant Complimentary Subscription -->
         <div class="card">
             <div class="card-header bg-success bg-opacity-10">
                 <h6 class="mb-0 text-success">
-                    <i class="bi bi-gift me-2"></i>Grant Free Subscription
+                    <i class="bi bi-gift me-2"></i>Grant Complimentary Subscription
                 </h6>
             </div>
             <div class="card-body">
@@ -140,10 +142,11 @@
                         <div class="mb-2">
                             <label class="form-label small">Plan</label>
                             <select name="plan_slug" class="form-select form-select-sm">
-                                <option value="free">Free</option>
-                                <option value="pro">Pro</option>
-                                <option value="advanced">Advanced</option>
-                                <option value="lifetime">Early Bird Lifetime</option>
+                                @foreach($availablePlans as $planOption)
+                                    @continue(!$planOption->is_active)
+                                    @continue($planOption->slug === 'free' && !$freeModeEnabled)
+                                    <option value="{{ $planOption->slug }}">{{ $planOption->name }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="mb-2">
@@ -161,7 +164,7 @@
                             <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Beta tester reward">
                         </div>
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Grant free subscription to {{ $user->name }}?')">
+                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Grant complimentary subscription to {{ $user->name }}?')">
                                 <i class="bi bi-check-lg me-1"></i>Submit
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('grantSubSection').style.display='none'; document.getElementById('grantSubBtn').style.display='';">
@@ -171,7 +174,7 @@
                     </form>
                 </div>
                 <button type="button" id="grantSubBtn" class="btn btn-sm btn-success" onclick="document.getElementById('grantSubSection').style.display='block'; this.style.display='none';">
-                    <i class="bi bi-gift me-1"></i>Grant Free Subscription
+                    <i class="bi bi-gift me-1"></i>Grant Complimentary Subscription
                 </button>
             </div>
         </div>

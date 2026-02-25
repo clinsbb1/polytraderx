@@ -76,7 +76,12 @@
                     <p>AI analysis (Claude Haiku and Claude Sonnet) and Telegram notifications are provided by the platform. You do not need to supply your own API keys for these services. AI costs are managed by the platform and included in your subscription fee.</p>
 
                     <h4 id="tos-7">7. Subscription &amp; Payments</h4>
-                    <p>Subscription payments are processed via NOWPayments in cryptocurrency. Payments are non-refundable once confirmed on the blockchain. Subscriptions may be cancelled at any time, effective at the end of the current billing period. Free trials provide full access for the specified duration with no payment required.</p>
+                    <p>
+                        Subscription payments are processed via NOWPayments in cryptocurrency. Payments are non-refundable once confirmed on the blockchain. Subscriptions may be cancelled at any time, effective at the end of the current billing period.
+                        @if($freeModeEnabled)
+                            Free trials provide full access for the specified duration with no payment required.
+                        @endif
+                    </p>
 
                     <h4 id="tos-8">8. Limitation of Liability</h4>
                     <p>To the maximum extent permitted by law, PolyTraderX, its operators, developers, and affiliates shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, capital, data, or business opportunities. This includes losses caused by system malfunctions, API failures, incorrect AI predictions, market volatility, or any decisions you make based on simulated strategies. PolyTraderX does not execute real trades and is not responsible for any trading losses you may incur in external markets.</p>

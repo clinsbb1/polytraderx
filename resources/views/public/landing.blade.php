@@ -15,14 +15,18 @@
                 PolyTraderX is an AI-powered strategy lab for Polymarket's crypto prediction markets. Design, simulate, and analyze strategies using real market data — without risking real money. Your simulator continuously learns from signals and outcomes, improving its recommendations over time.
             </p>
             <div class="d-flex justify-content-center gap-3 flex-wrap ptx-fade-in ptx-fade-in-delay-2">
-                <a href="/register" class="btn btn-ptx-primary btn-lg px-4">Start Simulating Free</a>
+                <a href="/register" class="btn btn-ptx-primary btn-lg px-4">{{ $freeModeEnabled ? 'Start Simulating Free' : 'Create Account' }}</a>
                 <a href="#pricing" class="btn btn-ptx-secondary btn-lg px-4">See Pricing</a>
             </div>
             <div class="ptx-trust-row ptx-fade-in ptx-fade-in-delay-3">
-                <span>No credit card required</span>
-                <span class="dot"></span>
-                <span>7-day free trial</span>
-                <span class="dot"></span>
+                <span>{{ $freeModeEnabled ? 'No credit card required' : 'Instant crypto checkout' }}</span>
+                @if($freeModeEnabled)
+                    <span class="dot"></span>
+                    <span>7-day free trial</span>
+                    <span class="dot"></span>
+                @else
+                    <span class="dot"></span>
+                @endif
                 <span>Pay with crypto</span>
             </div>
         </div>
@@ -127,7 +131,7 @@
     <section id="pricing" class="ptx-section ptx-section--alt">
         <div class="container">
             <h2 class="ptx-section-title reveal">Simple, Transparent Pricing</h2>
-            <p class="ptx-section-subtitle reveal">Start free, upgrade when you're ready. All plans paid in crypto.</p>
+            <p class="ptx-section-subtitle reveal">{{ $freeModeEnabled ? 'Start free, upgrade when you\'re ready. All plans paid in crypto.' : 'Pick the plan that fits your workflow. All plans paid in crypto.' }}</p>
             @include('components.pricing-cards', ['plans' => $plans])
         </div>
     </section>
@@ -168,7 +172,7 @@
         <div class="container position-relative" style="z-index:1;">
             <h2 class="fw-bold mb-3 reveal" style="font-size: 2.5rem;">Ready to Design Your Strategy?</h2>
             <p class="lead mb-4 reveal reveal-delay-1" style="color: var(--text-secondary);">Join PolyTraderX and let AI help you analyze Polymarket strategies.</p>
-            <a href="/register" class="btn btn-ptx-primary btn-lg px-5 reveal reveal-delay-2" style="color: #00e6ff !important">Start Simulating Free</a>
+            <a href="/register" class="btn btn-ptx-primary btn-lg px-5 reveal reveal-delay-2" style="color: #00e6ff !important">{{ $freeModeEnabled ? 'Start Simulating Free' : 'Create Account' }}</a>
         </div>
     </section>
 @endsection

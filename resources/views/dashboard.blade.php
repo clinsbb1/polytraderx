@@ -29,7 +29,7 @@
     </div>
 @endif
 
-@if($user->subscription_plan === 'free' && !$user->is_lifetime)
+@if($freeModeEnabled && $user->subscription_plan === 'free' && !$user->is_lifetime)
     @if($user->subscription_ends_at && $user->subscription_ends_at->isPast())
         <div class="ptx-alert ptx-alert-warning">
             <i class="bi bi-clock"></i>

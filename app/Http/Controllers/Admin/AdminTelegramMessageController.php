@@ -7,10 +7,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AdminTelegramMessage;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminTelegramMessageController extends Controller
@@ -33,8 +35,10 @@ class AdminTelegramMessageController extends Controller
 
     public function send(Request $request): RedirectResponse
     {
+        $targets = $this->allowedTargets();
+
         $validated = $request->validate([
-            'target' => ['required', 'in:all,single,paid_active,free_plan'],
+            'target' => ['required', Rule::in($targets)],
             'recipient_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'message' => ['required', 'string', 'max:4000'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
@@ -118,9 +122,25 @@ class AdminTelegramMessageController extends Controller
         }
 
         if ($target === 'free_plan') {
+            if (!app(SubscriptionService::class)->isFreeModeEnabled()) {
+                $query->whereRaw('1 = 0');
+                return $query;
+            }
+
             $query->where('subscription_plan', 'free');
         }
 
         return $query;
+    }
+
+    private function allowedTargets(): array
+    {
+        $targets = ['all', 'single', 'paid_active'];
+
+        if (app(SubscriptionService::class)->isFreeModeEnabled()) {
+            $targets[] = 'free_plan';
+        }
+
+        return $targets;
     }
 }

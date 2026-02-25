@@ -96,7 +96,7 @@
                         <a class="btn btn-ptx-nav ms-2" href="/dashboard">Dashboard</a>
                     @else
                         <a class="nav-link" href="/login">Login</a>
-                        <a class="btn btn-ptx-nav ms-2" href="/register">Get Started Free</a>
+                        <a class="btn btn-ptx-nav ms-2" href="/register">{{ $freeModeEnabled ? 'Get Started Free' : 'Create Account' }}</a>
                     @endauth
                 </div>
             </div>
@@ -111,7 +111,7 @@
                         <a class="btn btn-ptx-nav mt-2" href="/dashboard">Dashboard</a>
                     @else
                         <a class="nav-link" href="/login">Login</a>
-                        <a class="btn btn-ptx-nav mt-2" href="/register">Get Started Free</a>
+                        <a class="btn btn-ptx-nav mt-2" href="/register">{{ $freeModeEnabled ? 'Get Started Free' : 'Create Account' }}</a>
                     @endauth
                 </div>
             </div>

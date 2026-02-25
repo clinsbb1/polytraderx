@@ -6,24 +6,37 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Services\Settings\SettingsService;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
 class UserBotRunner
 {
-    public function __construct(private SettingsService $settings)
+    public function __construct(
+        private SettingsService $settings,
+        private SubscriptionService $subscriptionService,
+    )
     {
     }
 
     public function getActiveUsers(): Collection
     {
+        $freeModeEnabled = $this->subscriptionService->isFreeModeEnabled();
+
         return User::query()
             ->where('is_active', true)
-            ->where(function ($query) {
-                $query->where('trial_ends_at', '>', now())
-                    ->orWhere('subscription_ends_at', '>', now())
+            ->where(function ($query) use ($freeModeEnabled) {
+                $query->where('subscription_ends_at', '>', now())
                     ->orWhere('is_lifetime', true)
                     ->orWhere('is_superadmin', true);
+
+                if ($freeModeEnabled) {
+                    $query->orWhere(function ($freeAccess) {
+                        $freeAccess->where('subscription_plan', 'free')
+                            ->whereNotNull('trial_ends_at')
+                            ->where('trial_ends_at', '>', now());
+                    });
+                }
             })
             ->get();
     }

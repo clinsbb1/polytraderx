@@ -13,8 +13,13 @@
             <h4 class="mt-2">{{ $plan->name }}</h4>
             <div class="my-3">
                 @if((float)$plan->price_usd === 0.0)
-                    <span class="ptx-pricing-price">Free</span>
-                    <br><span class="ptx-pricing-period">{{ $plan->trial_days }}-day trial</span>
+                    @if($freeModeEnabled && $plan->slug === 'free')
+                        <span class="ptx-pricing-price">Free</span>
+                        <br><span class="ptx-pricing-period">{{ $plan->trial_days }}-day trial</span>
+                    @else
+                        <span class="ptx-pricing-price">${{ number_format((float)$plan->price_usd, 0) }}</span>
+                        <span class="ptx-pricing-period">/{{ $plan->billing_period }}</span>
+                    @endif
                 @else
                     <span class="ptx-pricing-price">${{ number_format((float)$plan->price_usd, 0) }}</span>
                     <span class="ptx-pricing-period">/{{ $plan->billing_period }}</span>
@@ -59,7 +64,7 @@
                     {{ auth()->user()->subscription_plan === $plan->slug ? 'Current Plan' : 'Upgrade' }}
                 </a>
             @else
-                @if((float)$plan->price_usd === 0.0)
+                @if((float)$plan->price_usd === 0.0 && $freeModeEnabled && $plan->slug === 'free')
                     <a href="/register" class="btn btn-ptx-primary w-100">Start Free</a>
                 @else
                     <a href="/register" class="btn {{ $plan->slug === 'pro' ? 'btn-ptx-primary' : 'btn-ptx-secondary' }} w-100">Subscribe</a>
@@ -75,6 +80,9 @@
 </div>
 <p class="text-center mt-4" style="color: var(--text-secondary); font-size: 0.9rem;">
     Cancel anytime <span class="mx-2" style="opacity:.4;">|</span>
-    Pay with crypto <span class="mx-2" style="opacity:.4;">|</span>
-    7-day free trial
+    Pay with crypto
+    @if($freeModeEnabled)
+        <span class="mx-2" style="opacity:.4;">|</span>
+        7-day free trial
+    @endif
 </p>
