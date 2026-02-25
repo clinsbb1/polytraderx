@@ -13,6 +13,7 @@
 @endif
 
 <!-- Current Plan -->
+@if($user->isSubscriptionActive())
 <div class="ptx-card mb-4">
     <div class="ptx-card-header">
         <h5>Current Plan</h5>
@@ -39,9 +40,16 @@
         </div>
     </div>
 </div>
+@else
+<div class="ptx-card mb-4">
+    <div class="ptx-card-body">
+        <p class="mb-0">No active plan — select one below to get started.</p>
+    </div>
+</div>
+@endif
 
 <!-- Available Plans -->
-<h5 class="mb-3" style="font-family: var(--font-display);">Upgrade Your Plan</h5>
+<h5 class="mb-3" style="font-family: var(--font-display);">{{ $user->isSubscriptionActive() ? 'Upgrade Your Plan' : 'Choose a Plan' }}</h5>
 <div class="row g-4">
     @foreach($plans as $plan)
     @if($plan->slug === 'free' && !$freeModeEnabled) @continue @endif
