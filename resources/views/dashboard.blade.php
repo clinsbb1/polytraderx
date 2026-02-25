@@ -257,7 +257,11 @@
                             <td><span class="ptx-badge {{ $trade->side === 'YES' ? 'ptx-badge-success' : 'ptx-badge-danger' }}">{{ $trade->side }}</span></td>
                             <td>${{ number_format((float)$trade->amount, 2) }}</td>
                             <td style="color: {{ (float)($trade->pnl ?? 0) >= 0 ? 'var(--profit)' : 'var(--loss)' }}; font-weight: 600;">
-                                {{ $trade->pnl !== null ? '$' . number_format((float)$trade->pnl, 2) : '—' }}
+                                @if($trade->pnl !== null)
+                                    {{ (float)$trade->pnl >= 0 ? '+' : '' }}${{ number_format(abs((float)$trade->pnl), 2) }}
+                                @else
+                                    —
+                                @endif
                             </td>
                             <td>
                                 <span class="ptx-badge ptx-badge-{{ $trade->status === 'won' ? 'success' : ($trade->status === 'lost' ? 'danger' : ($trade->status === 'open' ? 'info' : 'secondary')) }}">{{ $trade->status }}</span>

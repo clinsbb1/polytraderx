@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\BalanceSnapshot;
 use App\Models\User;
 use App\Models\UserCredential;
 use App\Services\Settings\PlatformSettingsService;
@@ -92,6 +93,17 @@ class GoogleAuthController extends Controller
         UserCredential::create(['user_id' => $user->id]);
 
         app(SettingsService::class)->seedUserParams($user->id);
+
+        // Seed initial simulated balance snapshot before any trades are placed.
+        // Prevents anchor-time bug where the first trade's win payout is excluded
+        // from balance calculations.
+        BalanceSnapshot::create([
+            'user_id' => $user->id,
+            'balance_usdc' => 100.00,
+            'open_positions_value' => 0.00,
+            'total_equity' => 100.00,
+            'snapshot_at' => now(),
+        ]);
 
         return $this->completeLogin($user, false, [
             ['name' => 'sign_up'],

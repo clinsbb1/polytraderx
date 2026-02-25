@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\BalanceSnapshot;
 use App\Models\User;
 use App\Models\UserCredential;
 use App\Rules\TurnstileRule;
@@ -57,6 +58,18 @@ class RegisteredUserController extends Controller
         UserCredential::create(['user_id' => $user->id]);
 
         app(SettingsService::class)->seedUserParams($user->id);
+
+        // Seed initial simulated balance snapshot so the balance anchor is established
+        // before any trades are ever placed. Without this, the first snapshot is taken
+        // inside TradeExecutor (after the first trade), causing that trade's win payout
+        // to be permanently excluded from the balance calculation.
+        BalanceSnapshot::create([
+            'user_id' => $user->id,
+            'balance_usdc' => 100.00,
+            'open_positions_value' => 0.00,
+            'total_equity' => 100.00,
+            'snapshot_at' => now(),
+        ]);
 
         event(new Registered($user));
 
