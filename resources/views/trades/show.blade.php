@@ -135,8 +135,8 @@
                         <td class="py-2" style="color: var(--text-secondary);">P&amp;L</td>
                         <td class="py-2">
                             @if(is_numeric($trade->pnl ?? null))
-                                <strong style="color: {{ (float) $trade->pnl >= 0 ? 'var(--profit)' : 'var(--loss)' }}; font-size: 1.1rem;">
-                                    {{ (float) $trade->pnl >= 0 ? '+' : '' }}${{ $formatNumber($trade->pnl, 2) }}
+                                <strong style="color: {{ $trade->status === 'won' ? 'var(--profit)' : ($trade->status === 'lost' ? 'var(--loss)' : 'var(--text-secondary)') }}; font-size: 1.1rem;">
+                                    {{ $trade->status === 'won' ? '+' : ($trade->status === 'lost' ? '-' : '') }}${{ $formatNumber(abs((float) $trade->pnl), 2) }}
                                 </strong>
                             @else
                                 -
