@@ -8,30 +8,37 @@ It uses live public market and spot-price data, but does not place live trades a
 
 - Simulation-only trading engine (paper trades)
 - Per-user strategy controls:
-  - risk limits, confidence thresholds, entry-window range
+  - risk limits, confidence thresholds, configurable entry-window range (`ENTRY_WINDOW_MIN_SECONDS` / `ENTRY_WINDOW_MAX_SECONDS`)
   - monitored assets and market durations (5m/15m)
   - simulator toggle and notification preferences
   - selectable spot-price source (`binance`, `coingecko`, `coinbase`, `kraken`)
+  - threshold and confidence inputs normalized automatically (accepts ratio 0.92 or percent 92)
 - Market scans and strategy evaluation with user-visible scan logs
+- Simulator auto-disables when balance reaches zero
+- 5m and 15m market resolution handled with correct per-duration timing
 - AI tiers:
-  - Reflexes (rule-based)
-  - Muscles (market pre-analysis)
-  - Brain (loss audits + daily/weekly reviews)
+  - Reflexes (rule-based, free)
+  - Muscles (market pre-analysis, Haiku)
+  - Brain (loss audits + daily/weekly reviews, Sonnet)
 - Hard backend AI guardrails:
   - per-plan limits, monthly token caps, daily call caps
   - global budget guardrail (`AI_MONTHLY_BUDGET`)
   - anti-duplicate Muscles caching/locking/cooldown
   - low-burn defaults for Muscles prompt/completion caps
+  - `AI_AUDIT_RECHARGED_AT` admin gate — loss audits only run after this marker is set, preventing unexpected spend after a top-up
 - Subscription and billing:
   - NOWPayments checkout/callback flow
   - plan lifecycle, pending-expiry handling, subscription expiration handling
+  - admin email notification on successful payment
+  - no free plan; paid subscriptions only
 - Telegram:
   - account linking via `/start ACCOUNT_ID`
+  - display name sourced from `telegram_first_name` captured at link time
   - user alerts and summaries (queued)
-  - admin single/broadcast messaging with history and optional image
+  - admin single/broadcast messaging with history, optional image, and per-user targeting
 - Announcements:
   - dashboard announcements with dismiss tracking and expiry
-  - optional Telegram and email broadcast
+  - optional Telegram and email broadcast, with per-user/per-plan targeting
 - Security:
   - Cloudflare Turnstile on login/register/forgot-password
   - TOTP 2FA for users and admins
@@ -41,8 +48,10 @@ It uses live public market and spot-price data, but does not place live trades a
 
 - Scanner runs every minute and polls Binance multiple times per minute (3 to 5 polls, with 10 to 15 second spacing).
 - Markets come from Polymarket public endpoints and are filtered to supported crypto 5m/15m markets.
+- 5m and 15m markets resolve at different times; the resolution monitor uses per-duration timing.
 - AI suggestions are stored as `pending_review`; there is no automatic strategy mutation.
 - Failed Brain audits are retryable (trades are not marked audited unless an audit record is created).
+- Loss audits require `AI_AUDIT_RECHARGED_AT` to be set in admin settings; audits on trades resolved before this marker are skipped. Set it to the current date after each API credit top-up.
 
 ## Tech Stack
 
