@@ -305,7 +305,7 @@ Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
 
 // Subscription (auth only, accessible even with expired subscription)
 Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
-    Route::get('/subscription', [SubscriptionController::class, 'index']);
+    Route::get('/subscription', [SubscriptionController::class, 'index'])->name('subscription');
     Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout']);
     Route::get('/subscription/success', [SubscriptionController::class, 'success']);
     Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel']);

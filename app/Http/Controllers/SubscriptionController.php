@@ -26,8 +26,9 @@ class SubscriptionController extends Controller
         $user = Auth::user();
         $currentPlan = $this->subscriptionService->getUserPlan($user);
         $plans = $this->subscriptionService->getAvailablePlans();
+        $freeModeEnabled = $this->subscriptionService->isFreeModeEnabled();
 
-        return view('subscription.index', compact('user', 'currentPlan', 'plans'));
+        return view('subscription.index', compact('user', 'currentPlan', 'plans', 'freeModeEnabled'));
     }
 
     public function checkout(Request $request): RedirectResponse
