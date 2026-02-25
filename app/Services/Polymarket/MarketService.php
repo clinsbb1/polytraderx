@@ -484,10 +484,76 @@ class MarketService
                             (string) ($market['slug'] ?? $market['market_slug'] ?? '')
                         ) === 1);
 
-                    $normalized = $speedSeries
-                        ->map(fn(array $market) => $this->normalizeMarket($market))
-                        ->filter(fn(?array $market) => $market !== null)
-                        ->values();
+                    // Two-bucket normalization: track markets rejected only due to zero prices
+                    // so we can retry them after a short delay once prices populate.
+                    $normalized = collect();
+                    $zeroPriceRaw = collect();
+
+                    foreach ($speedSeries as $market) {
+                        [$result, $reason] = $this->normalizeMarketWithReason($market);
+                        if ($result !== null) {
+                            $normalized->push($result);
+                        } elseif ($reason === 'invalid_prices') {
+                            $zeroPriceRaw->push($market);
+                        }
+                        // All other rejection reasons are silently dropped.
+                    }
+
+                    // If any markets had zero prices, wait 5 seconds and re-fetch
+                    // from the Gamma API — prices often populate within a few seconds
+                    // at the start of a new market cycle.
+                    if ($zeroPriceRaw->isNotEmpty()) {
+                        $pendingSlugs = $zeroPriceRaw
+                            ->map(fn(array $m) => (string) ($m['slug'] ?? $m['market_slug'] ?? ''))
+                            ->filter()
+                            ->values();
+
+                        Log::channel('simulator')->info('Zero-price markets detected, retrying in 5s', [
+                            'slugs' => $pendingSlugs->toArray(),
+                        ]);
+
+                        sleep(5);
+
+                        $retryResponse = Http::timeout(10)->get($gammaMarketsUrl, [
+                            'active'            => true,
+                            'closed'            => false,
+                            'order'             => 'startDate',
+                            'ascending'         => false,
+                            'question_contains' => 'Up or Down',
+                            'limit'             => 200,
+                        ]);
+
+                        if ($retryResponse->successful()) {
+                            $retryPayload = $retryResponse->json();
+                            $retryMarkets = $retryPayload['data'] ?? $retryPayload;
+
+                            if (is_array($retryMarkets)) {
+                                $recovered = collect($retryMarkets)
+                                    ->filter(fn($m) => is_array($m))
+                                    ->filter(fn(array $m) => $pendingSlugs->contains(
+                                        (string) ($m['slug'] ?? $m['market_slug'] ?? '')
+                                    ))
+                                    ->map(fn(array $m) => $this->normalizeMarket($m))
+                                    ->filter(fn(?array $m) => $m !== null)
+                                    ->values();
+
+                                if ($recovered->isNotEmpty()) {
+                                    Log::channel('simulator')->info('Zero-price retry: recovered markets', [
+                                        'count' => $recovered->count(),
+                                        'slugs' => $recovered->pluck('slug')->toArray(),
+                                    ]);
+
+                                    $normalized = $normalized->merge($recovered)->unique('slug')->values();
+                                } else {
+                                    Log::channel('simulator')->debug('Zero-price retry: prices still not populated', [
+                                        'slugs' => $pendingSlugs->toArray(),
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+
+                    $normalized = $normalized->values();
 
                     if ($speedSeries->isNotEmpty() && $normalized->isEmpty()) {
                         $samples = $speedSeries->take(3)->map(function (array $m) {
