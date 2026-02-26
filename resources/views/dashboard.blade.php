@@ -183,7 +183,7 @@
     <div class="col-md-3 col-6">
         <div class="ptx-stat-card">
             <div class="stat-label">Strategy Health</div>
-            <div class="stat-value text-accent">
+            <div class="stat-value text-accent" style="font-size: 1.1rem; line-height: 1.3;">
                 {{ $strategyHealth ?? 'N/A' }}
             </div>
             <div style="color: var(--text-secondary); font-size: 0.75rem;">Drawdown: {{ isset($maxDrawdown) ? number_format($maxDrawdown, 1) : '0.0' }}%</div>
