@@ -109,6 +109,9 @@
                         <strong>PRICE_FEED_SOURCE:</strong> Select pricing context source for simulation checks (Binance default, plus CoinGecko/Coinbase/Kraken).
                     </li>
                     <li class="mb-2">
+                        <strong>SCAN_MODE:</strong> <strong>System Scan (Reflexes)</strong> uses fast rule-based filters (default, no AI cost). <strong>AI Scan (Muscles)</strong> adds a Claude Haiku confidence check on every potential trade — more precise but uses AI quota.
+                    </li>
+                    <li class="mb-2">
                         <strong>MONITORED_ASSETS:</strong> Select assets to scan (BTC, ETH, SOL, XRP).
                     </li>
                     <li>
@@ -244,6 +247,12 @@
                                         </label>
                                     </div>
                                     <input type="hidden" name="params[{{ $param->key }}]" id="market_durations_input" value="{{ $param->value }}">
+                                @elseif($param->key === 'SCAN_MODE')
+                                    @php $currentScanMode = strtolower(trim((string) $param->value)); @endphp
+                                    <select name="params[{{ $param->key }}]" class="ptx-input ptx-input-sm" style="width:200px">
+                                        <option value="reflexes" {{ $currentScanMode === 'reflexes' ? 'selected' : '' }}>System Scan (Reflexes)</option>
+                                        <option value="muscles" {{ $currentScanMode === 'muscles' ? 'selected' : '' }}>AI Scan (Muscles)</option>
+                                    </select>
                                 @elseif($param->key === 'PRICE_FEED_SOURCE')
                                     @php
                                         $currentSource = strtolower(trim((string) $param->value));

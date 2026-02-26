@@ -120,6 +120,13 @@ class StrategyParamsSeeder extends Seeder
                 'description' => 'Which market durations to trade (5min, 15min, or both)',
                 'group' => 'trading',
             ],
+            [
+                'key' => 'SCAN_MODE',
+                'value' => 'reflexes',
+                'type' => 'string',
+                'description' => 'Scan engine: reflexes (System Scan) or muscles (AI Scan)',
+                'group' => 'trading',
+            ],
 
             // AI Parameters
             [

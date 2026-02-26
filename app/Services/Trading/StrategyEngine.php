@@ -226,14 +226,17 @@ class StrategyEngine
 
                 // Baseline says execute: now optionally refine/override with Muscles.
                 $musclesResult = null;
-                try {
-                    $aiRouter = app(\App\Services\AI\AIRouter::class);
-                    $musclesResult = $aiRouter->getMusclesAnalysis($market, $spotData, $user->id);
-                } catch (\Exception $e) {
-                    Log::channel('simulator')->debug('Muscles unavailable, using reflexes only', [
-                        'user_id' => $user->id,
-                        'message' => $e->getMessage(),
-                    ]);
+                $scanMode = $this->settings->get('SCAN_MODE', 'reflexes', $user->id);
+                if ($scanMode === 'muscles') {
+                    try {
+                        $aiRouter = app(\App\Services\AI\AIRouter::class);
+                        $musclesResult = $aiRouter->getMusclesAnalysis($market, $spotData, $user->id);
+                    } catch (\Exception $e) {
+                        Log::channel('simulator')->debug('Muscles unavailable, using reflexes only', [
+                            'user_id' => $user->id,
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
                 }
 
                 $signal = $baselineSignal;
