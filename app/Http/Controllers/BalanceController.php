@@ -23,6 +23,11 @@ class BalanceController extends Controller
             ->orderBy('snapshot_at', 'desc')
             ->first();
 
+        // Oldest snapshot = starting point (last reset or registration)
+        $anchorSnapshot = BalanceSnapshot::forUser($userId)
+            ->orderBy('snapshot_at', 'asc')
+            ->first();
+
         // Equity curve data (30 days, one per day)
         $equityCurve = BalanceSnapshot::forUser($userId)
             ->where('snapshot_at', '>=', now()->subDays(30))
@@ -53,6 +58,7 @@ class BalanceController extends Controller
 
         return view('balance.index', compact(
             'latestSnapshot',
+            'anchorSnapshot',
             'equityCurve',
             'dailyPnl',
             'weeklyStatsWithCumulative',

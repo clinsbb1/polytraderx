@@ -42,22 +42,41 @@
 
 {{-- Row 1: Stat Cards --}}
 <div class="row g-4 mb-4">
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="ptx-stat-card">
             <div class="stat-label">Current Balance (Simulated)</div>
             <div class="stat-value text-accent">${{ $latestSnapshot ? number_format((float)$latestSnapshot->balance_usdc, 2) : '100.00' }}</div>
         </div>
     </div>
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="ptx-stat-card">
             <div class="stat-label">Open Positions (Simulated)</div>
             <div class="stat-value text-accent">${{ $latestSnapshot ? number_format((float)$latestSnapshot->open_positions_value, 2) : '0.00' }}</div>
         </div>
     </div>
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="ptx-stat-card">
             <div class="stat-label">Total Equity (Simulated)</div>
             <div class="stat-value text-accent">${{ $latestSnapshot ? number_format((float)$latestSnapshot->total_equity, 2) : '100.00' }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="ptx-stat-card">
+            <div class="stat-label">Starting Balance</div>
+            <div class="stat-value text-accent">${{ $anchorSnapshot ? number_format((float)$anchorSnapshot->balance_usdc, 2) : '100.00' }}</div>
+            @php
+                $anchorAmount = (float) ($anchorSnapshot->balance_usdc ?? 100);
+                $currentEquity = (float) ($latestSnapshot->total_equity ?? $anchorAmount);
+                $pnlSinceStart = $currentEquity - $anchorAmount;
+                $pnlPct = $anchorAmount > 0 ? ($pnlSinceStart / $anchorAmount) * 100 : 0;
+            @endphp
+            <div style="color: {{ $pnlSinceStart >= 0 ? 'var(--profit)' : 'var(--loss)' }}; font-size: 0.8rem; font-weight: 600; margin-top: 4px;">
+                {{ $pnlSinceStart >= 0 ? '+' : '' }}${{ number_format($pnlSinceStart, 2) }}
+                ({{ $pnlSinceStart >= 0 ? '+' : '' }}{{ number_format($pnlPct, 1) }}%)
+            </div>
+            <div style="color: var(--text-secondary); font-size: 0.72rem; margin-top: 2px;">
+                since {{ $anchorSnapshot ? \Carbon\Carbon::parse($anchorSnapshot->snapshot_at)->format('M j, Y') : 'default' }}
+            </div>
         </div>
     </div>
 </div>
