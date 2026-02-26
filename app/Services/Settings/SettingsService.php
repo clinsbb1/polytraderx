@@ -156,6 +156,38 @@ class SettingsService
         }
     }
 
+    public function resetToDefaults(int $userId): void
+    {
+        $defaults = $this->getDefaultParams();
+
+        foreach ($defaults as $param) {
+            $existing = StrategyParam::where('user_id', $userId)
+                ->where('key', $param['key'])
+                ->first();
+
+            if ($existing) {
+                $existing->update([
+                    'previous_value' => $existing->value,
+                    'value' => (string) $param['value'],
+                    'updated_by' => 'admin',
+                ]);
+            } else {
+                StrategyParam::create([
+                    'user_id' => $userId,
+                    'key' => $param['key'],
+                    'value' => (string) $param['value'],
+                    'type' => $param['type'],
+                    'description' => $param['description'],
+                    'group' => $param['group'],
+                    'updated_by' => 'admin',
+                ]);
+            }
+
+            Cache::forget(self::CACHE_PREFIX . $userId . ':' . $param['key']);
+            Cache::forget($this->groupCacheKey($userId, $param['group']));
+        }
+    }
+
     private function getDefaultParams(): array
     {
         return [

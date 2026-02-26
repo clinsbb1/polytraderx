@@ -131,6 +131,14 @@ class StrategyController extends Controller
         return redirect()->route('strategy.index')->with('success', $message);
     }
 
+    public function resetDefaults(Request $request, SettingsService $settings): RedirectResponse
+    {
+        $userId = (int) $request->user()->id;
+        $settings->resetToDefaults($userId);
+
+        return redirect()->route('strategy.index')->with('success', 'All strategy parameters have been reset to defaults. Simulator has been turned off.');
+    }
+
     public function toggleSimulator(
         Request $request,
         SettingsService $settings,

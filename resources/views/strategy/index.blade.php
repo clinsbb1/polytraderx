@@ -14,6 +14,46 @@
 </div>
 @endif
 
+{{-- Reset to Defaults --}}
+<div class="d-flex justify-content-end mb-3">
+    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#resetDefaultsModal">
+        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset to Defaults
+    </button>
+</div>
+
+<div class="modal fade" id="resetDefaultsModal" tabindex="-1" aria-labelledby="resetDefaultsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: var(--bg-card-solid); border: 1px solid var(--border-subtle);">
+            <div class="modal-header" style="background: var(--bg-card-solid); border-bottom: 1px solid var(--border-subtle);">
+                <h5 class="modal-title" id="resetDefaultsModalLabel" style="color: var(--text-primary);">
+                    <i class="bi bi-arrow-counterclockwise me-2 text-danger"></i>Reset to Defaults
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="background: var(--bg-card-solid); color: var(--text-secondary);">
+                <p>This will reset <strong style="color: var(--text-primary);">all strategy parameters</strong> across Risk, Trading, and Notifications back to their default values.</p>
+                <ul class="mb-2" style="font-size: 0.9rem;">
+                    <li>Simulator will be turned <strong>off</strong></li>
+                    <li>All tweaked values will be overwritten</li>
+                    <li>Previous values are saved for reference</li>
+                </ul>
+                <p class="mb-0" style="font-size: 0.85rem; color: #ffc107;">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>This cannot be undone automatically. You will need to re-enter any custom values.
+                </p>
+            </div>
+            <div class="modal-footer" style="background: var(--bg-card-solid); border-top: 1px solid var(--border-subtle);">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ route('strategy.reset-defaults') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Yes, Reset Everything
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Getting Started Guide --}}
 <div class="ptx-card mb-4">
     <div class="ptx-card-header" style="cursor: pointer;" onclick="document.getElementById('strategyGuideContent').classList.toggle('d-none')">

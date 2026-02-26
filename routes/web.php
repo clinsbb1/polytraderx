@@ -330,6 +330,7 @@ Route::middleware(['auth', 'simulation_acknowledged', 'subscribed'])->group(func
         ->name('audits.manual-trigger');
 
     Route::get('/strategy', [StrategyController::class, 'index'])->name('strategy.index');
+    Route::post('/strategy/reset-defaults', [StrategyController::class, 'resetDefaults'])->name('strategy.reset-defaults');
     Route::post('/strategy/{group}', [StrategyController::class, 'update'])->name('strategy.update');
 
     Route::get('/balance', [BalanceController::class, 'index'])->name('balance.index');
