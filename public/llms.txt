@@ -1,0 +1,70 @@
+# PolyTraderX
+
+> PolyTraderX is a simulation-only strategy lab for crypto prediction markets. It lets traders test and refine trading strategies using real Polymarket market data and live Binance/CoinGecko spot prices — without placing real trades or risking capital.
+
+## What PolyTraderX Does
+
+PolyTraderX targets Polymarket's 5-minute and 15-minute crypto prediction markets (BTC, ETH, SOL, XRP). The core strategy is **late-minute certainty trading**: signals are generated only in the final 5–60 seconds of a market, when the outcome is near-certain (>92% confidence). All trades are simulated using real market data.
+
+This is a strategy lab, not a live trading bot. No real orders are placed on Polymarket.
+
+## Key Features
+
+- Simulation engine that scans live Polymarket markets and generates paper trades based on your strategy parameters
+- Fully configurable per-user strategy: risk limits, confidence thresholds, entry windows, monitored assets, market durations, and price feed source
+- Two scan modes: System Scan (fast, rule-based, no AI cost) or AI Scan (AI confidence check on every potential trade)
+- AI-powered loss audits: after every losing trade, AI reviews the decision and suggests strategy improvements
+- AI daily and weekly performance reviews with actionable suggestions
+- Subscription billing via NOWPayments (crypto only — BTC, ETH, USDT, SOL, 100+ currencies)
+- One-time 3-day free Pro trial for new users (no payment required)
+- Telegram bot for real-time trade notifications and daily summaries
+
+## Plans and Pricing
+
+Plans are billed in cryptocurrency via NOWPayments. Prices are shown in USD equivalent.
+
+- **Free Trial**: 3-day one-time Pro trial, no payment required. Full Pro access for 3 days, expires automatically.
+- **Pro**: Paid monthly subscription. AI Muscles and Brain enabled. Increased signal and position limits.
+- **Advanced**: Higher limits than Pro. Priority AI access.
+- **Lifetime**: One-time payment. Permanent access at the highest tier.
+
+## Supported Markets
+
+- Polymarket 5-minute and 15-minute crypto prediction markets
+- Supported assets: BTC, ETH, SOL, XRP
+- Price data: Binance (default), CoinGecko, Coinbase, Kraken (user-selectable)
+
+## How It Works
+
+1. The scanner runs every minute and identifies markets in the final seconds before close
+2. Your strategy rules are applied — price thresholds, confidence requirements, and position limits
+3. If AI Scan mode is enabled, an AI confidence check is added before any trade is taken
+4. Qualifying signals become simulated trades recorded against your balance
+5. Open positions are monitored and settled against actual Polymarket outcomes
+6. Losing trades trigger an AI audit that analyses the decision and suggests parameter improvements
+7. Daily and weekly AI reviews summarise your strategy performance and flag patterns
+
+## Telegram Bot Commands
+
+- `/start ACCOUNT-ID` — Link your PolyTraderX account to receive notifications
+- `/status` — Simulator status and today's trade summary
+- `/today` — List of today's simulated trades
+- `/balance` — Current simulated balance and equity
+- `/unlink` — Disconnect this Telegram account
+- `/help` — Show all available commands
+
+## Payments
+
+- All payments processed via NOWPayments
+- Accepts 100+ cryptocurrencies including BTC, ETH, USDT, USDC, SOL
+- No credit card or bank account required
+
+## Account Security
+
+- Optional two-factor authentication (2FA) for your account
+- Google login supported in addition to email/password
+- One Telegram account can only be linked to one PolyTraderX account at a time
+
+## Contact and Support
+
+For support, use the contact form at /contact or reach out via the Telegram bot once linked.

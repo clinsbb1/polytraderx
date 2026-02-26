@@ -13,6 +13,7 @@ It uses live public market and spot-price data, but does not place live trades a
   - simulator toggle and notification preferences
   - selectable spot-price source (`binance`, `coingecko`, `coinbase`, `kraken`)
   - threshold and confidence inputs normalized automatically (accepts ratio 0.92 or percent 92)
+  - `SCAN_MODE` — per-user scan engine selector: `reflexes` (System Scan, rule-based, no AI cost) or `muscles` (AI Scan, Claude Haiku confidence check per trade)
 - Market scans and strategy evaluation with user-visible scan logs
 - Simulator auto-disables when balance reaches zero
 - 5m and 15m market resolution handled with correct per-duration timing
@@ -31,9 +32,11 @@ It uses live public market and spot-price data, but does not place live trades a
   - plan lifecycle, pending-expiry handling, subscription expiration handling
   - admin email notification on successful payment
   - no free plan; paid subscriptions only
+  - one-time 3-day free Pro trial: users who have never subscribed can activate a single trial; tracked via `pro_trial_used_at`; trial users show a "Trial" badge in admin and appear in a dedicated `/admin/trials` panel; expired trials trigger a separate Telegram notification (`notifyTrialExpired`)
 - Telegram:
   - account linking via `/start ACCOUNT_ID`
   - display name sourced from `telegram_first_name` captured at link time
+  - duplicate-account prevention: one Telegram chat ID may only be linked to one PTX account at a time; `/start` is rejected if the chat ID is already claimed
   - user alerts and summaries (queued)
   - admin single/broadcast messaging with history, optional image, and per-user targeting
 - Announcements:
@@ -168,6 +171,7 @@ Run it every minute.
 
 - Service diagnostics: `/admin/settings/diagnostics`
 - Telegram diagnostics: `/admin/settings/telegram-diagnostics`
+- Pro Trials panel: `/admin/trials` — lists all users who activated the free trial with Active/Converted/Expired status
 - Health endpoint: `/health`
 
 Temporary token-protected maintenance routes (delete after use):
@@ -184,6 +188,7 @@ All use `MAINTENANCE_ROUTE_TOKEN`.
 - `SubscriptionPlansSeeder` deletes existing plan rows, then recreates canonical plan records.
 - `PlatformSettingsSeeder` creates missing keys and refreshes metadata, but does not overwrite existing configured values.
 - New users get default per-user strategy settings with simulator disabled by default.
+- New strategy params added to `SettingsService::getDefaultParams()` are auto-seeded for any user on their next strategy page visit. A dedicated migration is used to backfill existing users immediately (see `2026_02_26_210000_seed_scan_mode_for_existing_users`).
 
 ## Testing
 
