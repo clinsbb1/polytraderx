@@ -78,8 +78,7 @@ class AdminUserController extends Controller
                   ->whereRaw('trades.created_at <= DATE_ADD(users.pro_trial_used_at, INTERVAL 3 DAY)');
             }])
             ->latest('pro_trial_used_at')
-            ->paginate(30)
-            ->withQueryString();
+            ->get();
 
         $activeCount = User::whereNotNull('pro_trial_used_at')
             ->where('billing_interval', 'trial')
