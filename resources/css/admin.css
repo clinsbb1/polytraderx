@@ -136,6 +136,12 @@ body.ptx-admin hr {
     font-size: 1.05rem;
 }
 
+.ptx-sidebar-nav .nav-link.nav-sub-link {
+    padding-left: 56px;
+    font-size: 0.82rem;
+    opacity: 0.8;
+}
+
 .ptx-sidebar-nav .nav-link:hover {
     color: var(--text-primary);
     background: rgba(255,255,255,0.03);

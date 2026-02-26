@@ -88,7 +88,7 @@ class BalanceController extends Controller
 
         // Overall stats across all records
         $allStats = DailySummary::forUser($userId)
-            ->selectRaw('COUNT(*) as days, SUM(total_trades) as trades, SUM(wins) as wins, SUM(losses) as losses, SUM(gross_pnl) as gross_pnl, SUM(ai_cost_usd) as ai_cost')
+            ->selectRaw('COUNT(*) as days, SUM(total_trades) as trades, SUM(wins) as wins, SUM(losses) as losses, SUM(gross_pnl) as gross_pnl')
             ->first();
 
         return view('balance.daily-summaries', compact('summaries', 'allStats'));

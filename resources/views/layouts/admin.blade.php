@@ -79,7 +79,7 @@
             <a class="nav-link {{ request()->routeIs('balance.index') || request()->routeIs('balance.reset') ? 'active' : '' }}" href="{{ route('balance.index') }}">
                 <i class="bi bi-wallet2"></i> Balance
             </a>
-            <a class="nav-link {{ request()->routeIs('balance.daily-summaries') ? 'active' : '' }}" href="{{ route('balance.daily-summaries') }}" style="padding-left: 2.25rem; font-size: 0.88rem;">
+            <a class="nav-link nav-sub-link {{ request()->routeIs('balance.daily-summaries') ? 'active' : '' }}" href="{{ route('balance.daily-summaries') }}">
                 <i class="bi bi-calendar2-week"></i> Daily Summaries
             </a>
             <a class="nav-link {{ request()->routeIs('logs.index') ? 'active' : '' }}" href="{{ route('logs.index') }}">

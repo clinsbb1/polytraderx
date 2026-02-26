@@ -21,23 +21,22 @@
     $totalWins = (int) ($allStats->wins ?? 0);
     $totalLosses = (int) ($allStats->losses ?? 0);
     $overallWinRate = $totalTrades > 0 ? round(($totalWins / $totalTrades) * 100, 1) : 0;
-    $totalAiCost = (float) ($allStats->ai_cost ?? 0);
 @endphp
 <div class="row g-3 mb-4">
-    <div class="col-6 col-md-2">
+    <div class="col-6 col-md-3">
         <div class="ptx-stat-card text-center py-3">
             <div class="stat-label">Trading Days</div>
             <div class="stat-value text-accent" style="font-size: 1.6rem;">{{ (int)$allStats->days }}</div>
         </div>
     </div>
-    <div class="col-6 col-md-2">
+    <div class="col-6 col-md-3">
         <div class="ptx-stat-card text-center py-3">
             <div class="stat-label">Total Trades</div>
             <div class="stat-value text-accent" style="font-size: 1.6rem;">{{ $totalTrades }}</div>
             <div style="color: var(--text-secondary); font-size: 0.72rem;">{{ $totalWins }}W · {{ $totalLosses }}L</div>
         </div>
     </div>
-    <div class="col-6 col-md-2">
+    <div class="col-6 col-md-3">
         <div class="ptx-stat-card text-center py-3">
             <div class="stat-label">Win Rate</div>
             <div class="stat-value text-accent" style="font-size: 1.6rem;">{{ $overallWinRate }}%</div>
@@ -49,12 +48,6 @@
             <div class="stat-value {{ $totalGross >= 0 ? 'text-profit' : 'text-loss' }}" style="font-size: 1.6rem;">
                 {{ $totalGross >= 0 ? '+' : '' }}${{ number_format($totalGross, 2) }}
             </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="ptx-stat-card text-center py-3">
-            <div class="stat-label">Total AI Cost</div>
-            <div class="stat-value text-accent" style="font-size: 1.6rem;">${{ number_format($totalAiCost, 4) }}</div>
         </div>
     </div>
 </div>
@@ -71,17 +64,15 @@
     <div class="ptx-card-body p-0">
         @if($summaries->count() > 0)
         <div class="table-responsive">
-            <table class="ptx-table mb-0" style="min-width: 760px;">
+            <table class="ptx-table mb-0" style="min-width: 680px;">
                 <thead>
                     <tr>
                         <th>Date</th>
                         <th>Balance</th>
                         <th>P&L</th>
-                        <th>Net P&L</th>
                         <th>Trades</th>
                         <th>Win Rate</th>
                         <th>Cumulative</th>
-                        <th>AI Cost</th>
                         <th>Best / Worst</th>
                     </tr>
                 </thead>
@@ -89,7 +80,6 @@
                     @foreach($summaries as $day)
                     @php
                         $gross = (float) $day->gross_pnl;
-                        $net   = (float) $day->net_pnl;
                         $cumul = (float) ($day->cumulative_pnl ?? 0);
                         $startBal = $day->starting_balance !== null ? (float) $day->starting_balance : null;
                         $endBal   = $day->ending_balance   !== null ? (float) $day->ending_balance   : null;
@@ -116,14 +106,9 @@
                             @endif
                         </td>
 
-                        {{-- Gross P&L --}}
+                        {{-- P&L --}}
                         <td style="font-weight: 600; white-space: nowrap; color: {{ $gross >= 0 ? 'var(--profit)' : 'var(--loss)' }};">
                             {{ $gross >= 0 ? '+' : '' }}${{ number_format($gross, 2) }}
-                        </td>
-
-                        {{-- Net P&L (after AI cost) --}}
-                        <td style="font-weight: 600; white-space: nowrap; color: {{ $net >= 0 ? 'var(--profit)' : 'var(--loss)' }};">
-                            {{ $net >= 0 ? '+' : '' }}${{ number_format($net, 2) }}
                         </td>
 
                         {{-- Trades --}}
@@ -146,15 +131,6 @@
                         {{-- Cumulative P&L --}}
                         <td style="font-weight: 600; white-space: nowrap; color: {{ $cumul >= 0 ? 'var(--profit)' : 'var(--loss)' }};">
                             {{ $cumul >= 0 ? '+' : '' }}${{ number_format($cumul, 2) }}
-                        </td>
-
-                        {{-- AI Cost --}}
-                        <td style="color: var(--text-secondary); font-size: 0.82rem;">
-                            @if((float)$day->ai_cost_usd > 0)
-                                ${{ number_format((float)$day->ai_cost_usd, 4) }}
-                            @else
-                                <span style="opacity: 0.4;">—</span>
-                            @endif
                         </td>
 
                         {{-- Best / Worst --}}
