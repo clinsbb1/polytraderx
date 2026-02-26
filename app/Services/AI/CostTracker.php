@@ -149,7 +149,7 @@ class CostTracker
     public function isOverBudget(int $userId): bool
     {
         $budget = $this->platformSettings->getFloat('AI_MONTHLY_BUDGET', 100.0);
-        $spent = $this->getMonthlySpend();
+        $spent = $this->getMonthlySpend($userId);
 
         return $spent >= $budget;
     }

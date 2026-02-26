@@ -49,7 +49,11 @@ class PromptBuilder
             . 'Only recommend a signal if highly confident (>=0.92) and conditions are stable. Otherwise, recommend SKIP. '
             . 'Respond in JSON only. No markdown, no explanation outside the JSON object.';
 
-        $user = "MARKET ANALYSIS REQUEST\n\n"
+        $jsonInstruction = "\nRespond in JSON ONLY (no markdown, no explanation outside JSON):\n"
+            . '{"side": "YES"|"NO"|"SKIP", "confidence": 0.00-1.00, "reasoning": "one sentence", "reversal_risk": "low"|"medium"|"high", "suggested_bet_size_pct": 1.0-10.0, "regime_note": "trending|ranging|volatile|unclear", "stability_flag": "stable|caution|unstable"}' . "\n"
+            . 'SKIP if confidence < 0.92 or reversal_risk is "high".';
+
+        $data = "MARKET ANALYSIS REQUEST\n\n"
             . "Market: {$market['question']}\n"
             . "Asset: {$asset}\n"
             . "YES Price: {$market['yes_price']}\n"
@@ -65,14 +69,13 @@ class PromptBuilder
             . "HISTORICAL CONTEXT:\n"
             . "Last 50 Trades Win Rate: {$winRate}% ({$wonRecent}/{$totalRecent})\n"
             . "{$asset} Specific Win Rate: {$similarWinRate}% ({$similarWon}/{$similarTotal})\n"
-            . "Last 3 Loss Patterns: " . json_encode($lossPatterns) . "\n\n"
-            . "Respond in JSON ONLY (no markdown, no explanation outside JSON):\n"
-            . '{"side": "YES"|"NO"|"SKIP", "confidence": 0.00-1.00, "reasoning": "one sentence", "reversal_risk": "low"|"medium"|"high", "suggested_bet_size_pct": 1.0-10.0, "regime_note": "trending|ranging|volatile|unclear", "stability_flag": "stable|caution|unstable"}' . "\n"
-            . 'SKIP if confidence < 0.92 or reversal_risk is "high".';
+            . "Last 3 Loss Patterns: " . json_encode($lossPatterns);
 
         if ($maxPromptTokens !== null) {
-            $user = $this->trimToTokenBudget($user, $maxPromptTokens);
+            $data = $this->trimToTokenBudget($data, $maxPromptTokens - $this->estimateTokens($jsonInstruction));
         }
+
+        $user = $data . $jsonInstruction;
 
         return ['system' => $system, 'user' => $user];
     }
@@ -124,20 +127,7 @@ class PromptBuilder
         $concurrentLimit = $maxPromptTokens !== null ? max(3, min(20, intdiv($maxPromptTokens, 350))) : count($forensics['context']['concurrent_positions'] ?? []);
         $similarLossLimit = $maxPromptTokens !== null ? max(1, min(5, intdiv($maxPromptTokens, 1800))) : count($forensics['similar_losses'] ?? []);
 
-        $user = "LOSS FORENSICS ANALYSIS\n\n"
-            . "LOSING TRADE:\n" . json_encode($forensics['trade'] ?? [], JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "TRADE LOGS:\n" . json_encode(array_slice($forensics['trade_logs'] ?? [], 0, $tradeLogLimit), JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "EXTERNAL DATA:\n" . json_encode($forensics['external_data'] ?? [], JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "CURRENT STRATEGY PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "PERFORMANCE CONTEXT:\n"
-            . "Today P&L: \${$todayPnl}\n"
-            . "7-Day P&L: \${$weekPnl} | Win Rate: {$weekWinRate}%\n"
-            . "30-Day P&L: \${$monthPnl}\n"
-            . "Total Loss Count: {$lossCount} (this is loss #{$lossCount})\n\n"
-            . "PREVIOUS AUDITS:\n" . json_encode($similarAudits, JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "CONCURRENT POSITIONS:\n" . json_encode(array_slice($forensics['context']['concurrent_positions'] ?? [], 0, $concurrentLimit), JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "SIMILAR LOSSES:\n" . json_encode(array_slice($forensics['similar_losses'] ?? [], 0, $similarLossLimit), JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "Respond in JSON ONLY:\n"
+        $jsonInstruction = "\nRespond in JSON ONLY:\n"
             . '{"root_cause_category": "string (e.g. volatility_spike, api_desync, insufficient_confidence, market_timing, bad_signal)", '
             . '"analysis": "2-3 sentence explanation of what went wrong", '
             . '"severity": "low|medium|high", '
@@ -149,9 +139,25 @@ class PromptBuilder
             . '"confidence_in_fix": 1-10, '
             . '"overall_assessment": "1 sentence summary"}';
 
+        $data = "LOSS FORENSICS ANALYSIS\n\n"
+            . "LOSING TRADE:\n" . json_encode($forensics['trade'] ?? [], JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "TRADE LOGS:\n" . json_encode(array_slice($forensics['trade_logs'] ?? [], 0, $tradeLogLimit), JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "EXTERNAL DATA:\n" . json_encode($forensics['external_data'] ?? [], JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "CURRENT STRATEGY PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "PERFORMANCE CONTEXT:\n"
+            . "Today P&L: \${$todayPnl}\n"
+            . "7-Day P&L: \${$weekPnl} | Win Rate: {$weekWinRate}%\n"
+            . "30-Day P&L: \${$monthPnl}\n"
+            . "Total Loss Count: {$lossCount} (this is loss #{$lossCount})\n\n"
+            . "PREVIOUS AUDITS:\n" . json_encode($similarAudits, JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "CONCURRENT POSITIONS:\n" . json_encode(array_slice($forensics['context']['concurrent_positions'] ?? [], 0, $concurrentLimit), JSON_UNESCAPED_SLASHES) . "\n\n"
+            . "SIMILAR LOSSES:\n" . json_encode(array_slice($forensics['similar_losses'] ?? [], 0, $similarLossLimit), JSON_UNESCAPED_SLASHES);
+
         if ($maxPromptTokens !== null) {
-            $user = $this->trimToTokenBudget($user, $maxPromptTokens);
+            $data = $this->trimToTokenBudget($data, $maxPromptTokens - $this->estimateTokens($jsonInstruction));
         }
+
+        $user = $data . $jsonInstruction;
 
         return ['system' => $system, 'user' => $user];
     }
@@ -171,7 +177,10 @@ class PromptBuilder
             . 'Assess performance, identify patterns, and suggest parameter adjustments if needed. '
             . 'Respond in JSON only.';
 
-        $user = "DAILY PERFORMANCE REVIEW\n\n"
+        $jsonInstruction = "\nRespond in JSON ONLY:\n"
+            . '{"analysis": "2-3 sentences", "suggested_param_changes": [{"param_key": "KEY", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "review_required"}], "overall_assessment": "good|acceptable|concerning|poor"}';
+
+        $data = "DAILY PERFORMANCE REVIEW\n\n"
             . "Total Trades: {$todayTrades->count()}\n"
             . "Won: {$todayWon} | Lost: {$todayLost}\n"
             . "P&L: \${$todayPnl}\n"
@@ -181,13 +190,13 @@ class PromptBuilder
                 'confidence' => $t->confidence_score, 'pnl' => $t->pnl,
                 'decision_tier' => $t->decision_tier,
             ])->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "CURRENT PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "Respond in JSON ONLY:\n"
-            . '{"analysis": "2-3 sentences", "suggested_param_changes": [{"param_key": "KEY", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "review_required"}], "overall_assessment": "good|acceptable|concerning|poor"}';
+            . "CURRENT PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES);
 
         if ($maxPromptTokens !== null) {
-            $user = $this->trimToTokenBudget($user, $maxPromptTokens);
+            $data = $this->trimToTokenBudget($data, $maxPromptTokens - $this->estimateTokens($jsonInstruction));
         }
+
+        $user = $data . $jsonInstruction;
 
         return ['system' => $system, 'user' => $user];
     }
@@ -228,20 +237,23 @@ class PromptBuilder
             . 'Provide strategic insights, identify trends, and recommend adjustments. '
             . 'Respond in JSON only.';
 
-        $user = "WEEKLY PERFORMANCE REVIEW (Last 7 Days)\n\n"
+        $jsonInstruction = "\nRespond in JSON ONLY:\n"
+            . '{"analysis": "3-5 sentences covering trends and patterns", "suggested_param_changes": [{"param_key": "KEY", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "review_required"}], "risk_assessment": "string", "forward_recommendations": "2-3 sentences", "overall_assessment": "excellent|good|acceptable|concerning|poor"}';
+
+        $data = "WEEKLY PERFORMANCE REVIEW (Last 7 Days)\n\n"
             . "Total Trades: {$weekTrades->count()}\n"
             . "Won: {$weekWon} | Lost: {$weekLost}\n"
             . "P&L: \${$weekPnl}\n"
             . "Win Rate: " . ($weekTrades->count() > 0 ? round(($weekWon / $weekTrades->count()) * 100, 1) : 0) . "%\n\n"
             . "BY ASSET:\n" . json_encode($byAsset->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
             . "AUDITS THIS WEEK:\n" . json_encode($recentAudits->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "CURRENT PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES) . "\n\n"
-            . "Respond in JSON ONLY:\n"
-            . '{"analysis": "3-5 sentences covering trends and patterns", "suggested_param_changes": [{"param_key": "KEY", "current_value": "X", "suggested_value": "Y", "reason": "why", "action": "review_required"}], "risk_assessment": "string", "forward_recommendations": "2-3 sentences", "overall_assessment": "excellent|good|acceptable|concerning|poor"}';
+            . "CURRENT PARAMS:\n" . json_encode($strategyParams->toArray(), JSON_UNESCAPED_SLASHES);
 
         if ($maxPromptTokens !== null) {
-            $user = $this->trimToTokenBudget($user, $maxPromptTokens);
+            $data = $this->trimToTokenBudget($data, $maxPromptTokens - $this->estimateTokens($jsonInstruction));
         }
+
+        $user = $data . $jsonInstruction;
 
         return ['system' => $system, 'user' => $user];
     }
