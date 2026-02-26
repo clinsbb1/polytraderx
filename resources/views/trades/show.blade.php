@@ -73,6 +73,44 @@
             <div style="font-size: 1.05rem;">{{ (string) ($trade->market_question ?? '-') }}</div>
         </div>
 
+        {{-- Amount In / Amount Out --}}
+        @php
+            $amountIn  = is_numeric($trade->amount ?? null) ? (float) $trade->amount : null;
+            $amountOut = null;
+            $amountOutLabel = 'Amount Out';
+            $amountOutColor = 'var(--text-primary)';
+
+            if ($status === 'won') {
+                $amountOut = is_numeric($trade->potential_payout ?? null) ? (float) $trade->potential_payout : $amountIn;
+                $amountOutColor = 'var(--profit)';
+            } elseif ($status === 'lost') {
+                $amountOut = 0.0;
+                $amountOutColor = 'var(--loss)';
+            } elseif (in_array($status, ['open', 'pending'])) {
+                $amountOut = is_numeric($trade->potential_payout ?? null) ? (float) $trade->potential_payout : null;
+                $amountOutLabel = 'Potential Out';
+                $amountOutColor = 'var(--text-secondary)';
+            }
+        @endphp
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 14px 18px;">
+                    <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Amount In</div>
+                    <div style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary);">
+                        {{ $amountIn !== null ? '$' . number_format($amountIn, 2) : '—' }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 14px 18px;">
+                    <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">{{ $amountOutLabel }}</div>
+                    <div style="font-size: 1.35rem; font-weight: 700; color: {{ $amountOutColor }};">
+                        {{ $amountOut !== null ? '$' . number_format($amountOut, 2) : '—' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row g-3">
             <div class="col-md-6">
                 <table class="w-100" style="font-size: 0.9rem;">
