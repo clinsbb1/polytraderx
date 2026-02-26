@@ -74,7 +74,8 @@ class AdminUserController extends Controller
     {
         $users = User::whereNotNull('pro_trial_used_at')
             ->withCount(['trades as trial_trades_count' => function ($q) {
-                $q->whereColumn('created_at', '>=', 'pro_trial_used_at');
+                $q->whereColumn('trades.created_at', '>=', 'users.pro_trial_used_at')
+                  ->whereRaw('trades.created_at <= DATE_ADD(users.pro_trial_used_at, INTERVAL 3 DAY)');
             }])
             ->latest('pro_trial_used_at')
             ->paginate(30)
@@ -85,7 +86,30 @@ class AdminUserController extends Controller
             ->where('subscription_ends_at', '>', now())
             ->count();
 
-        return view('admin.users.trials', compact('users', 'activeCount'));
+        $convertedCount = User::whereNotNull('pro_trial_used_at')
+            ->where('billing_interval', '!=', 'trial')
+            ->where(function ($q) {
+                $q->where('is_lifetime', true)
+                  ->orWhere(function ($q2) {
+                      $q2->whereIn('subscription_plan', ['pro', 'advanced', 'lifetime'])
+                         ->where('subscription_ends_at', '>', now());
+                  });
+            })
+            ->count();
+
+        $expiredCount = User::whereNotNull('pro_trial_used_at')
+            ->where(function ($q) {
+                $q->where('billing_interval', 'trial')
+                  ->where('subscription_ends_at', '<=', now());
+            })
+            ->orWhere(function ($q) {
+                $q->whereNotNull('pro_trial_used_at')
+                  ->where('is_lifetime', false)
+                  ->whereNotIn('subscription_plan', ['pro', 'advanced', 'lifetime']);
+            })
+            ->count();
+
+        return view('admin.users.trials', compact('users', 'activeCount', 'convertedCount', 'expiredCount'));
     }
 
     public function show(User $user): View

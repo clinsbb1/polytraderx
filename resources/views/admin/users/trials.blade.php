@@ -28,8 +28,14 @@
     </div>
     <div class="col-6 col-md-3">
         <div class="ptx-stat-card text-center">
+            <div class="stat-label">Converted</div>
+            <div class="stat-value" style="color: var(--info, #17a2b8);">{{ $convertedCount }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="ptx-stat-card text-center">
             <div class="stat-label">Expired</div>
-            <div class="stat-value">{{ $users->total() - $activeCount }}</div>
+            <div class="stat-value">{{ $expiredCount }}</div>
         </div>
     </div>
 </div>
