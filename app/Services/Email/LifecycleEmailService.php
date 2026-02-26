@@ -258,6 +258,111 @@ class LifecycleEmailService
         );
     }
 
+    public function sendCustomBotRequestNotification(\App\Models\CustomBotRequest $request): bool
+    {
+        return $this->sendToAddress(
+            'support@polytraderx.xyz',
+            new BrandedNotificationMail(
+                subjectLine: "New custom bot request from {$request->name}",
+                headline: 'New Custom Bot Build Request',
+                lines: [
+                    "{$request->name} has submitted a custom live bot build request.",
+                    "Strategy summary: {$request->strategy_summary}",
+                ],
+                actionText: 'View Request',
+                actionUrl: url('/admin/users/' . $request->user_id),
+                meta: [
+                    'Name' => $request->name,
+                    'Email' => $request->email,
+                    'Contact' => $request->contact ?: '-',
+                    'Markets' => $request->markets ?: '-',
+                    'Timeframe' => $request->timeframe ?: '-',
+                    'Wants AI' => $request->wants_ai ? 'Yes' : 'No',
+                    'Budget Range' => $request->budget_range ?: '-',
+                    'Timeline' => $request->timeline ?: '-',
+                ],
+            ),
+            'custom_bot_request',
+            ['user_id' => $request->user_id, 'request_id' => $request->id]
+        );
+    }
+
+    public function sendCustomBotRequestAccepted(\App\Models\CustomBotRequest $request, ?string $adminNotes = null): bool
+    {
+        $request->loadMissing('user');
+        $user = $request->user;
+
+        if (!$user) {
+            return false;
+        }
+
+        $lines = [
+            "Great news, {$user->name}! We've reviewed your custom live bot request and we'd like to move forward.",
+            "Our team will reach out shortly to discuss next steps, timeline, and project kick-off.",
+        ];
+
+        if ($adminNotes) {
+            $lines[] = "Message from our team: {$adminNotes}";
+        }
+
+        return $this->sendToUser(
+            $user,
+            new BrandedNotificationMail(
+                subjectLine: 'Your custom bot request has been accepted',
+                headline: 'Custom bot request accepted',
+                lines: $lines,
+                actionText: 'View Dashboard',
+                actionUrl: url('/dashboard'),
+                meta: [
+                    'Request Name' => $request->name,
+                    'Budget Range' => $request->budget_range ?: '-',
+                    'Timeline'     => $request->timeline ?: '-',
+                    'Status'       => 'Accepted',
+                ],
+            ),
+            'custom_bot_request_accepted',
+            ['user_id' => $user->id, 'request_id' => $request->id]
+        );
+    }
+
+    public function sendCustomBotRequestDeclined(\App\Models\CustomBotRequest $request, ?string $adminNotes = null): bool
+    {
+        $request->loadMissing('user');
+        $user = $request->user;
+
+        if (!$user) {
+            return false;
+        }
+
+        $lines = [
+            "Hi {$user->name}, thank you for submitting your custom bot build request.",
+            "After reviewing your request, we're unable to take it on at this time.",
+        ];
+
+        if ($adminNotes) {
+            $lines[] = "Reason: {$adminNotes}";
+        } else {
+            $lines[] = "Feel free to reach out at support@polytraderx.xyz if you have questions or want to discuss alternatives.";
+        }
+
+        return $this->sendToUser(
+            $user,
+            new BrandedNotificationMail(
+                subjectLine: 'Update on your custom bot request',
+                headline: 'Custom bot request update',
+                lines: $lines,
+                actionText: 'Contact Support',
+                actionUrl: 'mailto:support@polytraderx.xyz',
+                meta: [
+                    'Request Name' => $request->name,
+                    'Status'       => 'Not accepted at this time',
+                ],
+            ),
+            'custom_bot_request_declined',
+            ['user_id' => $user->id, 'request_id' => $request->id]
+        );
+    }
+
     public function sendAdminPaymentNotification(Payment $payment): bool
     {
         $payment->loadMissing('user', 'subscriptionPlan');

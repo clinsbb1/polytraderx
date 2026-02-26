@@ -75,6 +75,13 @@
             <a class="nav-link {{ request()->is('admin/announcements*') ? 'active' : '' }}" href="/admin/announcements">
                 <i class="bi bi-megaphone me-2"></i>Announcements
             </a>
+            <a class="nav-link {{ request()->is('admin/custom-bot-requests*') ? 'active' : '' }}" href="/admin/custom-bot-requests">
+                <i class="bi bi-robot me-2"></i>Custom Bot Requests
+                @php $pendingBots = \App\Models\CustomBotRequest::where('status', 'pending')->count(); @endphp
+                @if($pendingBots > 0)
+                    <span class="badge bg-warning text-dark ms-auto">{{ $pendingBots }}</span>
+                @endif
+            </a>
         </div>
         <div class="mt-auto p-3 border-top border-secondary">
             <a class="nav-link text-white-50 small" href="{{ route('settings.security') }}"><i class="bi bi-shield-check me-2"></i>Account Security</a>

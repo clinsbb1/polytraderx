@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiCostController;
+use App\Http\Controllers\CustomBotController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\CredentialController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\Admin\AdminAiCostController;
 use App\Http\Controllers\Admin\AdminAnnouncementController;
+use App\Http\Controllers\Admin\AdminCustomBotRequestController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminEmailMessageController;
 use App\Http\Controllers\Admin\AdminLogController;
@@ -309,6 +311,10 @@ Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
     Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout']);
     Route::get('/subscription/success', [SubscriptionController::class, 'success']);
     Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel']);
+
+    // Custom live bot build service (lead-gen, accessible without active subscription)
+    Route::get('/custom-bot', [CustomBotController::class, 'show'])->name('custom-bot.show');
+    Route::post('/custom-bot/request', [CustomBotController::class, 'store'])->name('custom-bot.store');
 });
 
 // Main app (auth + active subscription required)
@@ -384,6 +390,10 @@ Route::middleware(['auth', 'superadmin', 'simulation_acknowledged'])->prefix('ad
     Route::get('/announcements/{announcement}/edit', [AdminAnnouncementController::class, 'edit']);
     Route::put('/announcements/{announcement}', [AdminAnnouncementController::class, 'update']);
     Route::delete('/announcements/{announcement}', [AdminAnnouncementController::class, 'destroy']);
+
+    Route::get('/custom-bot-requests', [AdminCustomBotRequestController::class, 'index'])->name('admin.custom-bot-requests.index');
+    Route::get('/custom-bot-requests/{customBotRequest}', [AdminCustomBotRequestController::class, 'show'])->name('admin.custom-bot-requests.show');
+    Route::patch('/custom-bot-requests/{customBotRequest}/status', [AdminCustomBotRequestController::class, 'updateStatus'])->name('admin.custom-bot-requests.status');
 });
 
 require __DIR__ . '/auth.php';
