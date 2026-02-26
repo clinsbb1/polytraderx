@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\BalanceSnapshot;
 use App\Models\DailySummary;
 use App\Models\Trade;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class BalanceController extends Controller
@@ -64,6 +65,33 @@ class BalanceController extends Controller
             'weeklyStatsWithCumulative',
             'openTradeCount',
         ));
+    }
+
+    public function dailySummaries(Request $request): View
+    {
+        $userId = auth()->id();
+
+        $summaries = DailySummary::forUser($userId)
+            ->orderBy('date', 'desc')
+            ->paginate(30);
+
+        // Running totals for the currently paginated page (newest first, so reverse for cumulative)
+        $pageItems = $summaries->getCollection()->sortBy('date')->values();
+        $cumulativePnl = '0.00';
+        $pageItems = $pageItems->map(function ($day) use (&$cumulativePnl) {
+            $cumulativePnl = bcadd($cumulativePnl, (string) ($day->net_pnl ?? '0'), 2);
+            $day->cumulative_pnl = $cumulativePnl;
+            return $day;
+        })->sortByDesc('date')->values();
+
+        $summaries->setCollection($pageItems);
+
+        // Overall stats across all records
+        $allStats = DailySummary::forUser($userId)
+            ->selectRaw('COUNT(*) as days, SUM(total_trades) as trades, SUM(wins) as wins, SUM(losses) as losses, SUM(gross_pnl) as gross_pnl, SUM(ai_cost_usd) as ai_cost')
+            ->first();
+
+        return view('balance.daily-summaries', compact('summaries', 'allStats'));
     }
 
     public function reset()

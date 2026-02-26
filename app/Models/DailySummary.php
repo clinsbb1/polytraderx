@@ -24,6 +24,8 @@ class DailySummary extends Model
         'gross_pnl',
         'net_pnl',
         'ai_cost_usd',
+        'starting_balance',
+        'ending_balance',
         'best_trade_id',
         'worst_trade_id',
         'created_at',
@@ -39,6 +41,8 @@ class DailySummary extends Model
         'gross_pnl' => 'decimal:2',
         'net_pnl' => 'decimal:2',
         'ai_cost_usd' => 'decimal:4',
+        'starting_balance' => 'decimal:2',
+        'ending_balance' => 'decimal:2',
         'created_at' => 'datetime',
         'telegram_notified_at' => 'datetime',
     ];

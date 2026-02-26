@@ -50,6 +50,17 @@ class NotificationFormatter
         $pnlEmoji = $pnl >= 0 ? '🟢' : '🔴';
         $pnlFormatted = $pnl >= 0 ? '+$' . number_format($pnl, 2) : '-$' . number_format(abs($pnl), 2);
 
+        $netPnl = (float) $summary->net_pnl;
+        $netFormatted = $netPnl >= 0 ? '+$' . number_format($netPnl, 2) : '-$' . number_format(abs($netPnl), 2);
+
+        // Balance line: starting → ending (only if recorded)
+        $balanceLine = '';
+        $startBal = $summary->starting_balance !== null ? (float) $summary->starting_balance : null;
+        $endBal   = $summary->ending_balance   !== null ? (float) $summary->ending_balance   : null;
+        if ($startBal !== null && $endBal !== null) {
+            $balanceLine = "\nBalance: \${$startBal} → \${$endBal}";
+        }
+
         $bestLine = '';
         if ($summary->best_trade_id) {
             $best = $summary->bestTrade;
@@ -66,14 +77,12 @@ class NotificationFormatter
             }
         }
 
-        $netPnl = (float) $summary->net_pnl;
-        $netFormatted = $netPnl >= 0 ? '+$' . number_format($netPnl, 2) : '-$' . number_format(abs($netPnl), 2);
-
         return "📊 Daily Summary — {$summary->date->format('Y-m-d')}\n\n"
             . "Trades: {$summary->total_trades} ({$summary->wins}W / {$summary->losses}L)\n"
             . "Win Rate: {$summary->win_rate}%\n"
             . "P&L: {$pnlEmoji} {$pnlFormatted}\n"
             . "Net P&L: {$netFormatted}"
+            . $balanceLine
             . $bestLine
             . $worstLine;
     }

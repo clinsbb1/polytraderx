@@ -5,6 +5,10 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="mb-0" style="font-family: var(--font-display);">Balance & Equity</h4>
+    <div class="d-flex gap-2">
+    <a href="{{ route('balance.daily-summaries') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-calendar2-week me-1"></i> Daily Summaries
+    </a>
     @if(($openTradeCount ?? 0) > 0)
         <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Close open/pending trades first">
             <i class="bi bi-lock-fill me-1"></i> Reset Unavailable ({{ $openTradeCount }})
@@ -14,6 +18,7 @@
             <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Balance
         </button>
     @endif
+    </div>
 </div>
 
 <div class="ptx-info-card mb-4" style="background: var(--card-bg); border-left: 4px solid var(--accent);">

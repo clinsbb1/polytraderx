@@ -341,6 +341,7 @@ Route::middleware(['auth', 'simulation_acknowledged', 'subscribed'])->group(func
 
     Route::get('/balance', [BalanceController::class, 'index'])->name('balance.index');
     Route::post('/balance/reset', [BalanceController::class, 'reset'])->name('balance.reset');
+    Route::get('/balance/daily-summaries', [BalanceController::class, 'dailySummaries'])->name('balance.daily-summaries');
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('/logs/bot-activity', function () {
         return redirect()->route('logs.market-scans');

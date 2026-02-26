@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\AiDecision;
+use App\Models\BalanceSnapshot;
 use App\Models\DailySummary;
 use App\Models\Trade;
 use App\Services\Telegram\NotificationService;
@@ -25,7 +26,10 @@ class SimDailySummary extends Command
         $hasTelegramNotifiedAt = Schema::hasTable('daily_summaries')
             && Schema::hasColumn('daily_summaries', 'telegram_notified_at');
 
-        $results = $runner->runForEachUser(function ($user) use ($notifications, $hasTelegramNotifiedAt) {
+        $hasBalanceColumns = Schema::hasTable('daily_summaries')
+            && Schema::hasColumn('daily_summaries', 'starting_balance');
+
+        $results = $runner->runForEachUser(function ($user) use ($notifications, $hasTelegramNotifiedAt, $hasBalanceColumns) {
             $timezone = $this->resolveUserTimezone($user->timezone ?? null);
             $nowLocal = now()->setTimezone($timezone);
 
@@ -100,6 +104,25 @@ class SimDailySummary extends Command
             $bestTrade = $trades->whereNotNull('pnl')->sortByDesc('pnl')->first();
             $worstTrade = $trades->whereNotNull('pnl')->sortBy('pnl')->first();
 
+            // Starting balance: last snapshot at or before the day's start.
+            // Ending balance: last snapshot at or before the day's end.
+            // If a reset happened mid-day, ending_balance naturally reflects the
+            // post-reset equity, while gross_pnl only captures trade activity.
+            $startingBalance = null;
+            $endingBalance = null;
+            if ($hasBalanceColumns) {
+                $startingSnap = BalanceSnapshot::forUser($user->id)
+                    ->where('snapshot_at', '<=', $rangeStart)
+                    ->orderBy('snapshot_at', 'desc')
+                    ->first();
+                $endingSnap = BalanceSnapshot::forUser($user->id)
+                    ->where('snapshot_at', '<=', $rangeEnd)
+                    ->orderBy('snapshot_at', 'desc')
+                    ->first();
+                $startingBalance = $startingSnap ? (float) $startingSnap->total_equity : null;
+                $endingBalance   = $endingSnap   ? (float) $endingSnap->total_equity   : null;
+            }
+
             $summaryPayload = [
                 'user_id' => $user->id,
                 'date' => $summaryDate,
@@ -116,6 +139,10 @@ class SimDailySummary extends Command
             ];
             if ($hasTelegramNotifiedAt) {
                 $summaryPayload['telegram_notified_at'] = null;
+            }
+            if ($hasBalanceColumns) {
+                $summaryPayload['starting_balance'] = $startingBalance;
+                $summaryPayload['ending_balance']   = $endingBalance;
             }
 
             $summary = DailySummary::create($summaryPayload);
