@@ -70,6 +70,24 @@ class AdminUserController extends Controller
         return view('admin.users.index', compact('users', 'planOptions'));
     }
 
+    public function trials(Request $request): View
+    {
+        $users = User::whereNotNull('pro_trial_used_at')
+            ->withCount(['trades as trial_trades_count' => function ($q) {
+                $q->whereColumn('created_at', '>=', 'pro_trial_used_at');
+            }])
+            ->latest('pro_trial_used_at')
+            ->paginate(30)
+            ->withQueryString();
+
+        $activeCount = User::whereNotNull('pro_trial_used_at')
+            ->where('billing_interval', 'trial')
+            ->where('subscription_ends_at', '>', now())
+            ->count();
+
+        return view('admin.users.trials', compact('users', 'activeCount'));
+    }
+
     public function show(User $user): View
     {
         $user->load('payments');

@@ -155,7 +155,11 @@ class CheckExpiredSubscriptions extends Command
             ->get();
 
         foreach ($expiredSubscriptions as $user) {
-            $expiredKey = "subscription_expired_notified:{$user->id}:paid";
+            $isTrialExpiry = $user->billing_interval === 'trial';
+            $expiredKey = $isTrialExpiry
+                ? "subscription_expired_notified:{$user->id}:pro_trial"
+                : "subscription_expired_notified:{$user->id}:paid";
+
             if (!Cache::has($expiredKey)) {
                 $emails->sendSubscriptionExpired($user, $user->subscription_plan);
                 Cache::put($expiredKey, true, now()->addDays(30));
@@ -164,9 +168,15 @@ class CheckExpiredSubscriptions extends Command
             $subscriptionService->expire($user);
             $user->refresh();
             $settings->set('SIMULATOR_ENABLED', 'false', 'system', $user->id);
-            $notifications->notifySubscriptionExpired($user);
 
-            Log::channel('bot')->info("Subscription expired for user {$user->id} ({$user->email})");
+            if ($isTrialExpiry) {
+                $notifications->notifyTrialExpired($user);
+                Log::channel('bot')->info("Pro trial expired for user {$user->id} ({$user->email})");
+            } else {
+                $notifications->notifySubscriptionExpired($user);
+                Log::channel('bot')->info("Subscription expired for user {$user->id} ({$user->email})");
+            }
+
             if (!$user->is_active) {
                 $deactivated++;
             }

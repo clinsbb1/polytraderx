@@ -46,6 +46,7 @@ class User extends Authenticatable
         'two_factor_confirmed_at',
         'referred_by',
         'simulation_acknowledged_at',
+        'pro_trial_used_at',
     ];
 
     protected $hidden = [
@@ -72,6 +73,7 @@ class User extends Authenticatable
             'two_factor_secret' => 'encrypted',
             'two_factor_confirmed_at' => 'datetime',
             'simulation_acknowledged_at' => 'datetime',
+            'pro_trial_used_at' => 'datetime',
         ];
     }
 
@@ -180,6 +182,14 @@ class User extends Authenticatable
         }
 
         return (int) now()->diffInDays($this->trial_ends_at, false);
+    }
+
+    public function isOnProTrial(): bool
+    {
+        return $this->billing_interval === 'trial'
+            && $this->subscription_plan === 'pro'
+            && $this->subscription_ends_at !== null
+            && $this->subscription_ends_at->isFuture();
     }
 
     public function currentPlan(): ?SubscriptionPlan

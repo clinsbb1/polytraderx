@@ -309,6 +309,7 @@ Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
 Route::middleware(['auth', 'simulation_acknowledged'])->group(function () {
     Route::get('/subscription', [SubscriptionController::class, 'index'])->name('subscription');
     Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout']);
+    Route::post('/subscription/start-trial', [SubscriptionController::class, 'startTrial'])->name('subscription.start-trial');
     Route::get('/subscription/success', [SubscriptionController::class, 'success']);
     Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel']);
 
@@ -356,6 +357,7 @@ Route::middleware(['auth', 'superadmin', 'simulation_acknowledged'])->prefix('ad
     Route::get('/', [AdminDashboardController::class, 'index']);
 
     Route::get('/users', [AdminUserController::class, 'index']);
+    Route::get('/trials', [AdminUserController::class, 'trials'])->name('admin.trials');
     Route::get('/users/{user}', [AdminUserController::class, 'show']);
     Route::post('/users/{user}/toggle-active', [AdminUserController::class, 'toggleActive']);
     Route::post('/users/{user}/change-plan', [AdminUserController::class, 'changePlan']);

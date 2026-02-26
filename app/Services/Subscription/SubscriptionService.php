@@ -82,6 +82,50 @@ class SubscriptionService
         return $user->is_lifetime === true;
     }
 
+    // ──────────── Pro Trial ────────────
+
+    public function hasUsedProTrial(User $user): bool
+    {
+        return $user->pro_trial_used_at !== null;
+    }
+
+    public function isEligibleForProTrial(User $user): bool
+    {
+        if ($this->hasUsedProTrial($user)) {
+            return false;
+        }
+
+        // Not eligible if already on an active paid or trial subscription
+        if (
+            in_array($user->subscription_plan, ['pro', 'advanced', 'lifetime'])
+            && $user->subscription_ends_at
+            && $user->subscription_ends_at->isFuture()
+        ) {
+            return false;
+        }
+
+        if ($user->is_lifetime) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function startProTrial(User $user): void
+    {
+        $user->update([
+            'subscription_plan'  => 'pro',
+            'billing_interval'   => 'trial',
+            'subscription_ends_at' => now()->addDays(3),
+            'pro_trial_used_at'  => now(),
+            'is_active'          => true,
+            'is_lifetime'        => false,
+        ]);
+
+        // Flush plan cache so getUserPlan() picks up 'pro' immediately
+        Cache::forget("subscription_plan:pro");
+    }
+
     // ──────────── Feature Gates (CRITICAL) ────────────
 
     public function getMaxSignalsPerDay(User $user): int

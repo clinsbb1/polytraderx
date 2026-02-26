@@ -27,8 +27,27 @@ class SubscriptionController extends Controller
         $currentPlan = $this->subscriptionService->getUserPlan($user);
         $plans = $this->subscriptionService->getAvailablePlans();
         $freeModeEnabled = $this->subscriptionService->isFreeModeEnabled();
+        $trialEligible = $this->subscriptionService->isEligibleForProTrial($user);
+        $trialUsed = $this->subscriptionService->hasUsedProTrial($user);
 
-        return view('subscription.index', compact('user', 'currentPlan', 'plans', 'freeModeEnabled'));
+        return view('subscription.index', compact('user', 'currentPlan', 'plans', 'freeModeEnabled', 'trialEligible', 'trialUsed'));
+    }
+
+    public function startTrial(): RedirectResponse
+    {
+        $user = Auth::user();
+
+        if (!$this->subscriptionService->isEligibleForProTrial($user)) {
+            return redirect()->route('subscription.index')
+                ->with('error', 'You are not eligible for the free trial. It can only be used once per account.');
+        }
+
+        $this->subscriptionService->startProTrial($user);
+
+        Log::channel('simulator')->info('Pro trial started', ['user_id' => $user->id]);
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Your 3-day Pro trial has started. Enjoy exploring the platform!');
     }
 
     public function checkout(Request $request): RedirectResponse

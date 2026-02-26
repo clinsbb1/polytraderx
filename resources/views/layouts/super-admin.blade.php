@@ -51,6 +51,13 @@
             <a class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}" href="/admin/users">
                 <i class="bi bi-people me-2"></i>Users
             </a>
+            <a class="nav-link {{ request()->is('admin/trials*') ? 'active' : '' }}" href="/admin/trials">
+                <i class="bi bi-stars me-2"></i>Pro Trials
+                @php $activeTrials = \App\Models\User::whereNotNull('pro_trial_used_at')->where('billing_interval','trial')->where('subscription_ends_at','>',now())->count(); @endphp
+                @if($activeTrials > 0)
+                    <span class="badge bg-warning text-dark ms-auto" style="font-size: 0.7rem;">{{ $activeTrials }}</span>
+                @endif
+            </a>
             <a class="nav-link {{ request()->is('admin/payments*') ? 'active' : '' }}" href="/admin/payments">
                 <i class="bi bi-credit-card me-2"></i>Payments
             </a>

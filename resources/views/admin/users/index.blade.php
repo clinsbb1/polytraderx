@@ -97,12 +97,19 @@
                         </td>
                         <td>
                             @php
-                                $isPaid = $user->is_lifetime ||
+                                $isOnTrial = $user->billing_interval === 'trial'
+                                    && $user->subscription_ends_at
+                                    && $user->subscription_ends_at->isFuture();
+                                $isPaid = !$isOnTrial && (
+                                    $user->is_lifetime ||
                                     (in_array($user->subscription_plan, ['pro', 'advanced', 'lifetime']) &&
                                      $user->subscription_ends_at &&
-                                     $user->subscription_ends_at->isFuture());
+                                     $user->subscription_ends_at->isFuture())
+                                );
                             @endphp
-                            @if($isPaid)
+                            @if($isOnTrial)
+                                <span class="badge bg-warning text-dark">Trial</span>
+                            @elseif($isPaid)
                                 <span class="badge bg-success">Paid</span>
                             @else
                                 <span class="badge bg-secondary">Unpaid</span>

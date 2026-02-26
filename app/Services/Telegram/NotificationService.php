@@ -163,6 +163,18 @@ class NotificationService
         $this->send($user, $this->formatter->formatSubscriptionExpired($user));
     }
 
+    public function notifyTrialExpired(User $user): void
+    {
+        if (!$user->hasTelegramLinked()) {
+            return;
+        }
+
+        $message = "⏰ <b>Your 3-day Pro trial has ended.</b>\n\n"
+            . "Head to <b>Subscription</b> in your account to choose a plan and continue simulating trades.";
+
+        $this->send($user, $message);
+    }
+
     public function notifyBotPaused(string $reason, User $user): void
     {
         if (!$user->hasTelegramLinked()) {

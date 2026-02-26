@@ -12,6 +12,38 @@
     </div>
 @endif
 
+<!-- Free Trial CTA -->
+@if($trialEligible && !$user->isSubscriptionActive())
+<div class="ptx-card mb-4" style="border-color: rgba(0,240,255,0.25); background: rgba(0,240,255,0.04);">
+    <div class="ptx-card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent);">
+                    <i class="bi bi-stars me-2"></i>Try Pro Free for 3 Days
+                </div>
+                <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">
+                    Full Pro access — no payment required. One-time offer, expires automatically after 3 days.
+                </div>
+            </div>
+            <form method="POST" action="{{ route('subscription.start-trial') }}">
+                @csrf
+                <button type="submit" class="btn-ptx-success" style="white-space: nowrap;">
+                    <i class="bi bi-lightning-fill me-1"></i> Start Free Trial
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+@elseif($trialUsed && !$user->isSubscriptionActive())
+<div class="ptx-card mb-4" style="border-color: rgba(255,255,255,0.08);">
+    <div class="ptx-card-body">
+        <div style="color: var(--text-secondary); font-size: 0.9rem;">
+            <i class="bi bi-clock-history me-2"></i>Your 3-day Pro trial has ended. Subscribe to a plan below to continue.
+        </div>
+    </div>
+</div>
+@endif
+
 <!-- Current Plan -->
 @if($user->isSubscriptionActive())
 <div class="ptx-card mb-4">
@@ -21,12 +53,23 @@
     <div class="ptx-card-body">
         <div class="row">
             <div class="col-md-6">
-                <p class="mb-2"><span class="ptx-label d-inline">Plan:</span> <strong>{{ $currentPlan ? $currentPlan->name : ucfirst(str_replace('_', ' ', $user->subscription_plan ?? 'No plan')) }}</strong></p>
+                <p class="mb-2">
+                    <span class="ptx-label d-inline">Plan:</span>
+                    <strong>{{ $currentPlan ? $currentPlan->name : ucfirst(str_replace('_', ' ', $user->subscription_plan ?? 'No plan')) }}</strong>
+                    @if($user->isOnProTrial())
+                        <span class="ptx-badge ptx-badge-warning ms-1">Free Trial</span>
+                    @endif
+                </p>
                 @if($user->is_lifetime)
                     <p class="mb-0"><span class="ptx-badge ptx-badge-success">Lifetime Access</span></p>
                 @elseif($user->subscription_ends_at)
-                    <p class="mb-2"><span class="ptx-label d-inline">Renews:</span> <strong>{{ $user->subscription_ends_at->format('M j, Y') }}</strong></p>
-                    <span class="ptx-badge ptx-badge-success">Active</span>
+                    @if($user->isOnProTrial())
+                        <p class="mb-2"><span class="ptx-label d-inline">Trial Ends:</span> <strong>{{ $user->subscription_ends_at->format('M j, Y H:i') }}</strong></p>
+                        <span class="ptx-badge ptx-badge-warning">Trial Active — {{ ceil(now()->diffInHours($user->subscription_ends_at, false) / 24) }} day(s) left</span>
+                    @else
+                        <p class="mb-2"><span class="ptx-label d-inline">Renews:</span> <strong>{{ $user->subscription_ends_at->format('M j, Y') }}</strong></p>
+                        <span class="ptx-badge ptx-badge-success">Active</span>
+                    @endif
                 @endif
             </div>
             @if($currentPlan)
