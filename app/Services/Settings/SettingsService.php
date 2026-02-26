@@ -12,7 +12,7 @@ class SettingsService
 {
     private const CACHE_PREFIX = 'settings:';
     private const CACHE_TTL = 3600;
-    private const DEFAULTS_SCHEMA_VERSION = '2026-02-19';
+    private const DEFAULTS_SCHEMA_VERSION = '2026-02-26';
 
     public function get(string $key, mixed $default = null, ?int $userId = null): mixed
     {
@@ -207,6 +207,7 @@ class SettingsService
             ['key' => 'PRICE_FEED_SOURCE', 'value' => 'binance', 'type' => 'string', 'description' => 'Price source used for simulation context (default: binance)', 'group' => 'trading'],
             ['key' => 'MONITORED_ASSETS', 'value' => 'BTC,ETH,SOL,XRP', 'type' => 'string', 'description' => 'Comma-separated list of monitored assets', 'group' => 'trading'],
             ['key' => 'MARKET_DURATIONS', 'value' => '5min,15min', 'type' => 'string', 'description' => 'Which market durations to trade (5min, 15min, or both)', 'group' => 'trading'],
+            ['key' => 'SCAN_MODE', 'value' => 'reflexes', 'type' => 'string', 'description' => 'Scan engine: reflexes (System Scan) or muscles (AI Scan)', 'group' => 'trading'],
             ['key' => 'AI_AUTO_APPLY_FIXES', 'value' => 'false', 'type' => 'boolean', 'description' => 'Auto-apply low-risk AI suggestions', 'group' => 'ai'],
             ['key' => 'NOTIFY_DAILY_PNL', 'value' => 'true', 'type' => 'boolean', 'description' => 'Daily P&L summary', 'group' => 'notifications'],
             ['key' => 'NOTIFY_BALANCE_ALERTS', 'value' => 'true', 'type' => 'boolean', 'description' => 'Low balance alerts', 'group' => 'notifications'],
