@@ -235,6 +235,12 @@ class TelegramBotService
             return;
         }
 
+        $existingOwner = User::where('telegram_chat_id', $chatId)->first();
+        if ($existingOwner) {
+            $this->sendMessage($chatId, "This Telegram account is already linked to a different PolyTraderX account. Please send /unlink first to disconnect it.");
+            return;
+        }
+
         $this->linkUser($user, $chatId, $username, $firstName);
         $this->sendMessage($chatId, "Successfully linked to PolyTraderX account <b>{$user->account_id}</b>!\n\nYou will now receive simulator notifications here.\n\nCommands:\n/status - Simulator status & today's stats\n/today - Today's trades\n/balance - Current balance\n/unlink - Unlink this account\n/help - Show help");
     }
