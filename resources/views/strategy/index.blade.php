@@ -160,6 +160,7 @@
                         <li><strong>MIN_CONFIDENCE_SCORE:</strong> 0.92-0.95</li>
                         <li><strong>ENTRY_WINDOW_MIN/MAX:</strong> 5-60 seconds</li>
                         <li><strong>PRICE_FEED_SOURCE:</strong> Binance (default)</li>
+                        <li><strong>SCAN_MODE:</strong> System Scan (Reflexes) to start — switch to AI Scan once your Anthropic key is configured</li>
                         <li><strong>MARKET_DURATIONS:</strong> 5min + 15min</li>
                         <li><strong>Step 2:</strong> Set <code>SIMULATOR_ENABLED=true</code>.</li>
                     </ul>
