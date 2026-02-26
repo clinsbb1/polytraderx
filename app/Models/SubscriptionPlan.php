@@ -104,18 +104,22 @@ class SubscriptionPlan extends Model
 
     public static function isFreeModeEnabled(): bool
     {
-        if (!Schema::hasTable((new self())->getTable())) {
+        try {
+            if (!Schema::hasTable((new self())->getTable())) {
+                return false;
+            }
+
+            return (bool) Cache::remember(
+                self::FREE_MODE_CACHE_KEY,
+                3600,
+                fn () => self::query()
+                    ->where('slug', 'free')
+                    ->where('is_active', true)
+                    ->exists()
+            );
+        } catch (\Throwable) {
             return false;
         }
-
-        return (bool) Cache::remember(
-            self::FREE_MODE_CACHE_KEY,
-            3600,
-            fn () => self::query()
-                ->where('slug', 'free')
-                ->where('is_active', true)
-                ->exists()
-        );
     }
 
     public static function flushAvailabilityCache(): void
