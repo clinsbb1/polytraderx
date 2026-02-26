@@ -30,6 +30,10 @@ class AIRouter
             return null;
         }
 
+        if ($this->platformSettings->getBool('AI_ALL_PAUSED', false)) {
+            return null;
+        }
+
         $user = User::find($userId);
         if (!$user) {
             return null;
@@ -117,6 +121,10 @@ class AIRouter
             return null;
         }
 
+        if ($this->platformSettings->getBool('AI_ALL_PAUSED', false)) {
+            return ['status' => 'ai_paused', 'message' => 'AI is paused by admin. Top up credits and click "Mark AI Recharged Now" to resume.'];
+        }
+
         $user = User::find($userId);
         if (!$user) {
             return null;
@@ -152,6 +160,10 @@ class AIRouter
             return null;
         }
 
+        if ($this->platformSettings->getBool('AI_ALL_PAUSED', false)) {
+            return ['status' => 'ai_paused', 'message' => 'AI is paused by admin.'];
+        }
+
         $user = User::find($userId);
         if (!$user) {
             return null;
@@ -181,6 +193,10 @@ class AIRouter
     {
         if (!$this->anthropic->isConfigured()) {
             return null;
+        }
+
+        if ($this->platformSettings->getBool('AI_ALL_PAUSED', false)) {
+            return ['status' => 'ai_paused', 'message' => 'AI is paused by admin.'];
         }
 
         $user = User::find($userId);

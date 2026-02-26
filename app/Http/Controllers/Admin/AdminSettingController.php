@@ -102,8 +102,9 @@ class AdminSettingController extends Controller
             ->get();
         $groups = $settings->groupBy('group');
         $aiAuditRechargedAt = trim((string) $this->platformSettings->get('AI_AUDIT_RECHARGED_AT', ''));
+        $aiAllPaused = $this->platformSettings->getBool('AI_ALL_PAUSED', false);
 
-        return view('admin.settings.index', compact('groups', 'aiAuditRechargedAt'));
+        return view('admin.settings.index', compact('groups', 'aiAuditRechargedAt', 'aiAllPaused'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -141,10 +142,38 @@ class AdminSettingController extends Controller
             ]
         );
 
+        PlatformSetting::firstOrCreate(
+            ['key' => 'AI_ALL_PAUSED'],
+            [
+                'value' => 'false',
+                'type' => 'boolean',
+                'group' => 'ai',
+                'description' => 'Emergency kill switch. Pause all Brain + Muscles AI calls globally.',
+            ]
+        );
+
         $timestamp = now()->toDateTimeString();
         $this->platformSettings->set('AI_AUDIT_RECHARGED_AT', $timestamp);
+        $this->platformSettings->set('AI_ALL_PAUSED', 'false');
 
-        return back()->with('success', "AI recharge marker updated: {$timestamp}");
+        return back()->with('success', "AI resumed. Recharge marker set to {$timestamp}. Loss audits will now run for new losses.");
+    }
+
+    public function pauseAi(): RedirectResponse
+    {
+        PlatformSetting::firstOrCreate(
+            ['key' => 'AI_ALL_PAUSED'],
+            [
+                'value' => 'false',
+                'type' => 'boolean',
+                'group' => 'ai',
+                'description' => 'Emergency kill switch. Pause all Brain + Muscles AI calls globally.',
+            ]
+        );
+
+        $this->platformSettings->set('AI_ALL_PAUSED', 'true');
+
+        return back()->with('success', 'AI paused. No Brain or Muscles calls will be made until you click "Mark AI Recharged Now".');
     }
 
     public function telegramDiagnostics(): View

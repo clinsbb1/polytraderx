@@ -12,24 +12,45 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-        <div>
-            <div class="fw-semibold">AI Audit Recharge Marker</div>
-            <div class="small text-muted">
-                @if($aiAuditRechargedAt !== '')
-                    Current marker: {{ $aiAuditRechargedAt }}
-                @else
-                    Not set. Loss audits are currently skipped.
+<div class="card mb-4" style="border-width: 2px; border-color: {{ $aiAllPaused ? 'rgba(220,53,69,0.5)' : 'rgba(25,135,84,0.35)' }};">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="fw-semibold">AI Status</span>
+                    @if($aiAllPaused)
+                        <span class="badge bg-danger">Paused</span>
+                    @else
+                        <span class="badge bg-success">Running</span>
+                    @endif
+                </div>
+                <div class="small text-muted">
+                    @if($aiAllPaused)
+                        <i class="bi bi-pause-circle text-danger me-1"></i>All Brain &amp; Muscles AI calls are suspended. No credit is being spent.
+                    @elseif($aiAuditRechargedAt !== '')
+                        <i class="bi bi-check-circle text-success me-1"></i>Running. Loss audits active for trades resolved after <strong>{{ $aiAuditRechargedAt }}</strong>.
+                    @else
+                        <i class="bi bi-exclamation-triangle text-warning me-1"></i>Running but no recharge marker set — loss audits are skipped. Daily/weekly reviews still run.
+                    @endif
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                @if(!$aiAllPaused)
+                <form method="POST" action="/admin/settings/ai-pause" class="m-0">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-pause-circle me-1"></i>Pause AI
+                    </button>
+                </form>
                 @endif
+                <form method="POST" action="/admin/settings/ai-recharged-now" class="m-0">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i class="bi bi-lightning-charge me-1"></i>{{ $aiAllPaused ? 'Resume AI + Mark Recharged' : 'Mark AI Recharged Now' }}
+                    </button>
+                </form>
             </div>
         </div>
-        <form method="POST" action="/admin/settings/ai-recharged-now" class="m-0">
-            @csrf
-            <button type="submit" class="btn btn-sm btn-warning">
-                <i class="bi bi-lightning-charge me-1"></i>Mark AI Recharged Now
-            </button>
-        </form>
     </div>
 </div>
 

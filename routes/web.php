@@ -374,6 +374,7 @@ Route::middleware(['auth', 'superadmin', 'simulation_acknowledged'])->prefix('ad
     Route::get('/settings', [AdminSettingController::class, 'index']);
     Route::post('/settings', [AdminSettingController::class, 'update']);
     Route::post('/settings/ai-recharged-now', [AdminSettingController::class, 'markAiRechargedNow']);
+    Route::post('/settings/ai-pause', [AdminSettingController::class, 'pauseAi']);
     Route::get('/settings/telegram-diagnostics', [AdminSettingController::class, 'telegramDiagnostics']);
     Route::get('/settings/diagnostics', [AdminSettingController::class, 'serviceDiagnostics']);
     Route::get('/telegram/messages', [AdminTelegramMessageController::class, 'index']);
