@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Audit;
 
 use App\Models\AiAudit;
+use App\Models\User;
 use App\Services\Settings\SettingsService;
 use Illuminate\Support\Facades\Log;
 
@@ -47,6 +48,18 @@ class StrategyUpdater
                 'value' => $value,
             ]);
             return false;
+        }
+
+        // SIMULATOR_ENABLED=true requires Telegram to be linked and an active subscription.
+        if ($paramKey === 'SIMULATOR_ENABLED' && in_array($value, [true, 'true', '1', 1], true)) {
+            $user = User::find($userId);
+            if (!$user || !$user->hasTelegramLinked() || !$user->isSubscriptionActive()) {
+                Log::channel('simulator')->warning('Fix rejected: cannot enable simulator without Telegram and active subscription', [
+                    'audit_id' => $audit->id,
+                    'user_id' => $userId,
+                ]);
+                return false;
+            }
         }
 
         $this->settings->set($paramKey, $value, 'ai_audit', $userId);
