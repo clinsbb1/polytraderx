@@ -106,7 +106,7 @@ class AuditController extends Controller
 
         if (Cache::has($cooldownKey)) {
             return redirect()->route('audits.index')
-                ->with('error', 'Audit already triggered recently. Please wait 10 minutes before trying again.');
+                ->with('error', 'Audit already triggered recently. Please wait 10 minutes before trying again.'); //the time here should be given by admin [future fix: make it dynamic based on the cooldown time constant]
         }
 
         if ($user) {
